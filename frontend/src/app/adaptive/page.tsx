@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +18,15 @@ type QuizQuestion = {
 type Difficulty = "easy" | "medium" | "hard";
 
 export default function AdaptivePracticePage() {
+  return (
+    <Suspense>
+      <AdaptiveInner />
+    </Suspense>
+  );
+}
+
+function AdaptiveInner() {
+  const searchParams = useSearchParams();
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [question, setQuestion] = useState<QuizQuestion | null>(null);
@@ -24,6 +35,12 @@ export default function AdaptivePracticePage() {
   const [history, setHistory] = useState<Array<{ q: string; correct: boolean }>>([]);
   const [loading, setLoading] = useState(false);
   const [weakList, setWeakList] = useState<Array<{ topic: string; accuracy: number }>>([]);
+
+  useEffect(() => {
+    const t = searchParams.get('topic');
+    if (t) setTopic(t);
+    // do not auto-start to let user control; could auto if desired
+  }, [searchParams]);
 
   const nextQuestion = async () => {
     if (!topic.trim()) return;
