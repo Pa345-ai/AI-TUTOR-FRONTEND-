@@ -223,3 +223,14 @@ export async function* streamChat(request: ChatRequest): AsyncGenerator<string, 
     }
   }
 }
+
+export async function fetchGoals(userId: string, timeframe: 'daily'|'weekly', language: 'en'|'si'|'ta' = 'en') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, timeframe, language }),
+  });
+  if (!res.ok) throw new Error(`Goals error ${res.status}`);
+  return res.json();
+}

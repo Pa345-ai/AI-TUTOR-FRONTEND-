@@ -5,6 +5,7 @@ import { fetchProgress, fetchAchievements, type AchievementItem } from "@/lib/ap
 import { Skeleton } from "@/components/ui/skeleton";
 import { getWeakTopics } from "@/lib/mastery";
 import Link from "next/link";
+import GoalsWidget from "./GoalsWidget";
 
 export default function ProgressPage() {
   const [userId, setUserId] = useState("123");
@@ -90,6 +91,7 @@ export default function ProgressPage() {
           </ul>
         )}
       </div>
+      <GoalsWidget />
       <div>
         <h2 className="text-lg font-medium mb-2">Weak topics</h2>
         {weakTopics.length === 0 ? (
