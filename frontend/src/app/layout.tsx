@@ -33,6 +33,7 @@ export default function RootLayout({
               <nav className="flex items-center gap-4 text-sm">
                 <Link href="/chat" className="hover:underline">Chat</Link>
                 <Link href="/progress" className="hover:underline">Progress</Link>
+                <Link href="/leaderboard" className="hover:underline">Leaderboard</Link>
                 <Link href="/history" className="hover:underline">History</Link>
                 <Link href="/settings" className="hover:underline">Settings</Link>
               </nav>

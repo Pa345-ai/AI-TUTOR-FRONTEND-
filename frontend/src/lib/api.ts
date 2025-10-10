@@ -107,3 +107,18 @@ export async function fetchAchievements(): Promise<AchievementItem[]> {
   const data = (await res.json()) as { achievements?: AchievementItem[] };
   return data.achievements ?? [];
 }
+
+export interface LeaderboardItem {
+  userId: string;
+  name?: string;
+  xp: number;
+  level?: number;
+}
+
+export async function fetchLeaderboard(limit = 10): Promise<LeaderboardItem[]> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/leaderboard?limit=${limit}`);
+  if (!res.ok) throw new Error(`Leaderboard error ${res.status}`);
+  const data = (await res.json()) as { leaderboard?: LeaderboardItem[] };
+  return data.leaderboard ?? [];
+}
