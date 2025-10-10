@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { logLearningEvent } from "@/lib/api";
+import { updateLocalMastery } from "@/lib/mastery";
 
 type QuizQuestion = {
   question: string;
@@ -67,6 +68,7 @@ export default function QuizzesPage() {
       const picked = typeof pickedIndex === "number" ? q.options[pickedIndex] : undefined;
       const isCorrect = picked === q.correctAnswer;
       await logLearningEvent({ userId, subject: topic, topic: q.question, correct: isCorrect, difficulty: "medium" });
+      updateLocalMastery(userId, q.question, isCorrect);
     }
   };
 

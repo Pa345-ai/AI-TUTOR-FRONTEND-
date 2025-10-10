@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { logLearningEvent } from "@/lib/api";
+import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 
 type QuizQuestion = {
   question: string;
@@ -56,6 +57,7 @@ export default function AdaptivePracticePage() {
     });
     const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
     await logLearningEvent({ userId, subject: topic, topic: question.question, correct, difficulty });
+    updateLocalMastery(userId, question.question, correct);
   };
 
   return (
