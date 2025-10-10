@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { logLearningEvent, adaptiveNext, adaptiveGrade } from "@/lib/api";
+import { logLearningEvent, adaptiveNext, adaptiveGrade, fetchPrereqs, fetchNextTopics } from "@/lib/api";
 import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 
 type QuizQuestion = {
@@ -35,6 +35,8 @@ function AdaptiveInner() {
   const [history, setHistory] = useState<Array<{ q: string; correct: boolean }>>([]);
   const [loading, setLoading] = useState(false);
   const [weakList, setWeakList] = useState<Array<{ topic: string; accuracy: number }>>([]);
+  const [prereqs, setPrereqs] = useState<string[]>([]);
+  const [nextTopics, setNextTopics] = useState<string[]>([]);
 
   useEffect(() => {
     const t = searchParams.get('topic');
@@ -52,6 +54,18 @@ function AdaptiveInner() {
       const q = data?.question as QuizQuestion | null;
       setQuestion(q ?? null);
       setSelected(null);
+      try {
+        const subj = topic;
+        const [p, n] = await Promise.all([
+          fetchPrereqs({ userId, subject: 'math', topic: subj }),
+          fetchNextTopics({ userId, subject: 'math', topic: subj }),
+        ]);
+        setPrereqs(p.prereqs || []);
+        setNextTopics(n.next || []);
+      } catch {
+        setPrereqs([]);
+        setNextTopics([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -100,6 +114,25 @@ function AdaptiveInner() {
             ))}
           </div>
           {result && <Textarea value={result} readOnly />}
+        </div>
+      )}
+      {(prereqs.length > 0 || nextTopics.length > 0) && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Knowledge Graph (Premium)</div>
+          {prereqs.length > 0 && (
+            <div className="text-xs">
+              Prerequisites: {prereqs.map((t, i) => (
+                <a key={i} href={`/adaptive?topic=${encodeURIComponent(t)}`} className="underline mr-2">{t}</a>
+              ))}
+            </div>
+          )}
+          {nextTopics.length > 0 && (
+            <div className="text-xs">
+              Next: {nextTopics.map((t, i) => (
+                <a key={i} href={`/adaptive?topic=${encodeURIComponent(t)}`} className="underline mr-2">{t}</a>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {history.length > 0 && (

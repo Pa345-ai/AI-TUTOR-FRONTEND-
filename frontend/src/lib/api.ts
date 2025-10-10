@@ -284,3 +284,25 @@ export async function fetchGoals(userId: string, timeframe: 'daily'|'weekly', la
   if (!res.ok) throw new Error(`Goals error ${res.status}`);
   return res.json();
 }
+
+export async function fetchPrereqs(params: { userId: string; subject?: string; topic: string }) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/knowledge/prereqs`);
+  url.searchParams.set('userId', params.userId);
+  url.searchParams.set('topic', params.topic);
+  if (params.subject) url.searchParams.set('subject', params.subject);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Prereqs error ${res.status}`);
+  return res.json() as Promise<{ prereqs: string[] }>;
+}
+
+export async function fetchNextTopics(params: { userId: string; subject?: string; topic: string }) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/knowledge/next`);
+  url.searchParams.set('userId', params.userId);
+  url.searchParams.set('topic', params.topic);
+  if (params.subject) url.searchParams.set('subject', params.subject);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Next topics error ${res.status}`);
+  return res.json() as Promise<{ next: string[] }>;
+}
