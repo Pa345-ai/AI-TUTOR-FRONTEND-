@@ -26,6 +26,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [lastFailed, setLastFailed] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [userId, setUserId] = useState("123");
   const [language, setLanguage] = useState<"en" | "si" | "ta">("en");
   const [mode, setMode] = useState<"socratic" | "exam" | "friendly" | "motivational">("friendly");
@@ -111,6 +112,9 @@ export default function ChatPage() {
       }
       // finalize stream message id
       setMessages((prev) => prev.map((m) => (m.id === "stream" ? { ...m, id: crypto.randomUUID() } : m)));
+      // create a small practice suggestion
+      const short = assembled.replace(/\s+/g, ' ').slice(0, 120);
+      setSuggestion(`Practice now: ${subject || 'subject'} • ${short}`);
       setLastFailed(null);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : "Something went wrong";
@@ -276,6 +280,19 @@ export default function ChatPage() {
         </ScrollArea>
       </div>
       <div className="grid gap-2">
+        {suggestion && (
+          <div className="flex items-center justify-between border rounded-md px-3 py-2 text-xs bg-accent/40">
+            <div className="truncate mr-2">{suggestion}</div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => {
+                const focus = suggestion.split('•')[1]?.trim() || '';
+                const prompt = `Give me 3 practice problems in ${subject || 'subject'} for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}). Focus on: ${focus}`;
+                setInput(prompt);
+              }}>Practice</Button>
+              <Button variant="ghost" size="sm" onClick={() => setSuggestion(null)}>Dismiss</Button>
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Button
             variant="outline"
