@@ -32,6 +32,7 @@ export default function RootLayout({
               <Link href="/" className="font-semibold">AI Tutor</Link>
               <nav className="flex items-center gap-4 text-sm">
                 <Link href="/chat" className="hover:underline">Chat</Link>
+                <Link href="/progress" className="hover:underline">Progress</Link>
                 <Link href="/history" className="hover:underline">History</Link>
                 <Link href="/settings" className="hover:underline">Settings</Link>
               </nav>
