@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat, fetchChatHistory } from "@/lib/api";
+import { chat, fetchChatHistory, streamChat } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -98,13 +98,18 @@ export default function ChatPage() {
     setInput("");
     setIsSending(true);
     try {
-      const res = await chat({ userId, message: trimmed, language, mode, level, subject: subject || undefined, grade: grade || undefined, curriculum });
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: res.reply,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      // streaming path
+      let assembled = "";
+      for await (const chunk of streamChat({ userId, message: trimmed, language, mode, level })) {
+        assembled += chunk;
+        const partial: Message = { id: "stream", role: "assistant", content: assembled };
+        setMessages((prev) => {
+          const withoutStream = prev.filter((m) => m.id !== "stream");
+          return [...withoutStream, partial];
+        });
+      }
+      // finalize stream message id
+      setMessages((prev) => prev.map((m) => (m.id === "stream" ? { ...m, id: crypto.randomUUID() } : m)));
       setLastFailed(null);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : "Something went wrong";

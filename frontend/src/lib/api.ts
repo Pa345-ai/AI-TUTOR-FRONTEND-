@@ -191,3 +191,35 @@ export async function fetchMastery(userId: string): Promise<Record<string, { cor
   const data = await res.json();
   return data.mastery ?? {};
 }
+
+export async function* streamChat(request: ChatRequest): AsyncGenerator<string, void, unknown> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: request.userId,
+      content: request.message,
+      language: request.language ?? 'en',
+      mode: request.mode,
+      level: request.level,
+    }),
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`Chat stream error ${res.status}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split(/\n\n/)) {
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (!data) continue;
+      if (data === '[DONE]') return;
+      yield data;
+    }
+  }
+}
