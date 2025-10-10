@@ -260,7 +260,16 @@ export default function ChatPage() {
               <div className="text-sm text-muted-foreground">Say hello to your AI Tutor.</div>
             ) : (
               messages.map((m) => (
-                <MessageBubble key={m.id} role={m.role} content={m.content} />
+                <MessageBubble
+                  key={m.id}
+                  role={m.role}
+                  content={m.content}
+                  onPractice={(topic) => {
+                    const short = topic.replace(/\s+/g, ' ').slice(0, 120);
+                    const prompt = `Give me 3 practice problems in ${subject || 'subject'} for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}). Focus on: ${short}`;
+                    setInput(prompt);
+                  }}
+                />
               ))
             )}
           </div>
@@ -415,7 +424,7 @@ function Whiteboard() {
   );
 }
 
-function MessageBubble({ role, content }: { role: Role; content: string }) {
+function MessageBubble({ role, content, onPractice }: { role: Role; content: string; onPractice?: (topic: string) => void }) {
   const isUser = role === "user";
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
@@ -433,6 +442,11 @@ function MessageBubble({ role, content }: { role: Role; content: string }) {
         {!isUser && (
           <div className="mt-2 flex gap-2">
             <InlineRephraseButtons text={content} />
+            {onPractice && (
+              <Button variant="outline" size="sm" onClick={() => onPractice(content)}>
+                Practice this
+              </Button>
+            )}
           </div>
         )}
       </div>
