@@ -267,6 +267,32 @@ export default function ChatPage() {
         </ScrollArea>
       </div>
       <div className="grid gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const p = `Ask me a ${subject || 'subject'} question appropriate for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}) and wait for my answer. Then give feedback.`;
+              setInput(p);
+            }}
+          >Ask me a question</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const p = `Give me 3 practice problems in ${subject || 'subject'} for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}). Ask one at a time and wait for my answer before revealing the solution.`;
+              setInput(p);
+            }}
+          >Practice x3</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const p = `Quiz me with one multiple-choice question in ${subject || 'subject'} for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}). Wait for my answer, then explain.`;
+              setInput(p);
+            }}
+          >Quick quiz</Button>
+        </div>
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
