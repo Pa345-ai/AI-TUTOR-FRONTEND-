@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview, fetchGoals } from "@/lib/api";
+import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview, fetchGoals, getSavedGoals, updateGoalsProgress } from "@/lib/api";
 import Link from "next/link";
 import { computeAccuracy, getProficiencyTier } from "@/lib/mastery";
 
@@ -55,31 +55,32 @@ export default function MasteryMapPage() {
   }, [paths]);
 
   // Goals persistence (local only for now)
-  const goalsKey = useMemo(() => `goalsProgress:${userId}:${goalsTimeframe}`, [userId, goalsTimeframe]);
   const [goalsProgress, setGoalsProgress] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(goalsKey);
-      if (raw) setGoalsProgress(JSON.parse(raw));
-      else setGoalsProgress({});
-    } catch {
-      setGoalsProgress({});
-    }
-  }, [goalsKey]);
+    let mounted = true;
+    (async () => {
+      try {
+        const saved = await getSavedGoals(userId, goalsTimeframe);
+        if (!mounted) return;
+        setGoals(saved.goals || []);
+        setGoalsProgress(saved.progress || {});
+      } catch {
+        // ignore if none saved yet
+      }
+    })();
+    return () => { mounted = false; };
+  }, [userId, goalsTimeframe]);
 
-  const saveGoalsProgress = (next: Record<string, boolean>) => {
-    setGoalsProgress(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(goalsKey, JSON.stringify(next));
-    }
-  };
-
-  const toggleStep = (gi: number, si: number) => {
+  const toggleStep = async (gi: number, si: number) => {
     const key = `${gi}:${si}`;
     const next = { ...goalsProgress, [key]: !goalsProgress[key] };
-    saveGoalsProgress(next);
+    setGoalsProgress(next);
+    try {
+      await updateGoalsProgress(userId, goalsTimeframe, next);
+    } catch {
+      // ignore
+    }
   };
 
   const completedCount = (gi: number) => goals[gi]?.steps?.reduce((acc, _s, si) => acc + (goalsProgress[`${gi}:${si}`] ? 1 : 0), 0);
@@ -94,6 +95,9 @@ export default function MasteryMapPage() {
       const root = (res as { goals?: Goal[] })?.goals ?? (res as Goal[]);
       const items: Goal[] = Array.isArray(root) ? root : [];
       setGoals(items.filter(g => g && typeof g.title === 'string' && Array.isArray(g.steps)));
+      // Reset local progress after regeneration
+      setGoalsProgress({});
+      await updateGoalsProgress(userId, goalsTimeframe, {});
     } catch (e) {
       setGoalsError(e instanceof Error ? e.message : String(e));
     } finally {

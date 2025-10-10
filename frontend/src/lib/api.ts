@@ -285,6 +285,24 @@ export async function fetchGoals(userId: string, timeframe: 'daily'|'weekly', la
   return res.json();
 }
 
+export async function getSavedGoals(userId: string, timeframe: 'daily'|'weekly') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/goals/${encodeURIComponent(userId)}?timeframe=${timeframe}`);
+  if (!res.ok) throw new Error(`Get goals error ${res.status}`);
+  return res.json() as Promise<{ goals: Array<{ title: string; steps: string[]; focusTopic?: string }>; progress: Record<string, boolean> }>;
+}
+
+export async function updateGoalsProgress(userId: string, timeframe: 'daily'|'weekly', progress: Record<string, boolean>) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/goals/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ timeframe, progress }),
+  });
+  if (!res.ok) throw new Error(`Update goals error ${res.status}`);
+  return res.json() as Promise<{ goals: Array<{ title: string; steps: string[]; focusTopic?: string }>; progress: Record<string, boolean> }>;
+}
+
 export async function fetchPrereqs(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/prereqs`);
