@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchProgress, fetchAchievements, type AchievementItem } from "@/lib/api";
+import { fetchProgress, fetchAchievements, fetchMastery, type AchievementItem } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getWeakTopics } from "@/lib/mastery";
 import Link from "next/link";
@@ -21,6 +21,7 @@ export default function ProgressPage() {
   } | null>(null);
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
   const [weakTopics, setWeakTopics] = useState<Array<{ topic: string; accuracy: number }>>([]);
+  const [masteryMap, setMasteryMap] = useState<Record<string, { correct: number; attempts: number }>>({});
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -35,13 +36,15 @@ export default function ProgressPage() {
       try {
         setLoading(true);
         setError(null);
-        const [p, a] = await Promise.all([
+        const [p, a, m] = await Promise.all([
           fetchProgress(userId),
           fetchAchievements(),
+          fetchMastery(userId),
         ]);
         if (!mounted) return;
         setProgress(p);
         setAchievements(a);
+        setMasteryMap(m);
         const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
         setWeakTopics(weak);
       } catch (e) {
@@ -92,6 +95,7 @@ export default function ProgressPage() {
         )}
       </div>
       <GoalsWidget />
+      <TodayQueue masteryMap={masteryMap} />
       <div>
         <h2 className="text-lg font-medium mb-2">Weak topics</h2>
         {weakTopics.length === 0 ? (
@@ -118,6 +122,29 @@ function Stat({ label, value }: { label: string; value: number | string }) {
     <div className="border rounded-md p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function TodayQueue({ masteryMap }: { masteryMap: Record<string, { correct: number; attempts: number }> }) {
+  const items = Object.entries(masteryMap)
+    .map(([topic, s]) => ({ topic, acc: (s.correct || 0) / Math.max(1, s.attempts || 1) }))
+    .sort((a, b) => a.acc - b.acc)
+    .slice(0, 5);
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <h2 className="text-lg font-medium mb-2">Today&apos;s practice</h2>
+      <ul className="space-y-2">
+        {items.map((it) => (
+          <li key={it.topic} className="flex items-center justify-between border rounded-md p-3">
+            <div className="text-sm">{it.topic} — {(it.acc * 100).toFixed(0)}%</div>
+            <Link href={`/adaptive?topic=${encodeURIComponent(it.topic)}`} className="text-sm underline">
+              Practice now
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
