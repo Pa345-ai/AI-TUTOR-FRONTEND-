@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview } from "@/lib/api";
+import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview, fetchGoals } from "@/lib/api";
 import Link from "next/link";
 import { computeAccuracy, getProficiencyTier } from "@/lib/mastery";
 
@@ -12,6 +12,10 @@ export default function MasteryMapPage() {
   const [error, setError] = useState<string | null>(null);
   const [mastery, setMastery] = useState<Record<string, { correct: number; attempts: number }>>({});
   const [due, setDue] = useState<DueTopicReview[]>([]);
+  const [goalsTimeframe, setGoalsTimeframe] = useState<"daily" | "weekly">("daily");
+  const [goals, setGoals] = useState<Array<{ title: string; steps: string[]; focusTopic?: string }>>([]);
+  const [goalsLoading, setGoalsLoading] = useState(false);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -50,9 +54,113 @@ export default function MasteryMapPage() {
     return paths.flatMap((p) => [p.currentTopic, ...(p.completedTopics ?? [])]).filter(Boolean) as string[];
   }, [paths]);
 
+  // Goals persistence (local only for now)
+  const goalsKey = useMemo(() => `goalsProgress:${userId}:${goalsTimeframe}`, [userId, goalsTimeframe]);
+  const [goalsProgress, setGoalsProgress] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(goalsKey);
+      if (raw) setGoalsProgress(JSON.parse(raw));
+      else setGoalsProgress({});
+    } catch {
+      setGoalsProgress({});
+    }
+  }, [goalsKey]);
+
+  const saveGoalsProgress = (next: Record<string, boolean>) => {
+    setGoalsProgress(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(goalsKey, JSON.stringify(next));
+    }
+  };
+
+  const toggleStep = (gi: number, si: number) => {
+    const key = `${gi}:${si}`;
+    const next = { ...goalsProgress, [key]: !goalsProgress[key] };
+    saveGoalsProgress(next);
+  };
+
+  const completedCount = (gi: number) => goals[gi]?.steps?.reduce((acc, _s, si) => acc + (goalsProgress[`${gi}:${si}`] ? 1 : 0), 0);
+
+  const loadGoals = async () => {
+    try {
+      setGoalsLoading(true);
+      setGoalsError(null);
+      const language = (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) as "en" | "si" | "ta" | null;
+      const res = await fetchGoals(userId, goalsTimeframe, language ?? "en");
+      type Goal = { title: string; steps: string[]; focusTopic?: string };
+      const root = (res as { goals?: Goal[] })?.goals ?? (res as Goal[]);
+      const items: Goal[] = Array.isArray(root) ? root : [];
+      setGoals(items.filter(g => g && typeof g.title === 'string' && Array.isArray(g.steps)));
+    } catch (e) {
+      setGoalsError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGoalsLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Mastery Map</h1>
+      {/* Goals Panel */}
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-medium">Your {goalsTimeframe === 'daily' ? 'Daily' : 'Weekly'} Goals</div>
+          <div className="flex items-center gap-2">
+            <select
+              className="h-8 px-2 border rounded-md text-xs"
+              value={goalsTimeframe}
+              onChange={(e) => setGoalsTimeframe((e.target.value === 'weekly' ? 'weekly' : 'daily'))}
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+            <button
+              onClick={() => void loadGoals()}
+              className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs"
+              disabled={goalsLoading}
+            >
+              {goalsLoading ? 'Generating…' : 'Generate'}
+            </button>
+          </div>
+        </div>
+        {goalsError && <div className="text-xs text-red-600">{goalsError}</div>}
+        {goals.length === 0 && !goalsLoading && (
+          <div className="text-xs text-muted-foreground">No goals yet. Click Generate to create your {goalsTimeframe} plan.</div>
+        )}
+        <div className="grid gap-2">
+          {goals.map((g, gi) => (
+            <div key={gi} className="border rounded-md p-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium">{g.title}</div>
+                <div className="text-xs text-muted-foreground">
+                  {completedCount(gi)}/{g.steps.length} done
+                </div>
+              </div>
+              {g.focusTopic && (
+                <div className="text-xs mt-1">
+                  Focus: <a href={`/adaptive?topic=${encodeURIComponent(g.focusTopic)}`} className="underline">{g.focusTopic}</a>
+                </div>
+              )}
+              <ul className="mt-2 space-y-1">
+                {g.steps.map((s, si) => (
+                  <li key={si} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={!!goalsProgress[`${gi}:${si}`]}
+                      onChange={() => toggleStep(gi, si)}
+                    />
+                    <span className={goalsProgress[`${gi}:${si}`] ? 'line-through text-muted-foreground' : ''}>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
       {due.length > 0 && (
         <div className="border rounded-md p-3">
           <div className="text-sm font-medium mb-1">Today’s practice</div>
