@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 
 export default function LessonsPage() {
   const [topic, setTopic] = useState("");
+  const [subject, setSubject] = useState("");
+  const [grade, setGrade] = useState("");
+  const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
   const [plan, setPlan] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -15,10 +18,10 @@ export default function LessonsPage() {
     setLoading(true);
     try {
       const base = process.env.NEXT_PUBLIC_BASE_URL!;
-      const res = await fetch(`${base}/lessons/plan`, {
+      const res = await fetch(`${base}/api/lessons/plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic: `${subject ? subject + ": " : ""}${topic}`, grade, language: (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en" }),
       });
       const data = await res.json();
       setPlan(typeof data.plan === "string" ? data.plan : JSON.stringify(data, null, 2));
@@ -32,6 +35,18 @@ export default function LessonsPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Lesson Planner</h1>
+      <div className="grid sm:grid-cols-3 gap-2">
+        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (e.g., Math)" />
+        <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="Grade (e.g., 8)" />
+        <div className="flex items-center gap-2 text-sm">
+          {(["lk","international"] as const).map((c) => (
+            <label key={c} className="flex items-center gap-2">
+              <input type="radio" name="curr" checked={curriculum===c} onChange={() => setCurriculum(c)} />
+              <span>{c === "lk" ? "Sri Lanka" : "International"}</span>
+            </label>
+          ))}
+        </div>
+      </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Topic</label>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Introduction to Calculus" />

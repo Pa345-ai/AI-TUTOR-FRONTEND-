@@ -13,6 +13,9 @@ type QuizQuestion = {
 
 export default function QuizzesPage() {
   const [topic, setTopic] = useState("");
+  const [subject, setSubject] = useState("");
+  const [grade, setGrade] = useState("");
+  const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [selected, setSelected] = useState<Record<number, number>>({});
   const [result, setResult] = useState<string>("");
@@ -26,7 +29,7 @@ export default function QuizzesPage() {
       const res = await fetch(`${base}/api/quizzes/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, difficulty: "medium", count: 5, language: "en" }),
+        body: JSON.stringify({ topic: `${subject ? subject + ": " : ""}${topic}`, difficulty: "medium", count: 5, language: (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en" }),
       });
       const data = await res.json();
       // Expect shape: { questions: [...] } where each has question, options, correctAnswer
@@ -51,6 +54,18 @@ export default function QuizzesPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Quiz Generator</h1>
+      <div className="grid sm:grid-cols-3 gap-2">
+        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (e.g., Math)" />
+        <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="Grade (e.g., 8)" />
+        <div className="flex items-center gap-2 text-sm">
+          {(["lk","international"] as const).map((c) => (
+            <label key={c} className="flex items-center gap-2">
+              <input type="radio" name="curr-quiz" checked={curriculum===c} onChange={() => setCurriculum(c)} />
+              <span>{c === "lk" ? "Sri Lanka" : "International"}</span>
+            </label>
+          ))}
+        </div>
+      </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Topic</label>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Photosynthesis" />
