@@ -184,6 +184,28 @@ export async function logLearningEvent(params: { userId: string; subject?: strin
   return res.json();
 }
 
+export async function adaptiveNext(params: { userId: string; subject?: string; topic?: string; language?: 'en'|'si'|'ta' }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/adaptive/next`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`Adaptive next error ${res.status}`);
+  return res.json();
+}
+
+export async function adaptiveGrade(params: { userId: string; topic: string; correct: boolean; difficulty?: 'easy'|'medium'|'hard'; subject?: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/adaptive/grade`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`Adaptive grade error ${res.status}`);
+  return res.json();
+}
+
 export async function fetchMastery(userId: string): Promise<Record<string, { correct: number; attempts: number }>> {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/learning/mastery/${encodeURIComponent(userId)}`);

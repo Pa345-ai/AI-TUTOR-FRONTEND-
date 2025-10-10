@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { logLearningEvent } from "@/lib/api";
+import { logLearningEvent, adaptiveNext, adaptiveGrade } from "@/lib/api";
 import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 
 type QuizQuestion = {
@@ -47,15 +47,10 @@ function AdaptiveInner() {
     setLoading(true);
     setResult("");
     try {
-      const base = process.env.NEXT_PUBLIC_BASE_URL!;
-      const res = await fetch(`${base}/api/quizzes/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, difficulty, count: 1, language: "en" }),
-      });
-      const data = await res.json();
-      const items = (data.questions?.questions ?? data.questions ?? []) as QuizQuestion[];
-      setQuestion(items[0] ?? null);
+      const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+      const data = await adaptiveNext({ userId, topic });
+      const q = data?.question as QuizQuestion | null;
+      setQuestion(q ?? null);
       setSelected(null);
     } finally {
       setLoading(false);
@@ -74,6 +69,7 @@ function AdaptiveInner() {
       return prev === "medium" ? "easy" : prev === "hard" ? "medium" : "easy";
     });
     const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+    await adaptiveGrade({ userId, topic: question.question, correct, difficulty });
     await logLearningEvent({ userId, subject: topic, topic: question.question, correct, difficulty });
     updateLocalMastery(userId, question.question, correct);
     const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
