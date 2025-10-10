@@ -1,0 +1,78 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { fetchLearningPaths, type LearningPathItem } from "@/lib/api";
+
+export default function MasteryMapPage() {
+  const [userId, setUserId] = useState("123");
+  const [paths, setPaths] = useState<LearningPathItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("userId");
+      if (stored) setUserId(stored);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchLearningPaths(userId);
+        if (!mounted) return;
+        setPaths(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
+
+  const topics = useMemo(() => {
+    return paths.flatMap((p) => [p.currentTopic, ...(p.completedTopics ?? [])]).filter(Boolean) as string[];
+  }, [paths]);
+
+  return (
+    <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
+      <h1 className="text-xl font-semibold">Mastery Map</h1>
+      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="grid sm:grid-cols-3 gap-3">
+        {paths.map((p) => (
+          <div key={p.id} className="border rounded-md p-3">
+            <div className="font-medium">{p.subject}</div>
+            <div className="text-xs text-muted-foreground">Current</div>
+            <div className="text-sm mb-2">{p.currentTopic}</div>
+            <div className="text-xs text-muted-foreground">Completed</div>
+            <ul className="text-sm list-disc list-inside">
+              {(p.completedTopics ?? []).map((t, i) => (
+                <li key={i}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      {paths.length === 0 && !loading && (
+        <div className="text-sm text-muted-foreground">No learning paths. Start chatting or generating lessons to build your path.</div>
+      )}
+      {topics.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium">All Topics</div>
+          <div className="flex flex-wrap gap-2">
+            {topics.map((t, i) => (
+              <span key={i} className="px-2 py-1 text-xs border rounded-md">{t}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

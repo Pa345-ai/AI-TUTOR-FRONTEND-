@@ -37,6 +37,7 @@ export default function RootLayout({
                 <Link href="/learning-paths" className="hover:underline">Learning Paths</Link>
                 <Link href="/adaptive" className="hover:underline">Adaptive</Link>
                 <Link href="/summarizer" className="hover:underline">Summarizer</Link>
+                <Link href="/mastery" className="hover:underline">Mastery</Link>
                 <Link href="/study-room" className="hover:underline">Study Room</Link>
                 <Link href="/leaderboard" className="hover:underline">Leaderboard</Link>
                 <Link href="/history" className="hover:underline">History</Link>
