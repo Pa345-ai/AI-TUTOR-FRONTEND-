@@ -56,6 +56,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Settings</h1>
+      <AuthPanel onLogin={(u) => setUserId(u)} />
       <div className="space-y-2">
         <label className="text-sm font-medium">User ID</label>
         <Input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="Enter user id" />
@@ -143,6 +144,76 @@ export default function SettingsPage() {
         </label>
       </div>
       <Button onClick={save}>Save</Button>
+    </div>
+  );
+}
+
+function AuthPanel({ onLogin }: { onLogin: (userId: string) => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<string>("");
+
+  const base = process.env.NEXT_PUBLIC_BASE_URL!;
+
+  const login = async () => {
+    setStatus("Logging in...");
+    try {
+      const res = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      const uid = data.user?.id || data.user?.userId || '';
+      if (uid) {
+        if (typeof window !== 'undefined') window.localStorage.setItem('userId', uid);
+        onLogin(uid);
+      }
+      setStatus('Logged in');
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const register = async () => {
+    setStatus("Registering...");
+    try {
+      const res = await fetch(`${base}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, name: email.split('@')[0] || 'Student' }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Register failed');
+      setStatus('Registered. Now login.');
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const me = async () => {
+    setStatus('Fetching session...');
+    try {
+      const res = await fetch(`${base}/api/auth/me`);
+      const data = await res.json();
+      setStatus(data.user ? `Logged in as ${data.user.email || data.user.id}` : 'Not logged in');
+    } catch {
+      setStatus('Not logged in');
+    }
+  };
+
+  const logout = async () => {
+    await fetch(`${base}/api/auth/logout`, { method: 'POST' });
+    setStatus('Logged out');
+  };
+
+  return (
+    <div className="border rounded-md p-3 space-y-2">
+      <div className="text-sm font-medium">Session</div>
+      <div className="grid sm:grid-cols-2 gap-2">
+        <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={login}>Login</Button>
+        <Button size="sm" variant="outline" onClick={register}>Register</Button>
+        <Button size="sm" variant="outline" onClick={me}>Me</Button>
+        <Button size="sm" variant="outline" onClick={logout}>Logout</Button>
+      </div>
+      {status && <div className="text-xs text-muted-foreground">{status}</div>}
     </div>
   );
 }
