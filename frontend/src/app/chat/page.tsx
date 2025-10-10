@@ -282,8 +282,40 @@ function MessageBubble({ role, content }: { role: Role; content: string }) {
         )}
       >
         {content}
+        {!isUser && (
+          <div className="mt-2 flex gap-2">
+            <InlineRephraseButtons text={content} />
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function InlineRephraseButtons({ text }: { text: string }) {
+  const [busy, setBusy] = useState<false | "eli5" | "expert">(false);
+  const doRephrase = async (mode: "eli5" | "expert") => {
+    if (!text.trim()) return;
+    setBusy(mode);
+    try {
+      const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+      const language = (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en";
+      const level = mode;
+      const res = await chat({ userId, message: `Rephrase this ${mode.toUpperCase()}:\n\n${text}`, language: language as "en"|"si"|"ta", level: level as "eli5"|"normal"|"expert" });
+      if (navigator.clipboard) await navigator.clipboard.writeText(res.reply);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => void doRephrase("eli5")} disabled={!!busy}>
+        {busy === "eli5" ? "…" : "ELI5"}
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => void doRephrase("expert")} disabled={!!busy}>
+        {busy === "expert" ? "…" : "Expert"}
+      </Button>
+    </>
   );
 }
 
