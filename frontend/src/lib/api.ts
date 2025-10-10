@@ -150,3 +150,19 @@ export async function generateFlashcards(params: { userId: string; content: stri
   const data = await res.json();
   return data;
 }
+
+export interface LearningPathItem {
+  id: string;
+  subject: string;
+  currentTopic: string;
+  completedTopics?: string[];
+  recommendedResources?: Array<{ title: string; url: string; type: string }>;
+}
+
+export async function fetchLearningPaths(userId: string): Promise<LearningPathItem[]> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/learning-paths/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Learning paths error ${res.status}`);
+  const data = (await res.json()) as { paths?: LearningPathItem[] };
+  return data.paths ?? [];
+}

@@ -34,6 +34,7 @@ export default function RootLayout({
                 <Link href="/chat" className="hover:underline">Chat</Link>
                 <Link href="/progress" className="hover:underline">Progress</Link>
                 <Link href="/flashcards" className="hover:underline">Flashcards</Link>
+                <Link href="/learning-paths" className="hover:underline">Learning Paths</Link>
                 <Link href="/leaderboard" className="hover:underline">Leaderboard</Link>
                 <Link href="/history" className="hover:underline">History</Link>
                 <Link href="/settings" className="hover:underline">Settings</Link>
