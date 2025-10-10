@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 
 type QuizQuestion = {
   question: string;
-  choices: string[];
-  answer: number;
+  options: string[];
+  correctAnswer: string; // backend returns text, we'll compare by text
 };
 
 export default function QuizzesPage() {
@@ -23,13 +23,15 @@ export default function QuizzesPage() {
     setLoading(true);
     try {
       const base = process.env.NEXT_PUBLIC_BASE_URL!;
-      const res = await fetch(`${base}/quizzes/generate`, {
+      const res = await fetch(`${base}/api/quizzes/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, difficulty: "medium", count: 5, language: "en" }),
       });
       const data = await res.json();
-      setQuestions(data.questions as QuizQuestion[]);
+      // Expect shape: { questions: [...] } where each has question, options, correctAnswer
+      const items = (data.questions?.questions ?? data.questions ?? []) as QuizQuestion[];
+      setQuestions(items);
     } catch (e) {
       setResult(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -38,7 +40,11 @@ export default function QuizzesPage() {
   };
 
   const submit = () => {
-    const correct = questions.reduce((acc, q, idx) => acc + (selected[idx] === q.answer ? 1 : 0), 0);
+    const correct = questions.reduce((acc, q, idx) => {
+      const pickedIndex = selected[idx];
+      const picked = typeof pickedIndex === "number" ? q.options[pickedIndex] : undefined;
+      return acc + (picked && picked === q.correctAnswer ? 1 : 0);
+    }, 0);
     setResult(`Score: ${correct} / ${questions.length}`);
   };
 
@@ -56,7 +62,7 @@ export default function QuizzesPage() {
             <div key={i} className="border rounded-md p-3">
               <div className="font-medium mb-2">Q{i + 1}. {q.question}</div>
               <div className="space-y-2">
-                {q.choices.map((c, j) => (
+                {q.options.map((c, j) => (
                   <label key={j} className="flex items-center gap-2 text-sm">
                     <input type="radio" name={`q-${i}`} checked={selected[i] === j} onChange={() => setSelected({ ...selected, [i]: j })} />
                     <span>{c}</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat } from "@/lib/api";
+import { chat, fetchChatHistory } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -49,6 +49,18 @@ export default function ChatPage() {
       const storedUserId = window.localStorage.getItem("userId");
       if (storedUserId) setUserId(storedUserId);
     }
+    // Also try to load server history if we have a userId (defaults to "123")
+    const uid = typeof window !== "undefined" ? window.localStorage.getItem("userId") || "123" : "123";
+    fetchChatHistory(uid)
+      .then((msgs) => {
+        if (msgs.length > 0) {
+          const loaded = msgs.map((m) => ({ id: crypto.randomUUID(), role: m.role, content: m.content }));
+          setMessages(loaded);
+        }
+      })
+      .catch(() => {
+        // ignore history fetch errors
+      });
   }, []);
 
   const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
