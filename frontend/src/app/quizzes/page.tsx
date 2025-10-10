@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { logLearningEvent } from "@/lib/api";
 
 type QuizQuestion = {
   question: string;
@@ -52,13 +53,21 @@ export default function QuizzesPage() {
     }
   };
 
-  const submit = () => {
+  const submit = async () => {
     const correct = questions.reduce((acc, q, idx) => {
       const pickedIndex = selected[idx];
       const picked = typeof pickedIndex === "number" ? q.options[pickedIndex] : undefined;
       return acc + (picked && picked === q.correctAnswer ? 1 : 0);
     }, 0);
     setResult(`Score: ${correct} / ${questions.length}`);
+    const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const pickedIndex = selected[i];
+      const picked = typeof pickedIndex === "number" ? q.options[pickedIndex] : undefined;
+      const isCorrect = picked === q.correctAnswer;
+      await logLearningEvent({ userId, subject: topic, topic: q.question, correct: isCorrect, difficulty: "medium" });
+    }
   };
 
   return (

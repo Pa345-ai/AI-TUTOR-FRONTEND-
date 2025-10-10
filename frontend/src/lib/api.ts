@@ -172,3 +172,14 @@ export async function fetchLearningPaths(userId: string): Promise<LearningPathIt
   const data = (await res.json()) as { paths?: LearningPathItem[] };
   return data.paths ?? [];
 }
+
+export async function logLearningEvent(params: { userId: string; subject?: string; topic: string; correct: boolean; difficulty?: 'easy'|'medium'|'hard' }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/learning/log`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`Learning log error ${res.status}`);
+  return res.json();
+}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { logLearningEvent } from "@/lib/api";
 
 type QuizQuestion = {
   question: string;
@@ -42,7 +43,7 @@ export default function AdaptivePracticePage() {
     }
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!question || selected == null) return;
     const picked = question.options[selected];
     const correct = picked === question.correctAnswer;
@@ -53,6 +54,8 @@ export default function AdaptivePracticePage() {
       if (correct) return prev === "medium" ? "hard" : prev === "easy" ? "medium" : "hard";
       return prev === "medium" ? "easy" : prev === "hard" ? "medium" : "easy";
     });
+    const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+    await logLearningEvent({ userId, subject: topic, topic: question.question, correct, difficulty });
   };
 
   return (
