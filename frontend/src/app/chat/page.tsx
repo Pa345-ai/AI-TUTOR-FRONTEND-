@@ -140,7 +140,53 @@ export default function ChatPage() {
   return (
     <div className="mx-auto max-w-3xl w-full flex flex-col h-[calc(100svh-4rem)] gap-2 py-4 px-3 sm:px-4">
       <h1 className="text-xl font-semibold">AI Tutor Chat</h1>
-      <div className="text-xs text-muted-foreground">Mode: <span className="capitalize">{mode}</span> • Level: <span className="uppercase">{level}</span> • Lang: <span className="uppercase">{language}</span></div>
+      <div className="flex flex-col gap-2">
+        <div className="text-xs text-muted-foreground">Mode: <span className="capitalize">{mode}</span> • Level: <span className="uppercase">{level}</span> • Lang: <span className="uppercase">{language}</span></div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">Lang</span>
+            {(["en","si","ta"] as const).map((l) => (
+              <Button
+                key={l}
+                variant={language === l ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setLanguage(l);
+                  if (typeof window !== "undefined") window.localStorage.setItem("language", l);
+                }}
+              >{l.toUpperCase()}</Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">Mode</span>
+            {(["friendly","socratic","exam","motivational"] as const).map((m) => (
+              <Button
+                key={m}
+                variant={mode === m ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setMode(m);
+                  if (typeof window !== "undefined") window.localStorage.setItem("mode", m);
+                }}
+              >{m.charAt(0).toUpperCase() + m.slice(1)}</Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">Level</span>
+            {(["eli5","normal","expert"] as const).map((v) => (
+              <Button
+                key={v}
+                variant={level === v ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setLevel(v);
+                  if (typeof window !== "undefined") window.localStorage.setItem("level", v);
+                }}
+              >{v.toUpperCase()}</Button>
+            ))}
+          </div>
+        </div>
+      </div>
       <Separator />
       <div className="flex-1 min-h-0 rounded-md border">
         <ScrollArea className="h-full w-full p-3">
