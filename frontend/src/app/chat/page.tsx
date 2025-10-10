@@ -24,6 +24,9 @@ export default function ChatPage() {
   const [isSending, setIsSending] = useState(false);
   const [lastFailed, setLastFailed] = useState<string | null>(null);
   const [userId, setUserId] = useState("123");
+  const [language, setLanguage] = useState<"en" | "si" | "ta">("en");
+  const [mode, setMode] = useState<"socratic" | "exam" | "friendly" | "motivational">("friendly");
+  const [level, setLevel] = useState<"eli5" | "normal" | "expert">("normal");
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to bottom when messages change
@@ -48,6 +51,12 @@ export default function ChatPage() {
     if (typeof window !== "undefined") {
       const storedUserId = window.localStorage.getItem("userId");
       if (storedUserId) setUserId(storedUserId);
+      const storedLanguage = window.localStorage.getItem("language");
+      if (storedLanguage === "en" || storedLanguage === "si" || storedLanguage === "ta") setLanguage(storedLanguage);
+      const storedMode = window.localStorage.getItem("mode");
+      if (storedMode === "socratic" || storedMode === "exam" || storedMode === "friendly" || storedMode === "motivational") setMode(storedMode);
+      const storedLevel = window.localStorage.getItem("level");
+      if (storedLevel === "eli5" || storedLevel === "normal" || storedLevel === "expert") setLevel(storedLevel);
     }
     // Also try to load server history if we have a userId (defaults to "123")
     const uid = typeof window !== "undefined" ? window.localStorage.getItem("userId") || "123" : "123";
@@ -78,7 +87,7 @@ export default function ChatPage() {
     setInput("");
     setIsSending(true);
     try {
-      const res = await chat({ userId, message: trimmed });
+      const res = await chat({ userId, message: trimmed, language });
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
