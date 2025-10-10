@@ -122,3 +122,31 @@ export async function fetchLeaderboard(limit = 10): Promise<LeaderboardItem[]> {
   const data = (await res.json()) as { leaderboard?: LeaderboardItem[] };
   return data.leaderboard ?? [];
 }
+
+export interface FlashcardItem {
+  id: string;
+  front: string;
+  back: string;
+  subject?: string;
+  tags?: string[];
+}
+
+export async function fetchFlashcards(userId: string): Promise<FlashcardItem[]> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/flashcards?userId=${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Flashcards error ${res.status}`);
+  const data = (await res.json()) as { flashcards?: FlashcardItem[] };
+  return data.flashcards ?? [];
+}
+
+export async function generateFlashcards(params: { userId: string; content: string; subject?: string; language?: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/flashcards/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`Generate flashcards error ${res.status}`);
+  const data = await res.json();
+  return data;
+}
