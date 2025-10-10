@@ -38,3 +38,17 @@ export function getWeakTopics(userId: string, minAttempts = 1): Array<{ topic: s
     .sort((a, b) => a.accuracy - b.accuracy);
   return items;
 }
+
+export function computeAccuracy(stats: TopicStats | undefined): number {
+  if (!stats) return 0;
+  return stats.attempts > 0 ? stats.correct / stats.attempts : 0;
+}
+
+export type ProficiencyTier = 'Novice' | 'Developing' | 'Proficient' | 'Mastery';
+
+export function getProficiencyTier(accuracy: number): ProficiencyTier {
+  if (accuracy < 0.4) return 'Novice';
+  if (accuracy < 0.6) return 'Developing';
+  if (accuracy < 0.8) return 'Proficient';
+  return 'Mastery';
+}

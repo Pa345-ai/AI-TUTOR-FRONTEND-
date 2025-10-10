@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLearningPaths, type LearningPathItem, fetchMastery } from "@/lib/api";
 import Link from "next/link";
+import { computeAccuracy, getProficiencyTier } from "@/lib/mastery";
 
 export default function MasteryMapPage() {
   const [userId, setUserId] = useState("123");
@@ -59,7 +60,9 @@ export default function MasteryMapPage() {
             <div className="text-sm mb-2">
               {p.currentTopic}
               {mastery[p.currentTopic] && (
-                <span className="ml-2 text-xs text-muted-foreground">{Math.round((mastery[p.currentTopic].correct/(mastery[p.currentTopic].attempts||1))*100)}%</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {Math.round(computeAccuracy(mastery[p.currentTopic]) * 100)}% — {getProficiencyTier(computeAccuracy(mastery[p.currentTopic]))}
+                </span>
               )}
             </div>
             <div className="text-xs text-muted-foreground">Completed</div>
@@ -69,7 +72,9 @@ export default function MasteryMapPage() {
                   <span>
                     {t}
                     {mastery[t] && (
-                      <span className="ml-2 text-xs text-muted-foreground">{Math.round((mastery[t].correct/(mastery[t].attempts||1))*100)}%</span>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {Math.round(computeAccuracy(mastery[t]) * 100)}% — {getProficiencyTier(computeAccuracy(mastery[t]))}
+                      </span>
                     )}
                   </span>
                   <Link href={`/adaptive?topic=${encodeURIComponent(t)}`} className="text-xs underline">Practice</Link>
