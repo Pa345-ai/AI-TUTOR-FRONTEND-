@@ -2,6 +2,8 @@ export interface ChatRequest {
   userId: string;
   message: string;
   language?: "en" | "si" | "ta";
+  mode?: "socratic" | "exam" | "friendly" | "motivational";
+  level?: "eli5" | "normal" | "expert";
 }
 
 export interface ChatResponse {
@@ -38,7 +40,13 @@ export async function chat(request: ChatRequest, init?: RequestInit): Promise<Ch
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ userId: request.userId, content: request.message, language: request.language ?? "en" }),
+    body: JSON.stringify({
+      userId: request.userId,
+      content: request.message,
+      language: request.language ?? "en",
+      mode: request.mode,
+      level: request.level,
+    }),
     ...init,
   });
   if (!res.ok) {

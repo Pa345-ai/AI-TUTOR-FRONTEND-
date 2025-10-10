@@ -87,7 +87,7 @@ export default function ChatPage() {
     setInput("");
     setIsSending(true);
     try {
-      const res = await chat({ userId, message: trimmed, language });
+      const res = await chat({ userId, message: trimmed, language, mode, level });
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -140,6 +140,7 @@ export default function ChatPage() {
   return (
     <div className="mx-auto max-w-3xl w-full flex flex-col h-[calc(100svh-4rem)] gap-2 py-4 px-3 sm:px-4">
       <h1 className="text-xl font-semibold">AI Tutor Chat</h1>
+      <div className="text-xs text-muted-foreground">Mode: <span className="capitalize">{mode}</span> • Level: <span className="uppercase">{level}</span> • Lang: <span className="uppercase">{language}</span></div>
       <Separator />
       <div className="flex-1 min-h-0 rounded-md border">
         <ScrollArea className="h-full w-full p-3">
