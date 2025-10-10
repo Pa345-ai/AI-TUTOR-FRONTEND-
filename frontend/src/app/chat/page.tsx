@@ -137,6 +137,31 @@ export default function ChatPage() {
     deleteConversation("current");
   }, []);
 
+  const transcriptText = useMemo(() => {
+    return messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
+  }, [messages]);
+
+  const downloadTranscript = useCallback(() => {
+    const blob = new Blob([transcriptText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ai-tutor-chat-${new Date().toISOString()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [transcriptText]);
+
+  const exportToDocs = useCallback(async () => {
+    if (navigator.clipboard) await navigator.clipboard.writeText(transcriptText);
+    window.open("https://docs.new", "_blank");
+  }, [transcriptText]);
+
+  const exportToQuizlet = useCallback(async () => {
+    // Simple placeholder: copy transcript; user can paste into Quizlet import
+    if (navigator.clipboard) await navigator.clipboard.writeText(transcriptText);
+    window.open("https://quizlet.com/create-set", "_blank");
+  }, [transcriptText]);
+
   return (
     <div className="mx-auto max-w-3xl w-full flex flex-col h-[calc(100svh-4rem)] gap-2 py-4 px-3 sm:px-4">
       <h1 className="text-xl font-semibold">AI Tutor Chat</h1>
@@ -223,6 +248,15 @@ export default function ChatPage() {
             </Button>
             <Button variant="outline" onClick={clearChat} disabled={messages.length === 0}>
               Clear
+            </Button>
+            <Button variant="outline" onClick={downloadTranscript} disabled={messages.length === 0}>
+              Export .txt
+            </Button>
+            <Button variant="outline" onClick={exportToDocs} disabled={messages.length === 0}>
+              Docs
+            </Button>
+            <Button variant="outline" onClick={exportToQuizlet} disabled={messages.length === 0}>
+              Quizlet
             </Button>
             <Button onClick={() => void sendMessage()} disabled={!canSend}>
               {isSending ? "Sending..." : "Send"}

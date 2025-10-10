@@ -25,12 +25,33 @@ export default function SummarizerPage() {
     }
   };
 
+  const downloadSummary = () => {
+    const blob = new Blob([summary], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `summary-${new Date().toISOString()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const copySummary = async () => {
+    if (!navigator.clipboard) return;
+    await navigator.clipboard.writeText(summary);
+  };
+
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">AI Summarizer</h1>
       <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste text to summarize..." className="min-h-[200px]" />
       <div className="flex items-center gap-2">
         <Button onClick={summarize} disabled={!text.trim() || loading}>{loading ? "Summarizing..." : "Summarize"}</Button>
+        {summary && (
+          <>
+            <Button variant="outline" onClick={copySummary}>Copy</Button>
+            <Button variant="outline" onClick={downloadSummary}>Export .txt</Button>
+          </>
+        )}
       </div>
       {summary && <Textarea value={summary} readOnly className="min-h-[200px]" />}
     </div>
