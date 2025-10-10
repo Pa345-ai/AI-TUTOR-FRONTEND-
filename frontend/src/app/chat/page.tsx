@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
 import { Mic, Volume2, PencilLine, Eraser, Download } from "lucide-react";
 
@@ -391,7 +393,11 @@ function MessageBubble({ role, content }: { role: Role; content: string }) {
           isUser ? "bg-foreground text-background" : "bg-muted"
         )}
       >
-        {content}
+        {isUser ? (
+          content
+        ) : (
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        )}
         {!isUser && (
           <div className="mt-2 flex gap-2">
             <InlineRephraseButtons text={content} />
