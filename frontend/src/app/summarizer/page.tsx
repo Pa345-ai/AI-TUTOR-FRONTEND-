@@ -9,6 +9,7 @@ export default function SummarizerPage() {
   const [text, setText] = useState("");
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
 
   const summarize = async () => {
     if (!text.trim()) return;
@@ -43,6 +44,31 @@ export default function SummarizerPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">AI Summarizer</h1>
+      <div className="flex items-center gap-2 text-sm">
+        <input type="file" accept=".pdf,.txt" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <button
+          disabled={!file || loading}
+          className="inline-flex items-center gap-1 border rounded-md px-2 py-1"
+          onClick={async () => {
+            if (!file) return;
+            setLoading(true);
+            try {
+              const form = new FormData();
+              form.append('file', file);
+              const lang = (typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) || 'en';
+              form.append('language', lang);
+              const base = process.env.NEXT_PUBLIC_BASE_URL!;
+              const res = await fetch(`${base}/api/summarize/upload`, { method: 'POST', body: form });
+              const data = await res.json();
+              setSummary(data.summary || '');
+            } catch (e) {
+              setSummary(e instanceof Error ? e.message : String(e));
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >Upload & Summarize</button>
+      </div>
       <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste text to summarize..." className="min-h-[200px]" />
       <div className="flex items-center gap-2">
         <Button onClick={summarize} disabled={!text.trim() || loading}>{loading ? "Summarizing..." : "Summarize"}</Button>
