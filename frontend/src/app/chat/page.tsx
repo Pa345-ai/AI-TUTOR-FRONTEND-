@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
-import { Mic, Volume2 } from "lucide-react";
+import { Mic, Volume2, PencilLine, Eraser, Download } from "lucide-react";
 
 type Role = "user" | "assistant";
 
@@ -244,6 +244,7 @@ export default function ChatPage() {
         </div>
       </div>
       <Separator />
+      <Whiteboard />
       <div className="flex-1 min-h-0 rounded-md border">
         <ScrollArea className="h-full w-full p-3">
           <div ref={viewportRef} className="flex flex-col gap-3">
@@ -297,6 +298,84 @@ export default function ChatPage() {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function Whiteboard() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [color, setColor] = useState("#111827");
+  const [lineWidth, setLineWidth] = useState(3);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.scale(dpr, dpr);
+  }, []);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    setDrawing(true);
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing) return;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const onPointerUp = () => setDrawing(false);
+
+  const clear = () => {
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx || !canvasRef.current) return;
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+  };
+
+  const download = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `whiteboard-${new Date().toISOString()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
+  return (
+    <div className="border rounded-md p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <PencilLine className="h-4 w-4" />
+        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
+        <input type="range" min={1} max={10} value={lineWidth} onChange={(e) => setLineWidth(parseInt(e.target.value))} />
+        <button onClick={clear} className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs"><Eraser className="h-4 w-4" /> Clear</button>
+        <button onClick={download} className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs"><Download className="h-4 w-4" /> Download</button>
+      </div>
+      <div className="h-48 w-full">
+        <canvas
+          ref={canvasRef}
+          className="h-full w-full bg-white rounded-md border"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerUp}
+        />
       </div>
     </div>
   );
