@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchLearningPaths, type LearningPathItem, fetchMastery } from "@/lib/api";
+import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview } from "@/lib/api";
 import Link from "next/link";
 import { computeAccuracy, getProficiencyTier } from "@/lib/mastery";
 
@@ -11,6 +11,7 @@ export default function MasteryMapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mastery, setMastery] = useState<Record<string, { correct: number; attempts: number }>>({});
+  const [due, setDue] = useState<DueTopicReview[]>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -25,13 +26,15 @@ export default function MasteryMapPage() {
       try {
         setLoading(true);
         setError(null);
-        const [data, m] = await Promise.all([
+        const [data, m, d] = await Promise.all([
           fetchLearningPaths(userId),
           fetchMastery(userId),
+          fetchDueReviews(userId, 10),
         ]);
         if (!mounted) return;
         setPaths(data);
         setMastery(m);
+        setDue(d);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -50,6 +53,18 @@ export default function MasteryMapPage() {
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Mastery Map</h1>
+      {due.length > 0 && (
+        <div className="border rounded-md p-3">
+          <div className="text-sm font-medium mb-1">Today’s practice</div>
+          <div className="flex flex-wrap gap-2">
+            {due.map((item, i) => (
+              <Link key={i} href={`/adaptive?topic=${encodeURIComponent(item.topic)}`} className="px-2 py-1 text-xs border rounded-md hover:bg-muted">
+                {item.topic}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
       {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="grid sm:grid-cols-3 gap-3">

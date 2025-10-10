@@ -192,6 +192,34 @@ export async function fetchMastery(userId: string): Promise<Record<string, { cor
   return data.mastery ?? {};
 }
 
+export async function fetchDueTopics(userId: string, limit = 20): Promise<Array<{ topic: string; subject: string | null; nextReviewDate: string | null }>> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/learning/review/${encodeURIComponent(userId)}?limit=${limit}`);
+  if (!res.ok) throw new Error(`Due fetch error ${res.status}`);
+  const data = await res.json();
+  const rows = (data.due ?? []) as Array<{ topic: string; subject?: string | null; nextReviewDate?: string | null }>;
+  return rows.map((r) => ({ topic: r.topic, subject: r.subject ?? null, nextReviewDate: r.nextReviewDate ?? null }));
+}
+
+export interface DueTopicReview {
+  topic: string;
+  subject?: string | null;
+  nextReviewDate?: string | null;
+}
+
+export async function fetchDueReviews(userId: string, limit = 20): Promise<DueTopicReview[]> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/learning/review/${encodeURIComponent(userId)}?limit=${limit}`);
+  if (!res.ok) throw new Error(`Due reviews fetch error ${res.status}`);
+  const data = (await res.json()) as { due?: DueTopicReview[] | string[] };
+  // backend now returns array of objects; fallback if older string[]
+  const due = data.due ?? [];
+  if (Array.isArray(due) && typeof due[0] === 'string') {
+    return (due as string[]).map((t) => ({ topic: t }));
+  }
+  return due as DueTopicReview[];
+}
+
 export async function* streamChat(request: ChatRequest): AsyncGenerator<string, void, unknown> {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/chat/stream`, {
