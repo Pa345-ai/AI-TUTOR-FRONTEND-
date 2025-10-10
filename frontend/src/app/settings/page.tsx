@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [mode, setMode] = useState<"socratic" | "exam" | "friendly" | "motivational">("friendly");
   const [level, setLevel] = useState<"eli5" | "normal" | "expert">("normal");
   const [voice, setVoice] = useState<boolean>(true);
+  const [camera, setCamera] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -25,6 +26,8 @@ export default function SettingsPage() {
     if (storedLevel === "eli5" || storedLevel === "normal" || storedLevel === "expert") setLevel(storedLevel);
     const storedVoice = window.localStorage.getItem("voiceEnabled");
     if (storedVoice === "true" || storedVoice === "false") setVoice(storedVoice === "true");
+    const storedCam = window.localStorage.getItem("cameraEnabled");
+    if (storedCam === "true" || storedCam === "false") setCamera(storedCam === "true");
   }, []);
 
   const save = () => {
@@ -34,6 +37,7 @@ export default function SettingsPage() {
     window.localStorage.setItem("mode", mode);
     window.localStorage.setItem("level", level);
     window.localStorage.setItem("voiceEnabled", voice ? "true" : "false");
+    window.localStorage.setItem("cameraEnabled", camera ? "true" : "false");
   };
 
   return (
@@ -87,6 +91,13 @@ export default function SettingsPage() {
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
           <span>Enable speech synthesis</span>
+        </label>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Camera (Emotion Recognition)</label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)} />
+          <span>Enable camera (premium feature placeholder)</span>
         </label>
       </div>
       <Button onClick={save}>Save</Button>
