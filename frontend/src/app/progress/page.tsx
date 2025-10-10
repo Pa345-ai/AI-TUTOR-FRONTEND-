@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchProgress, fetchAchievements, type AchievementItem } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProgressPage() {
   const [userId, setUserId] = useState("123");
@@ -51,7 +52,13 @@ export default function ProgressPage() {
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-6">
       <h1 className="text-xl font-semibold">Progress</h1>
-      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {loading && (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {progress && (
         <div className="grid sm:grid-cols-3 gap-4">
@@ -65,7 +72,7 @@ export default function ProgressPage() {
       )}
       <div>
         <h2 className="text-lg font-medium mb-2">Achievements</h2>
-        {achievements.length === 0 ? (
+        {achievements.length === 0 && !loading ? (
           <p className="text-sm text-muted-foreground">No achievements yet.</p>
         ) : (
           <ul className="grid sm:grid-cols-2 gap-3">
