@@ -321,6 +321,49 @@ export async function summarizeMemory(userId: string, period: 'daily'|'weekly' =
   return res.json() as Promise<{ memory?: { summary: string } }>;
 }
 
+export type HomeworkRubricCategory = { name: string; score: number; outOf: number; comment: string };
+export type HomeworkRubric = { categories: HomeworkRubricCategory[] };
+export interface HomeworkReview {
+  id: string;
+  userId: string;
+  title?: string;
+  subject?: string;
+  gradeLevel?: number;
+  contentText: string;
+  summary?: string;
+  rubric?: HomeworkRubric;
+  suggestions?: string[];
+  revisions?: string;
+  overallScore?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function requestHomeworkFeedback(params: { userId: string; title?: string; subject?: string; gradeLevel?: number; content: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/homework/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`Homework feedback error ${res.status}`);
+  return res.json() as Promise<{ review: HomeworkReview }>;
+}
+
+export async function fetchHomeworkReviews(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/homework/reviews?userId=${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Homework reviews error ${res.status}`);
+  return res.json() as Promise<{ reviews: HomeworkReview[] }>;
+}
+
+export async function fetchHomeworkReview(id: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/homework/reviews/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error(`Homework review error ${res.status}`);
+  return res.json() as Promise<{ review: HomeworkReview }>;
+}
+
 export async function fetchPrereqs(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/prereqs`);
