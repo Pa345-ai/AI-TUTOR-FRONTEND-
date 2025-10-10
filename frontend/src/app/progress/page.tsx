@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { fetchProgress, fetchAchievements, type AchievementItem } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getWeakTopics } from "@/lib/mastery";
+import Link from "next/link";
 
 export default function ProgressPage() {
   const [userId, setUserId] = useState("123");
@@ -17,6 +19,7 @@ export default function ProgressPage() {
     averageScore?: number;
   } | null>(null);
   const [achievements, setAchievements] = useState<AchievementItem[]>([]);
+  const [weakTopics, setWeakTopics] = useState<Array<{ topic: string; accuracy: number }>>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -38,6 +41,8 @@ export default function ProgressPage() {
         if (!mounted) return;
         setProgress(p);
         setAchievements(a);
+        const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
+        setWeakTopics(weak);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -80,6 +85,23 @@ export default function ProgressPage() {
               <li key={a.id} className="border rounded-md p-3">
                 <div className="font-medium">{a.name}</div>
                 <div className="text-sm text-muted-foreground">{a.description}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div>
+        <h2 className="text-lg font-medium mb-2">Weak topics</h2>
+        {weakTopics.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No weak topics detected yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {weakTopics.map((w, i) => (
+              <li key={i} className="flex items-center justify-between border rounded-md p-3">
+                <div className="text-sm">{w.topic} — {(w.accuracy * 100).toFixed(0)}%</div>
+                <Link href={`/adaptive?topic=${encodeURIComponent(w.topic)}`} className="text-sm underline">
+                  Practice now
+                </Link>
               </li>
             ))}
           </ul>
