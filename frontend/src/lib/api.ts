@@ -303,6 +303,24 @@ export async function updateGoalsProgress(userId: string, timeframe: 'daily'|'we
   return res.json() as Promise<{ goals: Array<{ title: string; steps: string[]; focusTopic?: string }>; progress: Record<string, boolean> }>;
 }
 
+export async function fetchMemory(userId: string, period: 'daily'|'weekly' = 'daily') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/${encodeURIComponent(userId)}?period=${period}`);
+  if (!res.ok) throw new Error(`Fetch memory error ${res.status}`);
+  return res.json() as Promise<{ memory?: { summary: string } }>;
+}
+
+export async function summarizeMemory(userId: string, period: 'daily'|'weekly' = 'daily') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/summarize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, period }),
+  });
+  if (!res.ok) throw new Error(`Summarize memory error ${res.status}`);
+  return res.json() as Promise<{ memory?: { summary: string } }>;
+}
+
 export async function fetchPrereqs(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/prereqs`);

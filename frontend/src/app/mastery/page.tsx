@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview, fetchGoals, getSavedGoals, updateGoalsProgress } from "@/lib/api";
+import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview, fetchGoals, getSavedGoals, updateGoalsProgress, fetchMemory, summarizeMemory } from "@/lib/api";
 import Link from "next/link";
 import { computeAccuracy, getProficiencyTier } from "@/lib/mastery";
 
@@ -16,6 +16,9 @@ export default function MasteryMapPage() {
   const [goals, setGoals] = useState<Array<{ title: string; steps: string[]; focusTopic?: string }>>([]);
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsError, setGoalsError] = useState<string | null>(null);
+  const [dailyMemory, setDailyMemory] = useState<string>("");
+  const [weeklyMemory, setWeeklyMemory] = useState<string>("");
+  const [memLoading, setMemLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -39,6 +42,15 @@ export default function MasteryMapPage() {
         setPaths(data);
         setMastery(m);
         setDue(d);
+        // Load memory summaries
+        try {
+          const [dm, wm] = await Promise.all([
+            fetchMemory(userId, 'daily'),
+            fetchMemory(userId, 'weekly'),
+          ]);
+          setDailyMemory(dm.memory?.summary || "");
+          setWeeklyMemory(wm.memory?.summary || "");
+        } catch { /* ignore */ }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -108,6 +120,34 @@ export default function MasteryMapPage() {
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Mastery Map</h1>
+      {/* Memory Panel */}
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-medium">Learning Memory</div>
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs"
+              onClick={async () => { setMemLoading(true); try { const r = await summarizeMemory(userId, 'daily'); setDailyMemory(r.memory?.summary || ""); } finally { setMemLoading(false); } }}
+              disabled={memLoading}
+            >{memLoading ? 'Updating…' : 'Update Daily'}</button>
+            <button
+              className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs"
+              onClick={async () => { setMemLoading(true); try { const r = await summarizeMemory(userId, 'weekly'); setWeeklyMemory(r.memory?.summary || ""); } finally { setMemLoading(false); } }}
+              disabled={memLoading}
+            >{memLoading ? 'Updating…' : 'Update Weekly'}</button>
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-2 text-sm">
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Daily</div>
+            <div className="rounded-md border p-2 whitespace-pre-wrap min-h-16">{dailyMemory || 'No daily memory yet.'}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">Weekly</div>
+            <div className="rounded-md border p-2 whitespace-pre-wrap min-h-16">{weeklyMemory || 'No weekly memory yet.'}</div>
+          </div>
+        </div>
+      </div>
       {/* Goals Panel */}
       <div className="border rounded-md p-3 space-y-2">
         <div className="flex items-center justify-between">

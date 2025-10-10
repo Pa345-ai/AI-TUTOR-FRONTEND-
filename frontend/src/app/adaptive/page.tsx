@@ -118,7 +118,7 @@ function AdaptiveInner() {
       )}
       {(prereqs.length > 0 || nextTopics.length > 0) && (
         <div className="space-y-2">
-          <div className="text-sm font-medium">Knowledge Graph (Premium)</div>
+          <div className="text-sm font-medium">Knowledge Graph</div>
           {prereqs.length > 0 && (
             <div className="text-xs">
               Prerequisites: {prereqs.map((t, i) => (
