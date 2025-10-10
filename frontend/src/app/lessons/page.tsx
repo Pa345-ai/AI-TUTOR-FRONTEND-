@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,16 @@ export default function LessonsPage() {
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
   const [plan, setPlan] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ds = window.localStorage.getItem("defaultSubject");
+    if (ds) setSubject(ds);
+    const dg = window.localStorage.getItem("defaultGrade");
+    if (dg) setGrade(dg);
+    const dc = window.localStorage.getItem("defaultCurriculum");
+    if (dc === "lk" || dc === "international") setCurriculum(dc);
+  }, []);
 
   const generate = async () => {
     if (!topic.trim()) return;
