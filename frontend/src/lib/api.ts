@@ -4,6 +4,9 @@ export interface ChatRequest {
   language?: "en" | "si" | "ta";
   mode?: "socratic" | "exam" | "friendly" | "motivational";
   level?: "eli5" | "normal" | "expert";
+  subject?: string;
+  grade?: number | string;
+  curriculum?: "lk" | "international";
 }
 
 export interface ChatResponse {
@@ -46,6 +49,9 @@ export async function chat(request: ChatRequest, init?: RequestInit): Promise<Ch
       language: request.language ?? "en",
       mode: request.mode,
       level: request.level,
+      subject: request.subject,
+      grade: request.grade,
+      curriculum: request.curriculum,
     }),
     ...init,
   });

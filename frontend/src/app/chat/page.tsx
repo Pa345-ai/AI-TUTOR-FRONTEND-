@@ -27,6 +27,9 @@ export default function ChatPage() {
   const [language, setLanguage] = useState<"en" | "si" | "ta">("en");
   const [mode, setMode] = useState<"socratic" | "exam" | "friendly" | "motivational">("friendly");
   const [level, setLevel] = useState<"eli5" | "normal" | "expert">("normal");
+  const [subject, setSubject] = useState<string>("");
+  const [grade, setGrade] = useState<string>("");
+  const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to bottom when messages change
@@ -87,7 +90,7 @@ export default function ChatPage() {
     setInput("");
     setIsSending(true);
     try {
-      const res = await chat({ userId, message: trimmed, language, mode, level });
+      const res = await chat({ userId, message: trimmed, language, mode, level, subject: subject || undefined, grade: grade || undefined, curriculum });
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -209,6 +212,28 @@ export default function ChatPage() {
                 }}
               >{v.toUpperCase()}</Button>
             ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              className="h-9 px-2 border rounded-md text-sm"
+              placeholder="Subject (e.g., Math, Science)"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+            <input
+              className="h-9 px-2 border rounded-md text-sm w-24"
+              placeholder="Grade"
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+            />
+            <div className="flex items-center gap-1 text-sm">
+              <span className="text-xs text-muted-foreground mr-1">Curriculum</span>
+              {(["lk", "international"] as const).map((c) => (
+                <Button key={c} variant={curriculum === c ? "default" : "outline"} size="sm" onClick={() => setCurriculum(c)}>
+                  {c === "lk" ? "Sri Lanka" : "International"}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
