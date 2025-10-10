@@ -183,3 +183,11 @@ export async function logLearningEvent(params: { userId: string; subject?: strin
   if (!res.ok) throw new Error(`Learning log error ${res.status}`);
   return res.json();
 }
+
+export async function fetchMastery(userId: string): Promise<Record<string, { correct: number; attempts: number }>> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/learning/mastery/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Mastery fetch error ${res.status}`);
+  const data = await res.json();
+  return data.mastery ?? {};
+}

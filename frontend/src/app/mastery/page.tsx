@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchLearningPaths, type LearningPathItem } from "@/lib/api";
+import { fetchLearningPaths, type LearningPathItem, fetchMastery } from "@/lib/api";
+import Link from "next/link";
 
 export default function MasteryMapPage() {
   const [userId, setUserId] = useState("123");
   const [paths, setPaths] = useState<LearningPathItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mastery, setMastery] = useState<Record<string, { correct: number; attempts: number }>>({});
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -22,9 +24,13 @@ export default function MasteryMapPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchLearningPaths(userId);
+        const [data, m] = await Promise.all([
+          fetchLearningPaths(userId),
+          fetchMastery(userId),
+        ]);
         if (!mounted) return;
         setPaths(data);
+        setMastery(m);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -50,11 +56,24 @@ export default function MasteryMapPage() {
           <div key={p.id} className="border rounded-md p-3">
             <div className="font-medium">{p.subject}</div>
             <div className="text-xs text-muted-foreground">Current</div>
-            <div className="text-sm mb-2">{p.currentTopic}</div>
+            <div className="text-sm mb-2">
+              {p.currentTopic}
+              {mastery[p.currentTopic] && (
+                <span className="ml-2 text-xs text-muted-foreground">{Math.round((mastery[p.currentTopic].correct/(mastery[p.currentTopic].attempts||1))*100)}%</span>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">Completed</div>
             <ul className="text-sm list-disc list-inside">
               {(p.completedTopics ?? []).map((t, i) => (
-                <li key={i}>{t}</li>
+                <li key={i} className="flex items-center justify-between">
+                  <span>
+                    {t}
+                    {mastery[t] && (
+                      <span className="ml-2 text-xs text-muted-foreground">{Math.round((mastery[t].correct/(mastery[t].attempts||1))*100)}%</span>
+                    )}
+                  </span>
+                  <Link href={`/adaptive?topic=${encodeURIComponent(t)}`} className="text-xs underline">Practice</Link>
+                </li>
               ))}
             </ul>
           </div>
