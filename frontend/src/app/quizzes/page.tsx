@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { logLearningEvent } from "@/lib/api";
-import { updateLocalMastery } from "@/lib/mastery";
+import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 
 type QuizQuestion = {
   question: string;
@@ -22,6 +22,7 @@ export default function QuizzesPage() {
   const [selected, setSelected] = useState<Record<number, number>>({});
   const [result, setResult] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [weakList, setWeakList] = useState<Array<{ topic: string; accuracy: number }>>([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -70,6 +71,8 @@ export default function QuizzesPage() {
       await logLearningEvent({ userId, subject: topic, topic: q.question, correct: isCorrect, difficulty: "medium" });
       updateLocalMastery(userId, q.question, isCorrect);
     }
+    const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
+    setWeakList(weak);
   };
 
   return (
@@ -109,6 +112,16 @@ export default function QuizzesPage() {
           ))}
           <Button onClick={submit}>Submit</Button>
           {result && <Textarea value={result} readOnly />}
+          {weakList.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Weak Topics (lowest accuracy)</div>
+              <ul className="text-sm space-y-1">
+                {weakList.map((w, i) => (
+                  <li key={i}>{w.topic} — {(w.accuracy * 100).toFixed(0)}%</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>

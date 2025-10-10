@@ -23,6 +23,7 @@ export default function AdaptivePracticePage() {
   const [result, setResult] = useState<string>("");
   const [history, setHistory] = useState<Array<{ q: string; correct: boolean }>>([]);
   const [loading, setLoading] = useState(false);
+  const [weakList, setWeakList] = useState<Array<{ topic: string; accuracy: number }>>([]);
 
   const nextQuestion = async () => {
     if (!topic.trim()) return;
@@ -58,6 +59,8 @@ export default function AdaptivePracticePage() {
     const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
     await logLearningEvent({ userId, subject: topic, topic: question.question, correct, difficulty });
     updateLocalMastery(userId, question.question, correct);
+    const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
+    setWeakList(weak);
   };
 
   return (
@@ -94,6 +97,16 @@ export default function AdaptivePracticePage() {
               <li key={i} className={h.correct ? "text-green-600" : "text-red-600"}>
                 {h.correct ? "✓" : "✗"} {h.q}
               </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {weakList.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Weak Topics (lowest accuracy)</div>
+          <ul className="text-sm space-y-1">
+            {weakList.map((w, i) => (
+              <li key={i}>{w.topic} — {(w.accuracy * 100).toFixed(0)}%</li>
             ))}
           </ul>
         </div>
