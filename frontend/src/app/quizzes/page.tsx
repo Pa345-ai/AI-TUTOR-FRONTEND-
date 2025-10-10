@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { logLearningEvent } from "@/lib/api";
 import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
+import { grades, getSubjects } from "@/lib/syllabus";
 
 type QuizQuestion = {
   question: string;
@@ -79,8 +80,18 @@ export default function QuizzesPage() {
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Quiz Generator</h1>
       <div className="grid sm:grid-cols-3 gap-2">
-        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject (e.g., Math)" />
-        <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="Grade (e.g., 8)" />
+        <select className="h-9 px-2 border rounded-md text-sm" value={subject} onChange={(e) => setSubject(e.target.value)}>
+          <option value="">Subject</option>
+          {getSubjects(curriculum).map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select className="h-9 px-2 border rounded-md text-sm" value={grade} onChange={(e) => setGrade(e.target.value)}>
+          <option value="">Grade</option>
+          {grades.map((g) => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
         <div className="flex items-center gap-2 text-sm">
           {(["lk","international"] as const).map((c) => (
             <label key={c} className="flex items-center gap-2">

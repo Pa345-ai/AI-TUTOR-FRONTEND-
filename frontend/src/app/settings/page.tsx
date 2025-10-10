@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { grades, getSubjects } from "@/lib/syllabus";
 
 export default function SettingsPage() {
   const [userId, setUserId] = useState("123");
@@ -107,11 +108,21 @@ export default function SettingsPage() {
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Default Subject</label>
-        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g., Mathematics" />
+        <select className="h-9 px-2 border rounded-md text-sm" value={subject} onChange={(e) => setSubject(e.target.value)}>
+          <option value="">Subject</option>
+          {getSubjects(curriculum).map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Default Grade</label>
-        <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="e.g., 8" />
+        <select className="h-9 px-2 border rounded-md text-sm" value={grade} onChange={(e) => setGrade(e.target.value)}>
+          <option value="">Grade</option>
+          {grades.map((g) => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Default Curriculum</label>

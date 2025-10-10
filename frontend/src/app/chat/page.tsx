@@ -11,6 +11,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
 import { Mic, Volume2, PencilLine, Eraser, Download } from "lucide-react";
+import { grades, getSubjects } from "@/lib/syllabus";
 
 type Role = "user" | "assistant";
 
@@ -227,18 +228,18 @@ export default function ChatPage() {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <input
-              className="h-9 px-2 border rounded-md text-sm"
-              placeholder="Subject (e.g., Math, Science)"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-            <input
-              className="h-9 px-2 border rounded-md text-sm w-24"
-              placeholder="Grade"
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-            />
+            <select className="h-9 px-2 border rounded-md text-sm" value={subject} onChange={(e) => setSubject(e.target.value)}>
+              <option value="">Subject</option>
+              {getSubjects(curriculum).map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <select className="h-9 px-2 border rounded-md text-sm w-24" value={grade} onChange={(e) => setGrade(e.target.value)}>
+              <option value="">Grade</option>
+              {grades.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
             <div className="flex items-center gap-1 text-sm">
               <span className="text-xs text-muted-foreground mr-1">Curriculum</span>
               {(["lk", "international"] as const).map((c) => (
