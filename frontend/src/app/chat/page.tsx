@@ -60,6 +60,12 @@ export default function ChatPage() {
       if (storedMode === "socratic" || storedMode === "exam" || storedMode === "friendly" || storedMode === "motivational") setMode(storedMode);
       const storedLevel = window.localStorage.getItem("level");
       if (storedLevel === "eli5" || storedLevel === "normal" || storedLevel === "expert") setLevel(storedLevel);
+      const defaultSubject = window.localStorage.getItem("defaultSubject");
+      if (defaultSubject) setSubject(defaultSubject);
+      const defaultGrade = window.localStorage.getItem("defaultGrade");
+      if (defaultGrade) setGrade(defaultGrade);
+      const defaultCurr = window.localStorage.getItem("defaultCurriculum");
+      if (defaultCurr === "lk" || defaultCurr === "international") setCurriculum(defaultCurr);
     }
     // Also try to load server history if we have a userId (defaults to "123")
     const uid = typeof window !== "undefined" ? window.localStorage.getItem("userId") || "123" : "123";

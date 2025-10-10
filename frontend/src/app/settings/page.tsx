@@ -12,6 +12,9 @@ export default function SettingsPage() {
   const [level, setLevel] = useState<"eli5" | "normal" | "expert">("normal");
   const [voice, setVoice] = useState<boolean>(true);
   const [camera, setCamera] = useState<boolean>(false);
+  const [subject, setSubject] = useState<string>("");
+  const [grade, setGrade] = useState<string>("");
+  const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -28,6 +31,12 @@ export default function SettingsPage() {
     if (storedVoice === "true" || storedVoice === "false") setVoice(storedVoice === "true");
     const storedCam = window.localStorage.getItem("cameraEnabled");
     if (storedCam === "true" || storedCam === "false") setCamera(storedCam === "true");
+    const storedSubject = window.localStorage.getItem("defaultSubject");
+    if (storedSubject) setSubject(storedSubject);
+    const storedGrade = window.localStorage.getItem("defaultGrade");
+    if (storedGrade) setGrade(storedGrade);
+    const storedCurr = window.localStorage.getItem("defaultCurriculum");
+    if (storedCurr === "lk" || storedCurr === "international") setCurriculum(storedCurr);
   }, []);
 
   const save = () => {
@@ -38,6 +47,9 @@ export default function SettingsPage() {
     window.localStorage.setItem("level", level);
     window.localStorage.setItem("voiceEnabled", voice ? "true" : "false");
     window.localStorage.setItem("cameraEnabled", camera ? "true" : "false");
+    window.localStorage.setItem("defaultSubject", subject);
+    window.localStorage.setItem("defaultGrade", grade);
+    window.localStorage.setItem("defaultCurriculum", curriculum);
   };
 
   return (
@@ -92,6 +104,25 @@ export default function SettingsPage() {
           <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
           <span>Enable speech synthesis</span>
         </label>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Default Subject</label>
+        <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g., Mathematics" />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Default Grade</label>
+        <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="e.g., 8" />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Default Curriculum</label>
+        <div className="flex items-center gap-2 text-sm">
+          {(["lk", "international"] as const).map((c) => (
+            <label key={c} className="flex items-center gap-2">
+              <input type="radio" name="curriculum" checked={curriculum === c} onChange={() => setCurriculum(c)} />
+              <span>{c === "lk" ? "Sri Lanka" : "International"}</span>
+            </label>
+          ))}
+        </div>
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Camera (Emotion Recognition)</label>
