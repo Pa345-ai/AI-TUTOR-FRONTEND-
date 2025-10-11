@@ -46,6 +46,8 @@ export default function ChatPage() {
   });
   const [cameraPermission, setCameraPermission] = useState<"prompt" | "granted" | "denied" | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
+  const [sttSupported, setSttSupported] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   type FaceBox = { x: number; y: number; width: number; height: number; left?: number; top?: number };
@@ -117,6 +119,12 @@ export default function ChatPage() {
             p.onchange = () => setCameraPermission(p.state as "prompt"|"granted"|"denied");
           }).catch(() => {});
         }
+      } catch {}
+      // Detect Web Speech STT support
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const w = window as any;
+        setSttSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
       } catch {}
     }
     // Also try to load server history if we have a userId (defaults to "123")
@@ -359,6 +367,14 @@ export default function ChatPage() {
       if (typeof window !== 'undefined') window.localStorage.setItem('cameraEnabled', 'false');
     }
   }, [engagement.cameraEnabled, cameraConsent, requestCameraPreflight]);
+
+  const addToast = useCallback((text: string) => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, text }]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  }, []);
 
   const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
 
@@ -670,6 +686,19 @@ export default function ChatPage() {
           <div className="flex items-center gap-2 text-muted-foreground">
             <VoiceRecorder language={language} onResult={(t) => setInput((prev) => (prev ? prev + " " + t : t))} />
             <TTSButton lastMessage={messages.findLast?.((m) => m.role === "assistant")?.content ?? ""} />
+            {!sttSupported && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  addToast(
+                    "Voice input not supported by this browser. Try Chrome/Edge desktop or Safari iOS (webkitSpeechRecognition), and ensure microphone permission is allowed in site settings."
+                  )
+                }
+              >
+                Mic help
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={retryLast} disabled={messages.length === 0 || isSending}>
@@ -699,6 +728,21 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+      {/* lightweight toast container */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {toasts.map((t) => (
+            <div key={t.id} className="max-w-sm text-sm bg-background border rounded-md shadow-md p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>{t.text}</div>
+                <button className="text-xs text-muted-foreground" onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
