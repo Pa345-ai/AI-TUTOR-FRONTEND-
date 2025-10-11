@@ -53,6 +53,34 @@ export default function ClassesPage() {
     try { const sug = await fetchStudentSuggestions(studentId); setSuggestions(sug.suggestions || []); } catch { setSuggestions([]); }
   };
 
+  const exportMembersCsv = useCallback(() => {
+    if (!selectedClass || members.length === 0) return;
+    const rows: string[] = [];
+    rows.push(["classId","studentId"].join(','));
+    for (const m of members) rows.push([selectedClass, m.studentId].join(','));
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `class-${selectedClass}-members.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [selectedClass, members]);
+
+  const exportTrendsCsv = useCallback(() => {
+    if (!selectedStudent || trends.length === 0) return;
+    const rows: string[] = [];
+    rows.push(["studentId","date","attempts","correct"].join(','));
+    for (const t of trends) rows.push([selectedStudent, t.date, String(t.attempts), String(t.correct)].join(','));
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `student-${selectedStudent}-trends.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [selectedStudent, trends]);
+
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Classes</h1>
@@ -82,6 +110,7 @@ export default function ClassesPage() {
               <div className="flex items-center gap-2 mb-2">
                 <input className="h-9 px-2 border rounded-md text-sm" value={newStudent} onChange={(e)=>setNewStudent(e.target.value)} placeholder="Student ID" />
                 <button className="h-9 px-3 border rounded-md text-sm" onClick={addMember}>Add</button>
+                <button className="h-9 px-3 border rounded-md text-sm" onClick={exportMembersCsv} disabled={members.length===0}>Export CSV</button>
               </div>
               <ul className="text-sm space-y-1">
                 {members.map((m) => (
@@ -98,11 +127,14 @@ export default function ClassesPage() {
       </div>
       {selectedStudent && (
         <div className="border rounded-md p-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="text-sm font-medium">{selectedStudent} — Last 14 days</div>
-            {summary?.progress && (
-              <div className="text-xs text-muted-foreground">XP {summary.progress.xp} • Lv {summary.progress.level} • Streak {summary.progress.streak}</div>
-            )}
+            <div className="flex items-center gap-2">
+              {summary?.progress && (
+                <div className="text-xs text-muted-foreground">XP {summary.progress.xp} • Lv {summary.progress.level} • Streak {summary.progress.streak}</div>
+              )}
+              <button className="h-7 px-2 border rounded-md text-xs" onClick={exportTrendsCsv} disabled={trends.length===0}>Export Trends CSV</button>
+            </div>
           </div>
           <div className="grid gap-1 text-xs">
             {trends.map((t) => (
