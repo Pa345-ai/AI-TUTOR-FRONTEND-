@@ -1,12 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { fetchDueReviews, listLessonSessions } from "@/lib/api";
+import { fetchDueReviews, listLessonSessions, fetchGoals } from "@/lib/api";
 
 export default function Home() {
   const [userId, setUserId] = useState<string>("123");
   const [continueUrl, setContinueUrl] = useState<string | null>(null);
   const [due, setDue] = useState<Array<{ topic: string }> | null>(null);
+  const [goalsLoading, setGoalsLoading] = useState(false);
+  const [goalsMsg, setGoalsMsg] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const uid = window.localStorage.getItem('userId');
@@ -41,6 +43,29 @@ export default function Home() {
           <div className="text-sm">Continue learning</div>
           <Link href={continueUrl} className="text-sm underline">Go</Link>
         </div>
+      )}
+      <div className="border rounded-md p-3 flex items-center justify-between">
+        <div className="text-sm">Weekly goals</div>
+        <button
+          className="text-sm underline"
+          onClick={async () => {
+            try {
+              setGoalsLoading(true);
+              setGoalsMsg(null);
+              const lang = (typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) as 'en'|'si'|'ta'|null;
+              await fetchGoals(userId, 'weekly', lang ?? 'en');
+              setGoalsMsg('Weekly goals updated. See Mastery → Your Goals.');
+            } catch (e) {
+              setGoalsMsg(e instanceof Error ? e.message : String(e));
+            } finally {
+              setGoalsLoading(false);
+            }
+          }}
+          disabled={goalsLoading}
+        >{goalsLoading ? 'Generating…' : 'Generate weekly goals'}</button>
+      </div>
+      {goalsMsg && (
+        <div className="text-xs text-muted-foreground">{goalsMsg}</div>
       )}
       {due && due.length > 0 && (
         <div className="border rounded-md p-3">
