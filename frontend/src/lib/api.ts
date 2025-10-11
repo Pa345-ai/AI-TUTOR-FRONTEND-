@@ -522,3 +522,35 @@ export async function fetchParentDashboard(parentId: string) {
   if (!res.ok) throw new Error(`Parent dashboard error ${res.status}`);
   return res.json() as Promise<{ children: Array<{ userId: string; name?: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> }>;
 }
+
+// Classes and student trends
+export async function listClasses(teacherId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/classes/${encodeURIComponent(teacherId)}`);
+  if (!res.ok) throw new Error(`List classes error ${res.status}`);
+  return res.json() as Promise<{ classes: Array<{ id: string; name: string }> }>;
+}
+export async function createClass(input: { name: string; teacherId: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(`Create class error ${res.status}`);
+  return res.json() as Promise<{ id: string }>;
+}
+export async function listClassMembers(classId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/classes/${encodeURIComponent(classId)}/members`);
+  if (!res.ok) throw new Error(`List members error ${res.status}`);
+  return res.json() as Promise<{ members: Array<{ studentId: string }> }>;
+}
+export async function addClassMember(classId: string, studentId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/classes/${encodeURIComponent(classId)}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId }) });
+  if (!res.ok) throw new Error(`Add member error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean }>;
+}
+export async function fetchStudentTrends(userId: string, days = 14) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/dashboard/student/${encodeURIComponent(userId)}/trends?days=${days}`);
+  if (!res.ok) throw new Error(`Trends error ${res.status}`);
+  return res.json() as Promise<{ trends: Array<{ date: string; attempts: number; correct: number }> }>;
+}

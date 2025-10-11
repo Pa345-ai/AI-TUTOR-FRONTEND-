@@ -23,7 +23,7 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [/* load */]);
 
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
