@@ -23,6 +23,7 @@ export default function InteractiveLessonPage() {
   const [token, setToken] = useState<string>("");
   const [exporting, setExporting] = useState(false);
   const [ytToken, setYtToken] = useState("");
+  const [voice, setVoice] = useState<string>("en-US");
   const [ytUploading, setYtUploading] = useState(false);
   const [ytUrl, setYtUrl] = useState<string>("");
 
@@ -106,7 +107,7 @@ export default function InteractiveLessonPage() {
       const resp = await fetch(`${base}/api/youtube/render-upload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: uid, title: lesson.title || topic || 'AI Tutor Lesson', steps, script: lesson.script || undefined, accessToken: ytToken || undefined }),
+        body: JSON.stringify({ userId: uid, title: lesson.title || topic || 'AI Tutor Lesson', steps, script: lesson.script || undefined, accessToken: ytToken || undefined, voice }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Render/upload failed');
@@ -137,6 +138,11 @@ export default function InteractiveLessonPage() {
           <input className="h-8 px-2 border rounded-md" placeholder="Google OAuth token (optional)" value={token} onChange={(e)=>setToken(e.target.value)} />
           <Button size="sm" variant="outline" onClick={exportDoc} disabled={!lesson || exporting}>{exporting ? 'Exporting…' : 'Export to Docs'}</Button>
           <input className="h-8 px-2 border rounded-md" placeholder="YouTube token (optional)" value={ytToken} onChange={(e)=>setYtToken(e.target.value)} />
+          <select className="h-8 px-2 border rounded-md" value={voice} onChange={(e)=>setVoice(e.target.value)}>
+            <option value="off">Voice: Off</option>
+            <option value="en-US">Voice: en-US</option>
+            <option value="en-GB">Voice: en-GB</option>
+          </select>
           <Button size="sm" variant="outline" onClick={uploadYouTube} disabled={!lesson || ytUploading}>{ytUploading ? 'Uploading…' : 'Render & Upload to YouTube'}</Button>
         </div>
         {ytUrl && (
