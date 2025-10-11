@@ -37,7 +37,7 @@ export default function Home() {
         try {
           const notifs = await fetchNotifications(userId);
           const sys = (notifs || []).find(n => n.type === 'system' && !n.isRead) || (notifs || [])[0];
-          if (sys) setAnnounce(sys as any);
+          if (sys) setAnnounce(sys as Notification);
         } catch {}
       } catch {}
     })();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchProgress, fetchAchievements, fetchMastery, listLessonSessions, fetchDueReviews, type AchievementItem } from "@/lib/api";
+import { fetchProgress, fetchAchievements, fetchMastery, listLessonSessions, fetchDueReviews, streakCheckin, type AchievementItem } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getWeakTopics } from "@/lib/mastery";
 import Link from "next/link";
@@ -111,6 +111,10 @@ export default function ProgressPage() {
         )}
       </div>
       <GoalsWidget />
+      <div className="border rounded-md p-3 flex items-center justify-between">
+        <div className="text-sm">Daily check-in</div>
+        <button className="text-sm underline" onClick={async ()=>{ try { await streakCheckin(userId); location.reload(); } catch {} }}>Check-in</button>
+      </div>
       {continueUrl && (
         <div className="border rounded-md p-3 flex items-center justify-between">
           <div className="text-sm">Continue learning</div>

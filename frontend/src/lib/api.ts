@@ -99,6 +99,13 @@ export async function fetchProgress(userId: string): Promise<ProgressResponse["p
   return data.progress;
 }
 
+export async function streakCheckin(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/streak/checkin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+  if (!res.ok) throw new Error(`Check-in error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; streak: number; xp: number }>;
+}
+
 export interface AchievementItem {
   id: string;
   name: string;
