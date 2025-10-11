@@ -35,7 +35,7 @@ export default function TeacherDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [teacherId]);
+  }, [teacherId, addToast]);
 
   useEffect(() => { void load(); }, [load]);
 

@@ -34,7 +34,7 @@ export default function ParentDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [parentId]);
+  }, [parentId, addToast]);
 
   useEffect(() => { void load(); }, [load]);
 
