@@ -43,7 +43,11 @@ export default function RootLayout({
     const ping = () => navigator.serviceWorker.controller?.postMessage({ type: 'GET_QUEUE_SIZE' });
     const t = setInterval(ping, 5000);
     ping();
-    return () => { clearInterval(t); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+    // daily due reminder (foreground trigger; SW displays notification)
+    const remind = () => navigator.serviceWorker.controller?.postMessage({ type: 'REMIND_DUE', userId: (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123' });
+    const r = setInterval(remind, 60 * 60 * 1000);
+    remind();
+    return () => { clearInterval(t); clearInterval(r); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
   }, []);
   return (
     <html lang="en">

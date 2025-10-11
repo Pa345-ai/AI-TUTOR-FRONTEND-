@@ -83,6 +83,20 @@ self.addEventListener('message', (event) => {
       try { event.source?.postMessage({ type: 'QUEUE_SIZE', count: all.length }); } catch {}
     })());
   }
+  else if (type === 'REMIND_DUE') {
+    const { userId } = event.data || {};
+    if (!userId) return;
+    event.waitUntil((async () => {
+      try {
+        const res = await fetch(`/api/learning/review/${encodeURIComponent(userId)}?limit=3`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = (data.due || []).map((d) => (typeof d === 'string' ? d : d.topic));
+        const body = items && items.length ? `Due topics: ${items.join(', ')}` : 'No reviews due. Keep your streak!';
+        await self.registration.showNotification('AI Tutor', { body, tag: 'ai-tutor-due', icon: '/icon-192.png' });
+      } catch {}
+    })());
+  }
 });
 
 self.addEventListener('sync', (event) => {
