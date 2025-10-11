@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession, getLessonHint, exportToDocs } from "@/lib/api";
+import { saveLessonPack, listLessonPacks, getLessonPack, deleteLessonPack, type LessonPack } from "@/lib/offline-packs";
 type Step = { title: string; content: string; check?: { question: string; answer: string } };
 type InteractiveLesson = { title: string; overview: string; steps: Step[]; summary?: string; script?: string; srt?: string };
 
@@ -26,6 +27,9 @@ export default function InteractiveLessonPage() {
   const [voice, setVoice] = useState<string>("en-US");
   const [ytUploading, setYtUploading] = useState(false);
   const [ytUrl, setYtUrl] = useState<string>("");
+  // Offline packs
+  const [packs, setPacks] = useState<Array<Pick<LessonPack,'id'|'topic'|'grade'|'createdAt'>>>([]);
+  const [showPacks, setShowPacks] = useState(false);
   // Animated lesson player state
   const [showAnimated, setShowAnimated] = useState(false);
   const [animPlaying, setAnimPlaying] = useState(false);
@@ -137,6 +141,37 @@ export default function InteractiveLessonPage() {
     }
   };
 
+  const saveOffline = async () => {
+    if (!lesson) return;
+    await saveLessonPack({ topic: lesson.title || topic, grade, lesson });
+    const list = await listLessonPacks();
+    setPacks(list);
+    setShowPacks(true);
+  };
+
+  const loadPacks = useCallback(async () => {
+    const list = await listLessonPacks();
+    setPacks(list);
+  }, []);
+
+  const openPack = async (id: string) => {
+    const pack = await getLessonPack(id);
+    if (!pack) return;
+    setLesson(pack.lesson as unknown as InteractiveLesson);
+    setTopic(pack.topic);
+    setGrade(pack.grade || "");
+    setSessionId(null);
+    setCurrentIndex(0);
+    setScore(0);
+    setShowPacks(false);
+  };
+
+  const removePack = async (id: string) => {
+    await deleteLessonPack(id);
+    const list = await listLessonPacks();
+    setPacks(list);
+  };
+
   // Helpers for animation content
   const slides = useMemo(() => {
     if (!lesson) return [] as Array<{ title: string; bullets: string[] }>;
@@ -226,6 +261,9 @@ export default function InteractiveLessonPage() {
           <Button size="sm" variant="outline" onClick={uploadYouTube} disabled={!lesson || ytUploading}>{ytUploading ? 'Uploading…' : 'Render & Upload to YouTube'}</Button>
           <span className="mx-2">|</span>
           <Button size="sm" onClick={() => setShowAnimated((v) => !v)} disabled={!lesson}>{showAnimated ? 'Hide Animated' : 'Show Animated'}</Button>
+          <span className="mx-2">|</span>
+          <Button size="sm" variant="outline" onClick={() => void saveOffline()} disabled={!lesson}>Save Offline</Button>
+          <Button size="sm" variant="outline" onClick={() => { void loadPacks(); setShowPacks((v)=>!v); }}>Offline Packs</Button>
         </div>
         {ytUrl && (
           <div className="mt-2 text-xs">Video: <a className="underline" href={ytUrl} target="_blank" rel="noreferrer">{ytUrl}</a></div>
@@ -324,6 +362,25 @@ export default function InteractiveLessonPage() {
               <div className="text-xs opacity-70">Slide {animSlideIndex + 1} / {slides.length}</div>
             </div>
           </div>
+        </div>
+      )}
+      {showPacks && (
+        <div className="border rounded-md p-3 space-y-2">
+          <div className="text-sm font-medium">Offline Lesson Packs</div>
+          {packs.length === 0 ? (
+            <div className="text-xs text-muted-foreground">No saved packs. Click &quot;Save Offline&quot; after generating a lesson.</div>
+          ) : (
+            <ul className="text-sm space-y-1">
+              {packs.map((p) => (
+                <li key={p.id} className="flex items-center justify-between">
+                  <button className="underline" onClick={() => void openPack(p.id)}>
+                    {p.topic} {p.grade ? `• G${p.grade}` : ''} — {new Date(p.createdAt).toLocaleString()}
+                  </button>
+                  <button className="text-xs text-red-600" onClick={() => void removePack(p.id)}>Delete</button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>
