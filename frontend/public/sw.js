@@ -70,8 +70,18 @@ async function replayQueued() {
 }
 
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'FLUSH_QUEUE') {
-    event.waitUntil(replayQueued());
+  if (!event.data) return;
+  const { type } = event.data;
+  if (type === 'FLUSH_QUEUE') {
+    event.waitUntil((async () => {
+      await replayQueued();
+      try { event.source?.postMessage({ type: 'FLUSH_DONE' }); } catch {}
+    })());
+  } else if (type === 'GET_QUEUE_SIZE') {
+    event.waitUntil((async () => {
+      const all = await getAllQueued();
+      try { event.source?.postMessage({ type: 'QUEUE_SIZE', count: all.length }); } catch {}
+    })());
   }
 });
 
