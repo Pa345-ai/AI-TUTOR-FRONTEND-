@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { generateInteractiveLesson, startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession, getLessonHint } from "@/lib/api";
+import { generateInteractiveLesson, startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession, getLessonHint, exportToDocs } from "@/lib/api";
 type Step = { title: string; content: string; check?: { question: string; answer: string } };
 type InteractiveLesson = { title: string; overview: string; steps: Step[]; summary?: string; script?: string; srt?: string };
 
@@ -20,6 +20,8 @@ export default function InteractiveLessonPage() {
   const [hint, setHint] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Array<{ id: string; topic: string; currentStepIndex: number; score: number }>>([]);
+  const [token, setToken] = useState<string>("");
+  const [exporting, setExporting] = useState(false);
 
   const run = async () => {
     if (!topic.trim()) return;
@@ -71,6 +73,25 @@ export default function InteractiveLessonPage() {
     setScore(s.score || 0);
   };
 
+  const exportDoc = async () => {
+    if (!lesson) return;
+    setExporting(true);
+    try {
+      const title = lesson.title || topic || 'AI Tutor Lesson';
+      const content = [
+        `# ${title}`,
+        lesson.overview ? `\n${lesson.overview}\n` : '',
+        ...lesson.steps.map((s, i) => `\n## Step ${i+1}: ${s.title}\n${s.content}\n${s.check ? `\nCheck: ${s.check.question}\n` : ''}`),
+        lesson.summary ? `\n## Summary\n${lesson.summary}` : ''
+      ].join('\n');
+      const res = await exportToDocs({ title, content, token: token || undefined });
+      if (res.docUrl) window.open(res.docUrl, '_blank');
+      if (res.docContent && navigator.clipboard) await navigator.clipboard.writeText(res.docContent);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Interactive Lesson</h1>
@@ -81,6 +102,10 @@ export default function InteractiveLessonPage() {
       <Button onClick={run} disabled={!topic.trim() || loading}>{loading ? 'Generating…' : 'Generate'}</Button>
       <div>
         <Button variant="outline" size="sm" onClick={loadSessions}>Load Sessions</Button>
+        <div className="mt-2 flex items-center gap-2 text-xs">
+          <input className="h-8 px-2 border rounded-md" placeholder="Google OAuth token (optional)" value={token} onChange={(e)=>setToken(e.target.value)} />
+          <Button size="sm" variant="outline" onClick={exportDoc} disabled={!lesson || exporting}>{exporting ? 'Exporting…' : 'Export to Docs'}</Button>
+        </div>
         {sessions.length > 0 && (
           <div className="mt-2 grid gap-1 text-sm">
             {sessions.map((s) => (

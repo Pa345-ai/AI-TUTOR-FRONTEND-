@@ -458,6 +458,17 @@ export async function getLessonHint(id: string) {
   if (!res.ok) throw new Error(`Hint error ${res.status}`);
   return res.json() as Promise<{ hint: string }>;
 }
+
+export async function exportToDocs(params: { title: string; content: string; token?: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/export/docs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`Export docs error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; docUrl?: string; docId?: string; docContent?: string }>;
+}
 export async function listLessonSessions(userId: string) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/lessons/sessions/${encodeURIComponent(userId)}`);
