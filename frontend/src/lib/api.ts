@@ -548,6 +548,20 @@ export async function addClassMember(classId: string, studentId: string) {
   if (!res.ok) throw new Error(`Add member error ${res.status}`);
   return res.json() as Promise<{ ok: boolean }>;
 }
+
+export async function fetchClassGaps(classId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/classes/${encodeURIComponent(classId)}/gaps`);
+  if (!res.ok) throw new Error(`Class gaps error ${res.status}`);
+  return res.json() as Promise<{ gaps: Array<{ topic: string; accuracy: number; attempts: number }> }>;
+}
+
+export async function assignClassPractice(classId: string, input: { teacherId: string; topics: string[]; dueDate?: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/classes/${encodeURIComponent(classId)}/assign-practice`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(`Assign practice error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; count: number }>;
+}
 export async function fetchStudentTrends(userId: string, days = 14) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/dashboard/student/${encodeURIComponent(userId)}/trends?days=${days}`);

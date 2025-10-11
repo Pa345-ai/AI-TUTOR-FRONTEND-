@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { listClasses, createClass, listClassMembers, addClassMember, fetchStudentTrends, fetchStudentSummary, fetchStudentSuggestions } from "@/lib/api";
+import { listClasses, createClass, listClassMembers, addClassMember, fetchStudentTrends, fetchStudentSummary, fetchStudentSuggestions, fetchClassGaps, assignClassPractice } from "@/lib/api";
 
 export default function ClassesPage() {
   const [teacherId, setTeacherId] = useState<string>("t-1");
@@ -14,6 +14,9 @@ export default function ClassesPage() {
   const [trends, setTrends] = useState<Array<{ date: string; attempts: number; correct: number }>>([]);
   const [summary, setSummary] = useState<{ progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> } | null>(null);
   const [suggestions, setSuggestions] = useState<Array<{ topic: string; pCorrect: number; difficulty: 'easy'|'medium'|'hard' }>>([]);
+  const [gaps, setGaps] = useState<Array<{ topic: string; accuracy: number; attempts: number }>>([]);
+  const [assignTopics, setAssignTopics] = useState<string>("");
+  const [dueDate, setDueDate] = useState<string>("");
 
   const load = useCallback(async () => {
     const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
@@ -35,6 +38,7 @@ export default function ClassesPage() {
     setSelectedClass(id);
     const res = await listClassMembers(id);
     setMembers(res.members || []);
+    try { const g = await fetchClassGaps(id); setGaps(g.gaps || []); } catch { setGaps([]); }
   };
 
   const addMember = async () => {
@@ -111,6 +115,41 @@ export default function ClassesPage() {
                 <input className="h-9 px-2 border rounded-md text-sm" value={newStudent} onChange={(e)=>setNewStudent(e.target.value)} placeholder="Student ID" />
                 <button className="h-9 px-3 border rounded-md text-sm" onClick={addMember}>Add</button>
                 <button className="h-9 px-3 border rounded-md text-sm" onClick={exportMembersCsv} disabled={members.length===0}>Export CSV</button>
+              </div>
+              {gaps.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-xs text-muted-foreground mb-1">Top class gaps</div>
+                  <ul className="text-sm space-y-1">
+                    {gaps.map((g,i)=> (
+                      <li key={i} className="flex items-center justify-between">
+                        <span>{g.topic}</span>
+                        <span className="text-xs text-muted-foreground">{Math.round(g.accuracy*100)}% • {g.attempts} attempts</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="grid md:grid-cols-3 gap-2 items-end">
+                <div className="md:col-span-2">
+                  <label className="text-xs text-muted-foreground">Assign practice topics (comma-separated)</label>
+                  <input className="h-9 px-2 border rounded-md text-sm w-full" value={assignTopics} onChange={(e)=>setAssignTopics(e.target.value)} placeholder={gaps.slice(0,3).map(x=>x.topic).join(', ')} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Due (optional)</label>
+                  <input type="date" className="h-9 px-2 border rounded-md text-sm w-full" value={dueDate} onChange={(e)=>setDueDate(e.target.value)} />
+                </div>
+                <div className="md:col-span-3">
+                  <button className="h-9 px-3 border rounded-md text-sm" onClick={async ()=>{
+                    if (!selectedClass) return;
+                    const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
+                    const topics = assignTopics.split(',').map(s=>s.trim()).filter(Boolean);
+                    if (topics.length === 0 && gaps.length > 0) topics.push(...gaps.slice(0,3).map(g=>g.topic));
+                    if (topics.length === 0) return;
+                    await assignClassPractice(selectedClass, { teacherId: tid, topics, dueDate: dueDate || undefined });
+                    setAssignTopics("");
+                    alert('Practice assigned to class');
+                  }}>Assign practice</button>
+                </div>
               </div>
               <ul className="text-sm space-y-1">
                 {members.map((m) => (
