@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat, fetchChatHistory, streamChat } from "@/lib/api";
+import { chat, fetchChatHistory, streamChat, postEngagement, fetchEngagement } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -34,6 +34,8 @@ export default function ChatPage() {
   const [subject, setSubject] = useState<string>("");
   const [grade, setGrade] = useState<string>("");
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
+  const [engagement, setEngagement] = useState<{ attention: number; frustration: number; cameraEnabled: boolean }>({ attention: 50, frustration: 0, cameraEnabled: false });
+  const [engagementEnabled, setEngagementEnabled] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to bottom when messages change
@@ -84,6 +86,41 @@ export default function ChatPage() {
         // ignore history fetch errors
       });
   }, []);
+
+  // Engagement tracker (keyboard/mouse activity + optional camera toggle only; no image upload)
+  useEffect(() => {
+    let last = Date.now();
+    const update = () => {
+      const now = Date.now();
+      const delta = Math.min(10000, now - last);
+      last = now;
+      setEngagement((e) => {
+        const att = Math.min(100, Math.max(0, e.attention + 5));
+        const fr = Math.max(0, e.frustration - 2);
+        return { ...e, attention: att, frustration: fr };
+      });
+    };
+    const decay = setInterval(() => {
+      setEngagement((e) => ({ ...e, attention: Math.max(0, e.attention - 1) }));
+    }, 2000);
+    const onMove = () => update();
+    const onKey = () => update();
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      clearInterval(decay);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!engagementEnabled) return;
+    const t = setInterval(() => {
+      void postEngagement({ userId, attention: engagement.attention, frustration: engagement.frustration, cameraEnabled: engagement.cameraEnabled });
+    }, 5000);
+    return () => clearInterval(t);
+  }, [engagementEnabled, userId, engagement.attention, engagement.frustration, engagement.cameraEnabled]);
 
   const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
 
@@ -252,6 +289,16 @@ export default function ChatPage() {
                 </Button>
               ))}
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">Engagement</label>
+            <Button size="sm" variant={engagementEnabled ? "default" : "outline"} onClick={() => setEngagementEnabled((v) => !v)}>
+              {engagementEnabled ? "On" : "Off"}
+            </Button>
+            <div className="text-xs text-muted-foreground">Attn {engagement.attention} / Frus {engagement.frustration}</div>
+            <Button size="sm" variant={engagement.cameraEnabled ? "default" : "outline"} onClick={() => setEngagement((e) => ({ ...e, cameraEnabled: !e.cameraEnabled }))}>
+              {engagement.cameraEnabled ? "Camera On" : "Camera Off"}
+            </Button>
           </div>
         </div>
       </div>

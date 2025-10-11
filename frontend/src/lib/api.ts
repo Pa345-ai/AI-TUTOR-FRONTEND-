@@ -391,6 +391,20 @@ export async function fetchRoomMessages(roomId: string) {
   return res.json() as Promise<{ messages: Array<{ userId: string | null; type: string; content: string; createdAt: string }> }>;
 }
 
+// Engagement API
+export async function postEngagement(params: { userId: string; attention?: number; frustration?: number; cameraEnabled?: boolean }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/engagement`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Engagement post error ${res.status}`);
+  return res.json();
+}
+export async function fetchEngagement(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/engagement/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Engagement get error ${res.status}`);
+  return res.json() as Promise<{ engagement?: { attention: number; frustration: number; cameraEnabled: boolean } }>;
+}
+
 export async function fetchPrereqs(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/prereqs`);
