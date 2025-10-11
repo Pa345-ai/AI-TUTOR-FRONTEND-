@@ -57,9 +57,19 @@ export default function InteractiveLessonPage() {
   };
 
   const fetchHint = async () => {
-    if (!sessionId) return;
-    const res = await getLessonHint(sessionId);
-    setHint(res.hint || "");
+    if (!sessionId || !lesson) return;
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('offline');
+      const res = await getLessonHint(sessionId);
+      setHint(res.hint || "");
+    } catch {
+      // Local fallback hint: pull a key sentence from the current step content.
+      const step = lesson.steps[currentIndex];
+      const text = (step?.content || '').split(/\n+/).join(' ');
+      const first = text.split(/(?<=[.!?])\s+/)[0] || text.slice(0, 140);
+      const clue = step?.check?.question ? ` Focus on: ${step.check.question}` : '';
+      setHint(`Try this: ${first}${clue}`);
+    }
   };
 
   const loadSessions = async () => {
