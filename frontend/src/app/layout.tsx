@@ -24,6 +24,7 @@ export default function RootLayout({
   const [offline, setOffline] = useState(false);
   const [unread, setUnread] = useState<number>(0);
   const [queued, setQueued] = useState<number | null>(null);
+  const [streak, setStreak] = useState<number>(0);
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
     (async () => {
@@ -61,8 +62,21 @@ export default function RootLayout({
       } catch {}
     };
     const pn = setInterval(poll, 15000);
+    // fetch streak for nav indicator
+    const loadStreak = async () => {
+      try {
+        const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+        const base = process.env.NEXT_PUBLIC_BASE_URL!;
+        const res = await fetch(`${base}/api/progress/${encodeURIComponent(uid)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { progress?: { streak?: number } };
+        setStreak(data.progress?.streak || 0);
+      } catch {}
+    };
+    const ps = setInterval(loadStreak, 60000);
+    loadStreak();
     poll();
-    return () => { clearInterval(t); clearInterval(r); clearInterval(pn); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+    return () => { clearInterval(t); clearInterval(r); clearInterval(pn); clearInterval(ps); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
   }, []);
   return (
     <html lang="en">
@@ -84,6 +98,7 @@ export default function RootLayout({
                 <Link href="/leaderboard" className="hover:underline">Leaderboard</Link>
                 <Link href="/history" className="hover:underline">History</Link>
                 <Link href="/achievements" className="hover:underline">Achievements</Link>
+                <span className="text-xs text-muted-foreground">🔥 {streak}</span>
                 <Link href="/onboarding" className="hover:underline">Onboarding</Link>
                 <Link href="/notifications" className="hover:underline relative">Notifications{unread>0 && (<span className="ml-1 inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white align-middle">{unread}</span>)}</Link>
                 <Link href="/settings" className="hover:underline">Settings</Link>

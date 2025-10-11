@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { fetchDueReviews, listLessonSessions, fetchGoals, fetchNotifications, type Notification } from "@/lib/api";
+import { fetchDueReviews, listLessonSessions, fetchGoals, fetchNotifications, fetchProgress, streakCheckin, type Notification } from "@/lib/api";
 
 export default function Home() {
   const [userId, setUserId] = useState<string>("123");
@@ -11,6 +11,9 @@ export default function Home() {
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState<string | null>(null);
   const [announce, setAnnounce] = useState<Notification | null>(null);
+  const [streak, setStreak] = useState<number>(0);
+  const [checkinDone, setCheckinDone] = useState<boolean>(false);
+  const [checkinMsg, setCheckinMsg] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const uid = window.localStorage.getItem('userId');
@@ -39,6 +42,32 @@ export default function Home() {
           const sys = (notifs || []).find(n => n.type === 'system' && !n.isRead) || (notifs || [])[0];
           if (sys) setAnnounce(sys as Notification);
         } catch {}
+        try {
+          const p = await fetchProgress(userId);
+          setStreak(p.streak || 0);
+        } catch {}
+      } catch {}
+    })();
+  }, [userId]);
+
+  // Auto daily check-in once per day; allow manual check-in as well
+  useEffect(() => {
+    if (!userId) return;
+    const now = new Date();
+    const iso = now.toISOString().slice(0, 10);
+    const key = `checkin:${userId}:${iso}`;
+    const already = typeof window !== 'undefined' ? window.localStorage.getItem(key) : '1';
+    if (already) {
+      setCheckinDone(true);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await streakCheckin(userId);
+        setStreak(res.streak);
+        setCheckinDone(true);
+        setCheckinMsg(`Checked in! +${Math.max(0, res.xp - 0)} XP`);
+        if (typeof window !== 'undefined') window.localStorage.setItem(key, '1');
       } catch {}
     })();
   }, [userId]);
@@ -51,6 +80,23 @@ export default function Home() {
           <div className="text-sm">{announce.message}</div>
         </div>
       )}
+      <div className="border rounded-md p-3 flex items-center justify-between bg-green-50">
+        <div className="text-sm">{checkinDone ? `Daily check-in complete — Streak ${streak} day${streak===1?'':'s'}.` : `Don't lose your streak (${streak} day${streak===1?'':'s'}).`}{checkinMsg ? ` ${checkinMsg}` : ''}</div>
+        {!checkinDone && (
+          <button
+            className="text-sm underline"
+            onClick={async ()=>{
+              try {
+                const res = await streakCheckin(userId);
+                setStreak(res.streak);
+                setCheckinDone(true);
+                const iso = new Date().toISOString().slice(0,10);
+                if (typeof window !== 'undefined') window.localStorage.setItem(`checkin:${userId}:${iso}`, '1');
+              } catch {}
+            }}
+          >Check-in</button>
+        )}
+      </div>
       <p className="text-sm text-muted-foreground">
         Start a conversation with your tutor, generate lessons, or create quizzes.
       </p>
