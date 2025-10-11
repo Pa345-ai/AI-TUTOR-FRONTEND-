@@ -114,6 +114,14 @@ export async function fetchAchievements(): Promise<AchievementItem[]> {
   return data.achievements ?? [];
 }
 
+export async function fetchUserAchievements(userId: string): Promise<AchievementItem[]> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/achievements/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`User achievements error ${res.status}`);
+  const data = (await res.json()) as { achievements?: AchievementItem[] };
+  return data.achievements ?? [];
+}
+
 export interface LeaderboardItem {
   userId: string;
   name?: string;
@@ -457,6 +465,22 @@ export async function getLessonHint(id: string) {
   const res = await fetch(`${baseUrl}/api/lessons/session/${encodeURIComponent(id)}/hint`, { method: 'POST' });
   if (!res.ok) throw new Error(`Hint error ${res.status}`);
   return res.json() as Promise<{ hint: string }>;
+}
+
+// Notifications
+export type Notification = { id: string; userId?: string; type: string; title: string; message: string; isRead?: boolean; relatedId?: string; createdAt: string };
+export async function fetchNotifications(userId: string): Promise<Notification[]> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/notifications/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Notifications error ${res.status}`);
+  const data = (await res.json()) as { notifications?: Notification[] };
+  return data.notifications ?? [];
+}
+export async function markNotificationRead(id: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Mark read error ${res.status}`);
+  return res.json() as Promise<{ success: boolean }>;
 }
 
 export async function exportToDocs(params: { title: string; content: string; token?: string }) {
