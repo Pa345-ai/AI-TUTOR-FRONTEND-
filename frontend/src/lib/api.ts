@@ -364,6 +364,33 @@ export async function fetchHomeworkReview(id: string) {
   return res.json() as Promise<{ review: HomeworkReview }>;
 }
 
+// Study Rooms
+export interface StudyRoom { id: string; name: string; topic?: string }
+export async function createRoom(params: { name: string; topic?: string; ownerId: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/rooms`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Create room error ${res.status}`);
+  return res.json() as Promise<{ room: StudyRoom }>;
+}
+export async function listRooms() {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/rooms`);
+  if (!res.ok) throw new Error(`List rooms error ${res.status}`);
+  return res.json() as Promise<{ rooms: StudyRoom[] }>;
+}
+export async function joinRoom(roomId: string, userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/rooms/${encodeURIComponent(roomId)}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+  if (!res.ok) throw new Error(`Join room error ${res.status}`);
+  return res.json();
+}
+export async function fetchRoomMessages(roomId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/rooms/${encodeURIComponent(roomId)}/messages`);
+  if (!res.ok) throw new Error(`Fetch room messages error ${res.status}`);
+  return res.json() as Promise<{ messages: Array<{ userId: string | null; type: string; content: string; createdAt: string }> }>;
+}
+
 export async function fetchPrereqs(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/prereqs`);
