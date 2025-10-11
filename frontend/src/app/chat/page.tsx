@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
-import { Mic, Volume2, PencilLine, Eraser, Download } from "lucide-react";
+import { Mic, Volume2, PencilLine, Eraser, Download, Radio } from "lucide-react";
 import { grades, getSubjects } from "@/lib/syllabus";
 
 type Role = "user" | "assistant";
@@ -68,6 +68,13 @@ export default function ChatPage() {
   const [micLevel, setMicLevel] = useState(0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Voice Tutor mode
+  const [voiceTutorOn, setVoiceTutorOn] = useState(false);
+  const [voiceName, setVoiceName] = useState<string>("");
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  type SR = { lang: string; interimResults?: boolean; maxAlternatives?: number; onresult?: (e: { results: ArrayLike<{ 0: { transcript: string } }> }) => void; onend?: () => void; onerror?: () => void; start: () => void; stop?: () => void };
+  const recRef = useRef<SR | null>(null);
+  const speakingRef = useRef<boolean>(false);
   type FaceBox = { x: number; y: number; width: number; height: number; left?: number; top?: number };
   type FaceDetection = { boundingBox?: FaceBox; boundingClientRect?: FaceBox };
   type FaceDetectorLike = { detect(input: HTMLVideoElement | HTMLCanvasElement | ImageBitmap): Promise<FaceDetection[]> };
@@ -144,6 +151,18 @@ export default function ChatPage() {
         const w = window as any;
         setSttSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
       } catch {}
+      // Load TTS voices
+      try {
+        if ('speechSynthesis' in window) {
+          const loadVoices = () => {
+            const vs = window.speechSynthesis.getVoices();
+            setVoices(vs);
+            if (!voiceName && vs.length > 0) setVoiceName(vs[0].name);
+          };
+          window.speechSynthesis.onvoiceschanged = loadVoices;
+          loadVoices();
+        }
+      } catch {}
       // Load devices list
       if (navigator.mediaDevices?.enumerateDevices) {
         navigator.mediaDevices.enumerateDevices().then(setDevices).catch(() => {});
@@ -164,7 +183,7 @@ export default function ChatPage() {
       .catch(() => {
         // ignore history fetch errors
       });
-  }, []);
+  }, [voiceName]);
 
   const getVideoConstraints = useCallback(() => ({
     video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : { facingMode: 'user' as const },
@@ -405,6 +424,116 @@ export default function ChatPage() {
 
   const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
 
+  // Voice Tutor helpers
+  type SpeechRecognitionType = new () => SR;
+  const getSpeechRecognition = useCallback((): SpeechRecognitionType | null => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w = window as any;
+      return (w.SpeechRecognition || w.webkitSpeechRecognition) as SpeechRecognitionType | null;
+    } catch { return null; }
+  }, []);
+
+  const localeFor = useCallback((l: "en"|"si"|"ta"): string => {
+    if (l === 'si') return 'si-LK';
+    if (l === 'ta') return 'ta-IN';
+    return 'en-US';
+  }, []);
+
+  const speak = useCallback(async (text: string) => {
+    if (typeof window === 'undefined') return;
+    if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance === 'undefined') return;
+    speakingRef.current = true;
+    return new Promise<void>((resolve) => {
+      const utter = new SpeechSynthesisUtterance(text);
+      if (voiceName && voices.length > 0) {
+        const pick = voices.find(v => v.name === voiceName);
+        if (pick) utter.voice = pick;
+      }
+      utter.onend = () => { speakingRef.current = false; resolve(); };
+      utter.onerror = () => { speakingRef.current = false; resolve(); };
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    });
+  }, [voiceName, voices]);
+
+  const stopRecognition = useCallback(() => {
+    try { recRef.current?.stop?.(); } catch {}
+    recRef.current = null;
+  }, []);
+
+  const voiceSend = useCallback(async (text: string) => {
+    // mirror sendMessage but capture final text and auto-TTS
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: trimmed };
+    setMessages(prev => [...prev, userMessage]);
+    try {
+      let assembled = "";
+      for await (const chunk of streamChat({ userId, message: trimmed, language, mode, level })) {
+        assembled += chunk;
+        const partial: Message = { id: 'voice-stream', role: 'assistant', content: assembled };
+        setMessages(prev => {
+          const without = prev.filter(m => m.id !== 'voice-stream');
+          return [...without, partial];
+        });
+      }
+      // finalize
+      setMessages(prev => prev.map(m => (m.id === 'voice-stream' ? { ...m, id: crypto.randomUUID() } : m)));
+      await speak(assembled);
+    } catch (err) {
+      const errorText = err instanceof Error ? err.message : 'Voice flow error';
+      const assistantMessage: Message = { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${errorText}` };
+      setMessages(prev => [...prev, assistantMessage]);
+    }
+  }, [userId, language, mode, level, speak]);
+
+  const startRecognition = useCallback(() => {
+    const Ctor = getSpeechRecognition();
+    if (!Ctor) return false;
+    try {
+      const rec = new Ctor();
+      rec.lang = localeFor(language);
+      // Optional properties available on some browsers
+      try { (rec as unknown as { interimResults?: boolean }).interimResults = false; } catch {}
+      try { (rec as unknown as { maxAlternatives?: number }).maxAlternatives = 1; } catch {}
+      rec.onresult = async (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => {
+        const result0 = event.results[0] as unknown as { 0: { transcript: string } };
+        const text = result0?.[0]?.transcript ?? "";
+        if (!text) return;
+        await voiceSend(text);
+      };
+      rec.onend = () => {
+        if (voiceTutorOn && !speakingRef.current) {
+          try { rec.start(); } catch {}
+        }
+      };
+      rec.onerror = () => {
+        try { rec.start(); } catch {}
+      };
+      recRef.current = rec as unknown as SR;
+      rec.start();
+      return true;
+    } catch { return false; }
+  }, [getSpeechRecognition, localeFor, language, voiceTutorOn, voiceSend]);
+
+  useEffect(() => {
+    if (!voiceTutorOn) {
+      stopRecognition();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try { window.speechSynthesis.cancel(); } catch {}
+      }
+      return;
+    }
+    // Start listening loop
+    const ok = startRecognition();
+    if (!ok) {
+      setVoiceTutorOn(false);
+      addToast('Voice recognition not supported in this browser.');
+    }
+    return () => { stopRecognition(); };
+  }, [voiceTutorOn, startRecognition, stopRecognition, addToast]);
+
   const sendMessage = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed) return;
@@ -588,6 +717,17 @@ export default function ChatPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mr-2">
+            <label className="text-xs text-muted-foreground flex items-center gap-1"><Radio className="h-3 w-3" /> Voice tutor</label>
+            <Button size="sm" variant={voiceTutorOn ? 'default' : 'outline'} onClick={() => setVoiceTutorOn(v => !v)}>
+              {voiceTutorOn ? 'On' : 'Off'}
+            </Button>
+            <select className="h-9 px-2 border rounded-md text-sm" value={voiceName} onChange={(e)=>setVoiceName(e.target.value)}>
+              {voices.length === 0 ? <option value="">Default</option> : voices.map((v, i) => (
+                <option key={`${v.name}-${i}`} value={v.name}>{v.name} {v.lang ? `(${v.lang})` : ''}</option>
+              ))}
+            </select>
+          </div>
             <label className="text-xs text-muted-foreground">Engagement</label>
             <Button size="sm" variant={engagementEnabled ? "default" : "outline"} onClick={() => setEngagementEnabled((v) => !v)}>
               {engagementEnabled ? "On" : "Off"}
