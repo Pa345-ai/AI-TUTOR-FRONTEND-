@@ -88,6 +88,8 @@ self.addEventListener('message', (event) => {
     if (!userId) return;
     event.waitUntil((async () => {
       try {
+        // Respect quiet hours from localStorage if provided via a broadcast in the future
+        // For now, keep behavior simple to avoid SW-localStorage limitations
         const res = await fetch(`/api/learning/review/${encodeURIComponent(userId)}?limit=3`);
         if (!res.ok) return;
         const data = await res.json();

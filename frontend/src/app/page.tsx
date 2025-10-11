@@ -14,10 +14,13 @@ export default function Home() {
   const [streak, setStreak] = useState<number>(0);
   const [checkinDone, setCheckinDone] = useState<boolean>(false);
   const [checkinMsg, setCheckinMsg] = useState<string | null>(null);
+  const [note, setNote] = useState<string>("");
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const uid = window.localStorage.getItem('userId');
       if (uid) setUserId(uid);
+      const saved = window.localStorage.getItem('quickNote');
+      if (saved) setNote(saved);
     }
   }, []);
   useEffect(() => {
@@ -96,6 +99,14 @@ export default function Home() {
             }}
           >Check-in</button>
         )}
+      </div>
+      <div className="border rounded-md p-3">
+        <div className="text-sm font-medium mb-1">Quick note</div>
+        <textarea className="w-full h-24 border rounded-md p-2 text-sm" value={note} onChange={(e)=>{ setNote(e.target.value); if (typeof window!== 'undefined') window.localStorage.setItem('quickNote', e.target.value); }} placeholder="Write a quick thought or to-do..." />
+      </div>
+      <div className="border rounded-md p-3 flex items-center justify-between">
+        <div className="text-sm">Calendar</div>
+        <a className="text-sm underline" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendar/${encodeURIComponent(userId)}.ics`}>Add to calendar (ICS)</a>
       </div>
       <p className="text-sm text-muted-foreground">
         Start a conversation with your tutor, generate lessons, or create quizzes.

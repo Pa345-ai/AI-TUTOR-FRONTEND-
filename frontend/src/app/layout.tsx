@@ -25,6 +25,7 @@ export default function RootLayout({
   const [unread, setUnread] = useState<number>(0);
   const [queued, setQueued] = useState<number | null>(null);
   const [streak, setStreak] = useState<number>(0);
+  const [theme, setTheme] = useState<'light'|'dark'|'system'>('system');
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
     (async () => {
@@ -78,6 +79,27 @@ export default function RootLayout({
     poll();
     return () => { clearInterval(t); clearInterval(r); clearInterval(pn); clearInterval(ps); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
   }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('theme') as 'light'|'dark'|'system'|null;
+    const applied = stored || 'system';
+    setTheme(applied);
+    const root = document.documentElement;
+    const apply = (t: 'light'|'dark'|'system') => {
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const dark = t === 'dark' || (t === 'system' && prefersDark);
+      root.classList.toggle('dark', dark);
+    };
+    apply(applied);
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => {
+      const storedTheme = window.localStorage.getItem('theme') as 'light'|'dark'|'system' | null;
+      apply(storedTheme || 'system');
+    };
+    const listener = (e: MediaQueryListEvent) => onChange();
+    mq.addEventListener?.('change', listener);
+    return () => mq.removeEventListener?.('change', listener);
+  }, []);
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -101,6 +123,19 @@ export default function RootLayout({
                 <span className="text-xs text-muted-foreground">🔥 {streak}</span>
                 <Link href="/onboarding" className="hover:underline">Onboarding</Link>
                 <Link href="/notifications" className="hover:underline relative">Notifications{unread>0 && (<span className="ml-1 inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white align-middle">{unread}</span>)}</Link>
+                <button
+                  className="text-xs border rounded px-2 py-1 hover:bg-accent"
+                  onClick={() => {
+                    const next = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
+                    setTheme(next);
+                    if (typeof window !== 'undefined') window.localStorage.setItem('theme', next);
+                    const root = document.documentElement;
+                    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    const dark = next === 'dark' || (next === 'system' && prefersDark);
+                    root.classList.toggle('dark', dark);
+                  }}
+                  title="Toggle theme"
+                >{theme==='dark'?'🌙':theme==='light'?'☀️':'🖥️'}</button>
                 <Link href="/settings" className="hover:underline">Settings</Link>
               </nav>
             </div>

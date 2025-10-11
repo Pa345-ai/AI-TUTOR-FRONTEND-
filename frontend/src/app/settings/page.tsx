@@ -18,6 +18,9 @@ export default function SettingsPage() {
   const [subject, setSubject] = useState<string>("");
   const [grade, setGrade] = useState<string>("");
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
+  const [theme, setTheme] = useState<'light'|'dark'|'system'>('system');
+  const [quietStart, setQuietStart] = useState<string>('21:00');
+  const [quietEnd, setQuietEnd] = useState<string>('07:00');
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -40,6 +43,12 @@ export default function SettingsPage() {
     if (storedGrade) setGrade(storedGrade);
     const storedCurr = window.localStorage.getItem("defaultCurriculum");
     if (storedCurr === "lk" || storedCurr === "international") setCurriculum(storedCurr);
+    const storedTheme = window.localStorage.getItem('theme');
+    if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') setTheme(storedTheme);
+    const qs = window.localStorage.getItem('quietStart');
+    const qe = window.localStorage.getItem('quietEnd');
+    if (qs) setQuietStart(qs);
+    if (qe) setQuietEnd(qe);
   }, []);
 
   const save = () => {
@@ -53,6 +62,9 @@ export default function SettingsPage() {
     window.localStorage.setItem("defaultSubject", subject);
     window.localStorage.setItem("defaultGrade", grade);
     window.localStorage.setItem("defaultCurriculum", curriculum);
+    window.localStorage.setItem('theme', theme);
+    window.localStorage.setItem('quietStart', quietStart);
+    window.localStorage.setItem('quietEnd', quietEnd);
   };
 
   const applyRole = async () => {
@@ -74,6 +86,27 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <AuthPanel onLogin={(u) => setUserId(u)} />
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Theme</label>
+        <div className="flex items-center gap-3 text-sm">
+          {(['system','light','dark'] as const).map(t => (
+            <label key={t} className="flex items-center gap-2">
+              <input type="radio" name="theme" checked={theme===t} onChange={()=>setTheme(t)} />
+              <span className="capitalize">{t}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Do Not Disturb</label>
+        <div className="flex items-center gap-2 text-sm">
+          <span>From</span>
+          <input type="time" value={quietStart} onChange={(e)=>setQuietStart(e.target.value)} className="h-9 px-2 border rounded-md" />
+          <span>to</span>
+          <input type="time" value={quietEnd} onChange={(e)=>setQuietEnd(e.target.value)} className="h-9 px-2 border rounded-md" />
+        </div>
+        <p className="text-xs text-muted-foreground">Suppresses reminders during quiet hours.</p>
+      </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">User ID</label>
         <Input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="Enter user id" />
