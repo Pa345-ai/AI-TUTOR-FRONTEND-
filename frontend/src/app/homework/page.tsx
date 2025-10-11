@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { requestHomeworkFeedback, fetchHomeworkReviews, type HomeworkReview, type HomeworkRubricCategory } from "@/lib/api";
+import { requestHomeworkFeedback, fetchHomeworkReviews, type HomeworkReview, type HomeworkRubricCategory, exportToDocs } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +15,8 @@ export default function HomeworkFeedbackPage() {
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState<HomeworkReview | null>(null);
   const [history, setHistory] = useState<HomeworkReview[]>([]);
+  const [token, setToken] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -55,6 +57,29 @@ export default function HomeworkFeedbackPage() {
     }
   };
 
+  const exportDoc = async () => {
+    if (!review) return;
+    setExporting(true);
+    try {
+      const titleText = review.title || review.subject || 'Homework Feedback';
+      const content = [
+        `# ${titleText}`,
+        `\n## Summary\n${review.summary || ''}`,
+        `\n## Rubric`,
+        ...((review.rubric?.categories || []).map((c) => `- ${c.name}: ${c.score}/${c.outOf} — ${c.comment}`)),
+        `\n## Suggestions`,
+        ...((review.suggestions || []).map((s) => `- ${s}`)),
+        `\n## Revision Plan\n${review.revisions || ''}`,
+        `\n## Original Submission\n${review.contentText || ''}`,
+      ].join('\n');
+      const res = await exportToDocs({ title: titleText, content, token: token || undefined });
+      if (res.docUrl) window.open(res.docUrl, '_blank');
+      if (res.docContent && navigator.clipboard) await navigator.clipboard.writeText(res.docContent);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Homework & Essay Feedback</h1>
@@ -88,6 +113,12 @@ export default function HomeworkFeedbackPage() {
       {review && (
         <div className="space-y-3">
           <h2 className="text-lg font-semibold">Feedback</h2>
+          <div className="flex items-center gap-2 text-xs">
+            <input className="h-8 px-2 border rounded-md" placeholder="Google OAuth token (optional)" value={token} onChange={(e)=>setToken(e.target.value)} />
+            <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1" onClick={exportDoc} disabled={exporting}>
+              {exporting ? 'Exporting…' : 'Export to Docs'}
+            </button>
+          </div>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="text-sm font-medium">Summary</div>
