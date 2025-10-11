@@ -8,6 +8,13 @@ export default function ParentDashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ children: Array<{ userId: string; name?: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> } | null>(null);
+  const [authorized, setAuthorized] = useState(true);
+  const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
+  const addToast = useCallback((text: string) => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, text }]);
+    window.setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -16,8 +23,14 @@ export default function ParentDashboardPage() {
       const pid = (typeof window !== 'undefined' ? window.localStorage.getItem('parentId') : null) || parentId;
       const res = await fetchParentDashboard(pid);
       setData(res);
+      setAuthorized(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      if (/\b(401|403)\b/.test(msg)) {
+        setAuthorized(false);
+        addToast('Please sign in as a parent to view this dashboard.');
+      }
     } finally {
       setLoading(false);
     }
@@ -55,10 +68,12 @@ export default function ParentDashboardPage() {
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Parent Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <a className="h-9 px-3 border rounded-md text-sm inline-flex items-center" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/export/parent/${encodeURIComponent(parentId)}.pdf`} target="_blank" rel="noreferrer">Export PDF</a>
-          <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.children?.length ?? 0) === 0}>Export CSV</button>
-        </div>
+        {authorized && (
+          <div className="flex items-center gap-2">
+            <a className="h-9 px-3 border rounded-md text-sm inline-flex items-center" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/export/parent/${encodeURIComponent(parentId)}.pdf`} target="_blank" rel="noreferrer">Export PDF</a>
+            <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.children?.length ?? 0) === 0}>Export CSV</button>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <input className="h-9 px-2 border rounded-md text-sm" value={parentId} onChange={(e)=>setParentId(e.target.value)} placeholder="Parent ID" />
@@ -92,6 +107,18 @@ export default function ParentDashboardPage() {
                     ))}
                   </ul>
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {toasts.map((t) => (
+            <div key={t.id} className="max-w-sm text-sm bg-background border rounded-md shadow-md p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>{t.text}</div>
+                <button className="text-xs text-muted-foreground" onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}>Dismiss</button>
               </div>
             </div>
           ))}
