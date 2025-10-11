@@ -48,6 +48,23 @@ export default function ChatPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
   const [sttSupported, setSttSupported] = useState(false);
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') return window.localStorage.getItem('cameraDeviceId');
+    return null;
+  });
+  const [selectedMicId, setSelectedMicId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') return window.localStorage.getItem('micDeviceId');
+    return null;
+  });
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
+  const previewStreamRef = useRef<MediaStream | null>(null);
+  const micTestStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micLevelTimerRef = useRef<number | null>(null);
+  const [micLevel, setMicLevel] = useState(0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   type FaceBox = { x: number; y: number; width: number; height: number; left?: number; top?: number };
@@ -126,6 +143,13 @@ export default function ChatPage() {
         const w = window as any;
         setSttSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
       } catch {}
+      // Load devices list
+      if (navigator.mediaDevices?.enumerateDevices) {
+        navigator.mediaDevices.enumerateDevices().then(setDevices).catch(() => {});
+        navigator.mediaDevices.addEventListener('devicechange', () => {
+          navigator.mediaDevices.enumerateDevices().then(setDevices).catch(() => {});
+        });
+      }
     }
     // Also try to load server history if we have a userId (defaults to "123")
     const uid = typeof window !== "undefined" ? window.localStorage.getItem("userId") || "123" : "123";
@@ -140,6 +164,11 @@ export default function ChatPage() {
         // ignore history fetch errors
       });
   }, []);
+
+  const getVideoConstraints = useCallback(() => ({
+    video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : { facingMode: 'user' as const },
+    audio: false as const,
+  }), [selectedCameraId]);
 
   // Engagement tracker (keyboard/mouse activity + optional camera toggle only; no image upload)
   useEffect(() => {
@@ -181,7 +210,7 @@ export default function ChatPage() {
         const localVideo = videoRef.current;
         if (!localVideo) return;
         // start camera
-        const localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        const localStream = await navigator.mediaDevices.getUserMedia(getVideoConstraints());
         localVideo.srcObject = localStream;
         await localVideo.play().catch(() => {});
         // init FaceDetector if available
@@ -334,12 +363,12 @@ export default function ChatPage() {
       lastCenterRef.current = null;
       stillCounterRef.current = 0;
     };
-  }, [engagement.cameraEnabled]);
+  }, [engagement.cameraEnabled, getVideoConstraints]);
 
   const requestCameraPreflight = useCallback(async () => {
     setCameraError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia(getVideoConstraints());
       // stop immediately (useEffect will restart hidden video when enabled)
       stream.getTracks().forEach((t) => t.stop());
       setEngagement((e) => ({ ...e, cameraEnabled: true }));
@@ -350,7 +379,7 @@ export default function ChatPage() {
       const msg = err instanceof Error ? err.message : 'Permission denied or unavailable';
       setCameraError(msg);
     }
-  }, []);
+  }, [getVideoConstraints]);
 
   const onToggleCamera = useCallback(async () => {
     if (!engagement.cameraEnabled) {
@@ -567,6 +596,7 @@ export default function ChatPage() {
             {engagement.cameraEnabled ? "Camera On" : "Enable Camera"}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setShowCameraConsent(true)}>Privacy</Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowDeviceSettings(true)}>Devices</Button>
           {cameraPermission && (
             <span className="text-[11px] text-muted-foreground">Perm: {cameraPermission}</span>
           )}
@@ -603,6 +633,124 @@ export default function ChatPage() {
             }}>
               Allow and enable
             </Button>
+          </div>
+        </div>
+      </div>
+    )}
+    {showDeviceSettings && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="w-[92%] max-w-lg rounded-md border bg-background p-4 shadow-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">Device settings</h2>
+            <button className="text-xs text-muted-foreground" onClick={() => {
+              // cleanup any previews
+              if (previewStreamRef.current) { previewStreamRef.current.getTracks().forEach(t => t.stop()); previewStreamRef.current = null; }
+              if (micLevelTimerRef.current) { clearTimeout(micLevelTimerRef.current); micLevelTimerRef.current = null; }
+              if (micTestStreamRef.current) { micTestStreamRef.current.getTracks().forEach(t => t.stop()); micTestStreamRef.current = null; }
+              if (audioContextRef.current) { try { audioContextRef.current.close(); } catch {} audioContextRef.current = null; }
+              setShowDeviceSettings(false);
+            }}>Close</button>
+          </div>
+          <div className="grid gap-3">
+            <div>
+              <div className="text-sm font-medium mb-1">Camera</div>
+              <select
+                className="h-9 px-2 border rounded-md text-sm w-full"
+                value={selectedCameraId ?? ''}
+                onChange={(e) => setSelectedCameraId(e.target.value || null)}
+              >
+                <option value="">Default (front)</option>
+                {devices.filter(d => d.kind === 'videoinput').map((d, i) => (
+                  <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${i+1}`}</option>
+                ))}
+              </select>
+              <div className="mt-2 flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={async () => {
+                  // start camera preview
+                  try {
+                    if (previewStreamRef.current) { previewStreamRef.current.getTracks().forEach(t => t.stop()); previewStreamRef.current = null; }
+                    const constraints = selectedCameraId ? { video: { deviceId: { exact: selectedCameraId } } } : { video: { facingMode: 'user' as const } };
+                    const s = await navigator.mediaDevices.getUserMedia({ ...constraints, audio: false });
+                    previewStreamRef.current = s;
+                    if (previewVideoRef.current) { previewVideoRef.current.srcObject = s; await previewVideoRef.current.play().catch(() => {}); }
+                  } catch {}
+                }}>Test camera</Button>
+                <Button size="sm" variant="ghost" onClick={() => {
+                  if (previewStreamRef.current) { previewStreamRef.current.getTracks().forEach(t => t.stop()); previewStreamRef.current = null; }
+                  if (previewVideoRef.current) previewVideoRef.current.srcObject = null;
+                }}>Stop</Button>
+              </div>
+              <video ref={previewVideoRef} className="mt-2 w-full max-h-40 bg-black rounded" playsInline muted />
+            </div>
+            <div>
+              <div className="text-sm font-medium mb-1">Microphone</div>
+              <select
+                className="h-9 px-2 border rounded-md text-sm w-full"
+                value={selectedMicId ?? ''}
+                onChange={(e) => setSelectedMicId(e.target.value || null)}
+              >
+                <option value="">Default</option>
+                {devices.filter(d => d.kind === 'audioinput').map((d, i) => (
+                  <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${i+1}`}</option>
+                ))}
+              </select>
+              <div className="mt-2 flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={async () => {
+                  try {
+                    if (micLevelTimerRef.current) { clearTimeout(micLevelTimerRef.current); micLevelTimerRef.current = null; }
+                    if (micTestStreamRef.current) { micTestStreamRef.current.getTracks().forEach(t => t.stop()); micTestStreamRef.current = null; }
+                    if (audioContextRef.current) { try { audioContextRef.current.close(); } catch {} audioContextRef.current = null; }
+                    const constraints = selectedMicId ? { audio: { deviceId: { exact: selectedMicId } } } : { audio: true };
+                    const s = await navigator.mediaDevices.getUserMedia(constraints);
+                    micTestStreamRef.current = s;
+                    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
+                    audioContextRef.current = ctx;
+                    const source = ctx.createMediaStreamSource(s);
+                    const analyser = ctx.createAnalyser();
+                    analyser.fftSize = 1024;
+                    source.connect(analyser);
+                    micAnalyserRef.current = analyser;
+                    const data = new Uint8Array(analyser.frequencyBinCount);
+                    const tick = () => {
+                      if (!micAnalyserRef.current) return;
+                      micAnalyserRef.current.getByteTimeDomainData(data);
+                      let sum = 0;
+                      for (let i = 0; i < data.length; i++) {
+                        const v = (data[i] - 128) / 128;
+                        sum += v * v;
+                      }
+                      const rms = Math.sqrt(sum / data.length);
+                      setMicLevel(Math.min(100, Math.round(rms * 200)));
+                      micLevelTimerRef.current = window.setTimeout(tick, 100);
+                    };
+                    tick();
+                  } catch {}
+                }}>Test mic</Button>
+                <Button size="sm" variant="ghost" onClick={() => {
+                  if (micLevelTimerRef.current) { clearTimeout(micLevelTimerRef.current); micLevelTimerRef.current = null; }
+                  if (micTestStreamRef.current) { micTestStreamRef.current.getTracks().forEach(t => t.stop()); micTestStreamRef.current = null; }
+                  if (audioContextRef.current) { try { audioContextRef.current.close(); } catch {} audioContextRef.current = null; }
+                  setMicLevel(0);
+                }}>Stop</Button>
+              </div>
+              <div className="mt-2 h-2 bg-muted rounded">
+                <div className="h-full bg-green-600 rounded" style={{ width: `${micLevel}%` }} />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button size="sm" variant="outline" onClick={async () => {
+                if (navigator.mediaDevices?.enumerateDevices) {
+                  try { const list = await navigator.mediaDevices.enumerateDevices(); setDevices(list); } catch {}
+                }
+              }}>Refresh</Button>
+              <Button size="sm" onClick={() => {
+                if (typeof window !== 'undefined') {
+                  if (selectedCameraId) window.localStorage.setItem('cameraDeviceId', selectedCameraId); else window.localStorage.removeItem('cameraDeviceId');
+                  if (selectedMicId) window.localStorage.setItem('micDeviceId', selectedMicId); else window.localStorage.removeItem('micDeviceId');
+                }
+                addToast('Device preferences saved');
+              }}>Save</Button>
+            </div>
           </div>
         </div>
       </div>
