@@ -891,7 +891,9 @@ export default function ChatPage() {
                 if (qpPick == null) return;
                 try {
                   const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
-                  const correct = qpQ.options[qpPick] && qpQ.options[qpPick] === (qpQ as any).correctAnswer ? true : false; // fallback if backend returned correctAnswer
+                  const correctAns = (qpQ as unknown as { correctAnswer?: string }).correctAnswer;
+                  const isCorrect = typeof correctAns === 'string' ? (qpQ.options[qpPick] === correctAns) : false;
+                  const correct = isCorrect;
                   const r = await adaptiveGrade({ userId: uid, topic: qpTopic || qpQ.question, correct });
                   setQpInfo(`Submitted • ${correct ? 'Correct' : 'Incorrect'}${r?.pCorrect ? ` • new p(correct): ${Math.round(r.pCorrect*100)}%` : ''}`);
                 } catch (e) { setQpInfo(e instanceof Error ? e.message : String(e)); }
