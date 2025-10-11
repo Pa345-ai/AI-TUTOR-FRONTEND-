@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { listClasses, createClass, listClassMembers, addClassMember, fetchStudentTrends, fetchStudentSummary, fetchStudentSuggestions } from "@/lib/api";
 
 export default function ClassesPage() {
@@ -15,13 +15,13 @@ export default function ClassesPage() {
   const [summary, setSummary] = useState<{ progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> } | null>(null);
   const [suggestions, setSuggestions] = useState<Array<{ topic: string; pCorrect: number; difficulty: 'easy'|'medium'|'hard' }>>([]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
     const res = await listClasses(tid);
     setClasses(res.classes || []);
-  };
+  }, [teacherId]);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [load]);
 
   const createC = async () => {
     if (!name.trim()) return;

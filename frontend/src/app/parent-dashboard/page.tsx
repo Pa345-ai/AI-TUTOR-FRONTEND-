@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchParentDashboard } from "@/lib/api";
 
 export default function ParentDashboardPage() {
@@ -9,7 +9,7 @@ export default function ParentDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ children: Array<{ userId: string; name?: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> } | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -21,13 +21,42 @@ export default function ParentDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [parentId]);
 
-  useEffect(() => { void load(); }, [/* load */]);
+  useEffect(() => { void load(); }, [load]);
+
+  const exportCsv = useCallback(() => {
+    if (!data) return;
+    const rows: string[] = [];
+    rows.push(['userId','name','xp','level','streak','weakTopics','strongTopics'].join(','));
+    for (const s of data.children) {
+      const weak = (s.weak || []).map(w => `${w.topic}(${Math.round(w.accuracy*100)}%)`).join('; ');
+      const strong = (s.strong || []).map(w => `${w.topic}(${Math.round(w.accuracy*100)}%)`).join('; ');
+      rows.push([
+        s.userId,
+        '"' + String(s.name ?? '').replaceAll('"','""') + '"',
+        String(s.progress?.xp ?? 0),
+        String(s.progress?.level ?? 1),
+        String(s.progress?.streak ?? 0),
+        '"' + weak.replaceAll('"','""') + '"',
+        '"' + strong.replaceAll('"','""') + '"',
+      ].join(','));
+    }
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `parent-dashboard-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
 
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
-      <h1 className="text-xl font-semibold">Parent Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Parent Dashboard</h1>
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.children?.length ?? 0) === 0}>Export CSV</button>
+      </div>
       <div className="flex items-center gap-2">
         <input className="h-9 px-2 border rounded-md text-sm" value={parentId} onChange={(e)=>setParentId(e.target.value)} placeholder="Parent ID" />
         <button className="h-9 px-3 border rounded-md text-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Load'}</button>
