@@ -490,6 +490,13 @@ export async function listLessonSessions(userId: string) {
   return res.json() as Promise<{ sessions: LessonSession[] }>;
 }
 
+export async function translate(text: string, target: 'en'|'si'|'ta'|'hi'|'zh') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/translate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, target }) });
+  if (!res.ok) throw new Error(`Translate error ${res.status}`);
+  return res.json() as Promise<{ text: string }>;
+}
+
 export async function fetchNextTopics(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/next`);

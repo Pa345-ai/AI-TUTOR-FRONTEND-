@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat, fetchChatHistory, streamChat, postEngagement, fetchEngagement } from "@/lib/api";
+import { chat, fetchChatHistory, streamChat, postEngagement, fetchEngagement, translate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -34,6 +34,7 @@ export default function ChatPage() {
   const [subject, setSubject] = useState<string>("");
   const [grade, setGrade] = useState<string>("");
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
+  const [translateTo, setTranslateTo] = useState<""|"en"|"si"|"ta"|"hi"|"zh">("");
   const [engagement, setEngagement] = useState<{ attention: number; frustration: number; cameraEnabled: boolean }>({ attention: 50, frustration: 0, cameraEnabled: false });
   const [engagementEnabled, setEngagementEnabled] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -148,7 +149,14 @@ export default function ChatPage() {
         });
       }
       // finalize stream message id
-      setMessages((prev) => prev.map((m) => (m.id === "stream" ? { ...m, id: crypto.randomUUID() } : m)));
+      let finalText = assembled;
+      if (translateTo) {
+        try {
+          const t = await translate(assembled, translateTo);
+          finalText = t.text || assembled;
+        } catch {}
+      }
+      setMessages((prev) => prev.map((m) => (m.id === "stream" ? { ...m, id: crypto.randomUUID(), content: finalText } : m)));
       // create a small practice suggestion
       const short = assembled.replace(/\s+/g, ' ').slice(0, 120);
       setSuggestion(`Practice now: ${subject || 'subject'} • ${short}`);
@@ -238,6 +246,17 @@ export default function ChatPage() {
                   if (typeof window !== "undefined") window.localStorage.setItem("language", l);
                 }}
               >{l.toUpperCase()}</Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">Translate</span>
+            {(["", "en","si","ta","hi","zh"] as const).map((l) => (
+              <Button
+                key={l||'none'}
+                variant={translateTo === l ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTranslateTo(l)}
+              >{l ? l.toUpperCase() : 'OFF'}</Button>
             ))}
           </div>
           <div className="flex items-center gap-1">
