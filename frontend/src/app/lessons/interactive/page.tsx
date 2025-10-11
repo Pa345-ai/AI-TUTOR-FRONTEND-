@@ -22,6 +22,8 @@ export default function InteractiveLessonPage() {
   const [sessions, setSessions] = useState<Array<{ id: string; topic: string; currentStepIndex: number; score: number }>>([]);
   const [token, setToken] = useState<string>("");
   const [exporting, setExporting] = useState(false);
+  const [ytToken, setYtToken] = useState("");
+  const [ytUploading, setYtUploading] = useState(false);
 
   const run = async () => {
     if (!topic.trim()) return;
@@ -92,6 +94,29 @@ export default function InteractiveLessonPage() {
     }
   };
 
+  const uploadYouTube = async () => {
+    if (!lesson) return;
+    setYtUploading(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+      // Placeholder: require a data URL pasted via prompt (demo). Real flow would render video from slides/audio.
+      const dataUrl = prompt('Paste video data URL (data:video/mp4;base64,...) to upload to YouTube:') || '';
+      if (!dataUrl) throw new Error('No video data URL provided');
+      const up = await fetch(`${base}/api/youtube/upload`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: uid, title: lesson.title || topic || 'AI Tutor Lesson', description: lesson.summary || '', videoBase64: dataUrl, accessToken: ytToken || undefined }) });
+      const r = await up.json();
+      if (!up.ok) throw new Error(r.error || 'Upload failed');
+      if (lesson.srt) {
+        await fetch(`${base}/api/youtube/captions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: uid, videoId: r.videoId, srt: lesson.srt }) });
+      }
+      alert(`Uploaded: https://youtu.be/${r.videoId}`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setYtUploading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Interactive Lesson</h1>
@@ -110,6 +135,8 @@ export default function InteractiveLessonPage() {
         <div className="mt-2 flex items-center gap-2 text-xs">
           <input className="h-8 px-2 border rounded-md" placeholder="Google OAuth token (optional)" value={token} onChange={(e)=>setToken(e.target.value)} />
           <Button size="sm" variant="outline" onClick={exportDoc} disabled={!lesson || exporting}>{exporting ? 'Exporting…' : 'Export to Docs'}</Button>
+          <input className="h-8 px-2 border rounded-md" placeholder="YouTube token (optional)" value={ytToken} onChange={(e)=>setYtToken(e.target.value)} />
+          <Button size="sm" variant="outline" onClick={uploadYouTube} disabled={!lesson || ytUploading}>{ytUploading ? 'Uploading…' : 'Upload to YouTube'}</Button>
         </div>
         {sessions.length > 0 && (
           <div className="mt-2 grid gap-1 text-sm">
