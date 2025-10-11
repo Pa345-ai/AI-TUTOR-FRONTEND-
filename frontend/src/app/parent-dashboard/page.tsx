@@ -10,6 +10,8 @@ export default function ParentDashboardPage() {
   const [data, setData] = useState<{ children: Array<{ userId: string; name?: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> } | null>(null);
   const [authorized, setAuthorized] = useState(true);
   const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
+  const [email, setEmail] = useState<string>("");
+  const [digesting, setDigesting] = useState(false);
   const addToast = useCallback((text: string) => {
     const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, text }]);
@@ -78,6 +80,25 @@ export default function ParentDashboardPage() {
       <div className="flex items-center gap-2">
         <input className="h-9 px-2 border rounded-md text-sm" value={parentId} onChange={(e)=>setParentId(e.target.value)} placeholder="Parent ID" />
         <button className="h-9 px-3 border rounded-md text-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Load'}</button>
+        <span className="mx-2">|</span>
+        <input className="h-9 px-2 border rounded-md text-sm" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="Email for weekly digest" />
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={async ()=>{
+          if (!email.trim()) return;
+          setDigesting(true);
+          try {
+            const children = data?.children || [];
+            const body = [
+              `Parent digest for ${new Date().toLocaleDateString()}`,
+              '',
+              ...children.map((c)=> `Child ${c.name || c.userId}: XP ${c.progress?.xp ?? 0}, Lv ${c.progress?.level ?? 1}, Streak ${c.progress?.streak ?? 0}. Weak: ${(c.weak||[]).map(w=>w.topic).join(', ') || '—'}. Strong: ${(c.strong||[]).map(s=>s.topic).join(', ') || '—'}.`)
+            ].join('\n');
+            // best-effort: open mailto with prefilled content; real email service can be wired
+            const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Weekly Learning Digest')}&body=${encodeURIComponent(body)}`;
+            window.location.href = mailto;
+          } finally {
+            setDigesting(false);
+          }
+        }} disabled={digesting || !data || (data.children?.length ?? 0) === 0}>{digesting ? 'Preparing…' : 'Send Weekly Digest'}</button>
       </div>
       {error && <div className="text-sm text-red-600">{error}</div>}
       {data && (
