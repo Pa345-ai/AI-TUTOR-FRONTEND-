@@ -39,7 +39,10 @@ export default function ChatPage() {
   const [engagementEnabled, setEngagementEnabled] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const detectorRef = useRef<any>(null);
+  type FaceBox = { x: number; y: number; width: number; height: number; left?: number; top?: number };
+  type FaceDetection = { boundingBox?: FaceBox; boundingClientRect?: FaceBox };
+  type FaceDetectorLike = { detect(input: HTMLVideoElement | HTMLCanvasElement | ImageBitmap): Promise<FaceDetection[]> };
+  const detectorRef = useRef<FaceDetectorLike | null>(null);
   const detectTimerRef = useRef<number | null>(null);
   const lastCenterRef = useRef<{ x: number; y: number } | null>(null);
   const stillCounterRef = useRef<number>(0);
@@ -133,39 +136,40 @@ export default function ChatPage() {
     const run = async () => {
       if (!engagement.cameraEnabled) return;
       try {
+        const localVideo = videoRef.current;
+        if (!localVideo) return;
         // start camera
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-        if (!videoRef.current) return;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
+        const localStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        localVideo.srcObject = localStream;
+        await localVideo.play().catch(() => {});
         // init FaceDetector if available
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const FD = (window as any).FaceDetector;
+        const FD = (window as unknown as { FaceDetector?: new (opts?: { fastMode?: boolean }) => FaceDetectorLike }).FaceDetector;
         if (FD && !detectorRef.current) detectorRef.current = new FD({ fastMode: true });
         if (!detectorRef.current) return; // no support; gracefully skip
         const detectLoop = async () => {
           if (!videoRef.current || !detectorRef.current) return;
           try {
-            // @ts-expect-error FaceDetector types
             const faces = await detectorRef.current.detect(videoRef.current);
             const face = faces?.[0];
             if (!face) {
               setEngagement((e) => ({ ...e, attention: Math.max(0, e.attention - 3), frustration: Math.min(100, e.frustration + 2) }));
               lastCenterRef.current = null;
             } else {
-              const box = face.boundingBox || face.boundingClientRect || face.boundingBox || face;
-              const cx = (box.x || box.left || 0) + (box.width || 0) / 2;
-              const cy = (box.y || box.top || 0) + (box.height || 0) / 2;
-              const prev = lastCenterRef.current;
-              lastCenterRef.current = { x: cx, y: cy };
-              if (prev) {
-                const dx = Math.abs(cx - prev.x);
-                const dy = Math.abs(cy - prev.y);
-                const moved = Math.sqrt(dx * dx + dy * dy);
-                if (moved < 5) {
-                  stillCounterRef.current += 1;
-                } else {
-                  stillCounterRef.current = 0;
+              const box = face.boundingBox ?? face.boundingClientRect;
+              if (box) {
+                const cx = (box.x ?? box.left ?? 0) + (box.width ?? 0) / 2;
+                const cy = (box.y ?? box.top ?? 0) + (box.height ?? 0) / 2;
+                const prev = lastCenterRef.current;
+                lastCenterRef.current = { x: cx, y: cy };
+                if (prev) {
+                  const dx = Math.abs(cx - prev.x);
+                  const dy = Math.abs(cy - prev.y);
+                  const moved = Math.sqrt(dx * dx + dy * dy);
+                  if (moved < 5) {
+                    stillCounterRef.current += 1;
+                  } else {
+                    stillCounterRef.current = 0;
+                  }
                 }
               }
               // adjust attention/frustration
@@ -194,9 +198,11 @@ export default function ChatPage() {
         clearTimeout(detectTimerRef.current);
         detectTimerRef.current = null;
       }
-      if (videoRef.current && videoRef.current.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
-        videoRef.current.srcObject = null;
+      const localVideo = videoRef.current;
+      const src = localVideo?.srcObject as MediaStream | null | undefined;
+      if (src) {
+        src.getTracks().forEach((t) => t.stop());
+        if (localVideo) localVideo.srcObject = null;
       }
       lastCenterRef.current = null;
       stillCounterRef.current = 0;
