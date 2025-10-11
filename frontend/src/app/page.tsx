@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { fetchDueReviews, listLessonSessions, fetchGoals } from "@/lib/api";
+import { fetchDueReviews, listLessonSessions, fetchGoals, fetchNotifications, type Notification } from "@/lib/api";
 
 export default function Home() {
   const [userId, setUserId] = useState<string>("123");
@@ -10,6 +10,7 @@ export default function Home() {
   const [due, setDue] = useState<Array<{ topic: string }> | null>(null);
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState<Notification | null>(null);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const uid = window.localStorage.getItem('userId');
@@ -33,12 +34,23 @@ export default function Home() {
         // resume last incomplete
         const incompletes = (sessions.sessions || []).filter((s) => !s.completed);
         if (incompletes[0]) setResume({ id: incompletes[0].id, title: incompletes[0].lesson?.title || incompletes[0].topic });
+        try {
+          const notifs = await fetchNotifications(userId);
+          const sys = (notifs || []).find(n => n.type === 'system' && !n.isRead) || (notifs || [])[0];
+          if (sys) setAnnounce(sys as any);
+        } catch {}
       } catch {}
     })();
   }, [userId]);
   return (
     <div className="mx-auto max-w-3xl w-full p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Welcome to AI Tutor</h1>
+      {announce && (
+        <div className="border rounded-md p-3 bg-accent/40">
+          <div className="text-sm font-medium">{announce.title}</div>
+          <div className="text-sm">{announce.message}</div>
+        </div>
+      )}
       <p className="text-sm text-muted-foreground">
         Start a conversation with your tutor, generate lessons, or create quizzes.
       </p>
