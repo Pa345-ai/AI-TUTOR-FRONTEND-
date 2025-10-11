@@ -1,0 +1,70 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { fetchTeacherDashboard } from "@/lib/api";
+
+export default function TeacherDashboardPage() {
+  const [teacherId, setTeacherId] = useState<string>("t-1");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<{ students: Array<{ userId: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> } | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
+      const res = await fetchTeacherDashboard(tid);
+      setData(res);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  return (
+    <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
+      <h1 className="text-xl font-semibold">Teacher Dashboard</h1>
+      <div className="flex items-center gap-2">
+        <input className="h-9 px-2 border rounded-md text-sm" value={teacherId} onChange={(e)=>setTeacherId(e.target.value)} placeholder="Teacher ID" />
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Load'}</button>
+      </div>
+      {error && <div className="text-sm text-red-600">{error}</div>}
+      {data && (
+        <div className="grid gap-3">
+          {data.students.map((s) => (
+            <div key={s.userId} className="border rounded-md p-3">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">Student: {s.userId}</div>
+                <div className="text-xs text-muted-foreground">XP {s.progress?.xp ?? 0} • Lv {s.progress?.level ?? 1} • Streak {s.progress?.streak ?? 0}</div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                <div>
+                  <div className="text-sm font-medium">Weak topics</div>
+                  <ul className="text-sm space-y-1">
+                    {s.weak.length === 0 && <li className="text-xs text-muted-foreground">Not enough data</li>}
+                    {s.weak.map((w,i)=> (
+                      <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Strong topics</div>
+                  <ul className="text-sm space-y-1">
+                    {s.strong.length === 0 && <li className="text-xs text-muted-foreground">Not enough data</li>}
+                    {s.strong.map((w,i)=> (
+                      <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

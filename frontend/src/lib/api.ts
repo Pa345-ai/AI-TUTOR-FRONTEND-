@@ -507,3 +507,18 @@ export async function fetchNextTopics(params: { userId: string; subject?: string
   if (!res.ok) throw new Error(`Next topics error ${res.status}`);
   return res.json() as Promise<{ next: string[] }>;
 }
+
+// Dashboards
+export async function fetchTeacherDashboard(teacherId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/dashboard/teacher/${encodeURIComponent(teacherId)}`);
+  if (!res.ok) throw new Error(`Teacher dashboard error ${res.status}`);
+  return res.json() as Promise<{ students: Array<{ userId: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> }>;
+}
+
+export async function fetchParentDashboard(parentId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/dashboard/parent/${encodeURIComponent(parentId)}`);
+  if (!res.ok) throw new Error(`Parent dashboard error ${res.status}`);
+  return res.json() as Promise<{ children: Array<{ userId: string; name?: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> }>;
+}
