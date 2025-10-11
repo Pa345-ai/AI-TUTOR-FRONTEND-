@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat, fetchChatHistory, streamChat, postEngagement, translate } from "@/lib/api";
+import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade } from "@/lib/api";
 import { localTutorReply } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,6 +76,12 @@ export default function ChatPage() {
   type SR = { lang: string; interimResults?: boolean; maxAlternatives?: number; onresult?: (e: { results: ArrayLike<{ 0: { transcript: string } }> }) => void; onend?: () => void; onerror?: () => void; start: () => void; stop?: () => void };
   const recRef = useRef<SR | null>(null);
   const speakingRef = useRef<boolean>(false);
+  // Quick practice state
+  const [qpTopic, setQpTopic] = useState<string>("");
+  const [qpLoading, setQpLoading] = useState(false);
+  const [qpQ, setQpQ] = useState<{ question: string; options: string[] } | null>(null);
+  const [qpPick, setQpPick] = useState<number | null>(null);
+  const [qpInfo, setQpInfo] = useState<string>("");
   type FaceBox = { x: number; y: number; width: number; height: number; left?: number; top?: number };
   type FaceDetection = { boundingBox?: FaceBox; boundingClientRect?: FaceBox };
   type FaceDetectorLike = { detect(input: HTMLVideoElement | HTMLCanvasElement | ImageBitmap): Promise<FaceDetection[]> };
@@ -851,6 +857,61 @@ export default function ChatPage() {
             <span className="text-[11px] text-red-600">{cameraError}</span>
           )}
           </div>
+        </div>
+        {/* Quick Practice */}
+        <div className="w-full border rounded-md p-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-xs text-muted-foreground">Quick practice</span>
+            <input
+              className="h-8 px-2 border rounded-md text-xs"
+              placeholder="Topic (optional)"
+              value={qpTopic}
+              onChange={(e)=>setQpTopic(e.target.value)}
+              style={{ minWidth: 180 }}
+            />
+            <Button size="sm" variant="outline" onClick={async ()=>{
+              try {
+                setQpLoading(true); setQpQ(null); setQpPick(null); setQpInfo("");
+                const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+                const res = await adaptiveNext({ userId: uid, topic: qpTopic || undefined, language });
+                if (res?.question?.question && Array.isArray(res?.question?.options)) {
+                  setQpQ({ question: res.question.question as string, options: res.question.options as string[] });
+                  setQpInfo(`Difficulty: ${res?.difficulty || '—'}${res?.pCorrect ? ` • p(correct): ${Math.round(res.pCorrect*100)}%` : ''}`);
+                } else {
+                  setQpInfo('No question available.');
+                }
+              } catch (e) {
+                setQpInfo(e instanceof Error ? e.message : String(e));
+              } finally {
+                setQpLoading(false);
+              }
+            }} disabled={qpLoading}>{qpLoading ? 'Loading…' : 'Get question'}</Button>
+            {qpQ && (
+              <Button size="sm" onClick={async ()=>{
+                if (qpPick == null) return;
+                try {
+                  const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+                  const correct = qpQ.options[qpPick] && qpQ.options[qpPick] === (qpQ as any).correctAnswer ? true : false; // fallback if backend returned correctAnswer
+                  const r = await adaptiveGrade({ userId: uid, topic: qpTopic || qpQ.question, correct });
+                  setQpInfo(`Submitted • ${correct ? 'Correct' : 'Incorrect'}${r?.pCorrect ? ` • new p(correct): ${Math.round(r.pCorrect*100)}%` : ''}`);
+                } catch (e) { setQpInfo(e instanceof Error ? e.message : String(e)); }
+              }} disabled={qpPick == null}>Submit</Button>
+            )}
+            {qpInfo && <span className="text-[11px] text-muted-foreground">{qpInfo}</span>}
+          </div>
+          {qpQ && (
+            <div className="mt-2 text-sm">
+              <div className="font-medium mb-1">{qpQ.question}</div>
+              <div className="space-y-1">
+                {qpQ.options.map((opt, i) => (
+                  <label key={i} className="flex items-center gap-2 text-sm">
+                    <input type="radio" name="qp" checked={qpPick === i} onChange={()=>setQpPick(i)} />
+                    <span>{opt}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <Separator />
