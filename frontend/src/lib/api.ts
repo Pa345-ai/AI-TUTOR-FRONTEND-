@@ -523,6 +523,13 @@ export async function fetchParentDashboard(parentId: string) {
   return res.json() as Promise<{ children: Array<{ userId: string; name?: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> }>;
 }
 
+export async function generateHomeActivities(input: { childId: string; timeframe?: 'daily'|'weekly'; language?: 'en'|'si'|'ta'; count?: number }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/parent/home-activities`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(`Home activities error ${res.status}`);
+  return res.json() as Promise<{ timeframe: 'daily'|'weekly'; items: Array<{ title: string; description: string; steps: string[]; materials?: string[] }> }>;
+}
+
 // Classes and student trends
 export async function listClasses(teacherId: string) {
   const baseUrl = getBaseUrl();
