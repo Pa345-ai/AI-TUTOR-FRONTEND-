@@ -22,6 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [offline, setOffline] = useState(false);
+  const [unread, setUnread] = useState<number>(0);
   const [queued, setQueued] = useState<number | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
@@ -47,7 +48,21 @@ export default function RootLayout({
     const remind = () => navigator.serviceWorker.controller?.postMessage({ type: 'REMIND_DUE', userId: (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123' });
     const r = setInterval(remind, 60 * 60 * 1000);
     remind();
-    return () => { clearInterval(t); clearInterval(r); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
+    // poll unread notifications (lightweight API call)
+    const poll = async () => {
+      try {
+        const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+        const base = process.env.NEXT_PUBLIC_BASE_URL!;
+        const res = await fetch(`${base}/api/notifications/${encodeURIComponent(uid)}`);
+        if (!res.ok) return;
+        const data = await res.json() as { notifications?: Array<{ isRead?: boolean }> };
+        const count = (data.notifications || []).filter(n => !n.isRead).length;
+        setUnread(count);
+      } catch {}
+    };
+    const pn = setInterval(poll, 15000);
+    poll();
+    return () => { clearInterval(t); clearInterval(r); clearInterval(pn); window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline); };
   }, []);
   return (
     <html lang="en">
@@ -64,9 +79,13 @@ export default function RootLayout({
                 <Link href="/adaptive" className="hover:underline">Adaptive</Link>
                 <Link href="/summarizer" className="hover:underline">Summarizer</Link>
                 <Link href="/mastery" className="hover:underline">Mastery</Link>
+                <Link href="/heatmap" className="hover:underline">Heatmap</Link>
                 <Link href="/study-room" className="hover:underline">Study Room</Link>
                 <Link href="/leaderboard" className="hover:underline">Leaderboard</Link>
                 <Link href="/history" className="hover:underline">History</Link>
+                <Link href="/achievements" className="hover:underline">Achievements</Link>
+                <Link href="/onboarding" className="hover:underline">Onboarding</Link>
+                <Link href="/notifications" className="hover:underline relative">Notifications{unread>0 && (<span className="ml-1 inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white align-middle">{unread}</span>)}</Link>
                 <Link href="/settings" className="hover:underline">Settings</Link>
               </nav>
             </div>
