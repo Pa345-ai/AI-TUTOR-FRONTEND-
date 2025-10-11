@@ -882,6 +882,7 @@ function VoiceRecorder({ onResult, language }: { onResult: (text: string) => voi
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [sttAvailable, setSttAvailable] = useState<boolean>(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // Check Web Speech API availability
@@ -898,8 +899,9 @@ function VoiceRecorder({ onResult, language }: { onResult: (text: string) => voi
       if (mediaRef.current && mediaRef.current.state !== "inactive") {
         mediaRef.current.stop();
       }
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
     };
-  }, []);
+  }, [audioUrl]);
 
   const start = async () => {
     try {
@@ -912,6 +914,11 @@ function VoiceRecorder({ onResult, language }: { onResult: (text: string) => voi
       };
       media.onstop = async () => {
         const _blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        try {
+          if (audioUrl) URL.revokeObjectURL(audioUrl);
+          const url = URL.createObjectURL(_blob);
+          setAudioUrl(url);
+        } catch {}
         // Basic offline speech recognition via Web Speech API if available
         type SpeechRecognitionType = new () => {
           lang: string;
@@ -949,20 +956,36 @@ function VoiceRecorder({ onResult, language }: { onResult: (text: string) => voi
   };
 
   return (
-    <button
-      type="button"
-      onClick={recording ? stop : start}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs",
-        recording ? "bg-red-600 text-white border-transparent" : "",
+    <div className="inline-flex items-center gap-2">
+      <button
+        type="button"
+        onClick={recording ? stop : start}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs",
+          recording ? "bg-red-600 text-white border-transparent" : "",
+        )}
+        title={sttAvailable ? "Voice input (on-device)" : "Voice input (browser unsupported)"}
+        disabled={!sttAvailable && !recording}
+        aria-disabled={!sttAvailable}
+        aria-label={recording ? "Stop recording" : "Start recording"}
+      >
+        <Mic className="h-4 w-4" /> {recording ? "Stop" : "Voice"}
+      </button>
+      {audioUrl && (
+        <>
+          <audio controls className="h-8">
+            <source src={audioUrl} type="audio/webm" />
+          </audio>
+          <a
+            href={audioUrl}
+            download={`voice-note-${new Date().toISOString()}.webm`}
+            className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs"
+          >
+            Save audio
+          </a>
+        </>
       )}
-      title={sttAvailable ? "Voice input (on-device)" : "Voice input (browser unsupported)"}
-      disabled={!sttAvailable && !recording}
-      aria-disabled={!sttAvailable}
-      aria-label={recording ? "Stop recording" : "Start recording"}
-    >
-      <Mic className="h-4 w-4" /> {recording ? "Stop" : "Voice"}
-    </button>
+    </div>
   );
 }
 
