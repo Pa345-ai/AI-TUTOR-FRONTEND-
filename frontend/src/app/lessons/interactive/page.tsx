@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { generateInteractiveLesson, startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession, getLessonHint, exportToDocs } from "@/lib/api";
+import { startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession, getLessonHint, exportToDocs } from "@/lib/api";
 type Step = { title: string; content: string; check?: { question: string; answer: string } };
 type InteractiveLesson = { title: string; overview: string; steps: Step[]; summary?: string; script?: string; srt?: string };
 

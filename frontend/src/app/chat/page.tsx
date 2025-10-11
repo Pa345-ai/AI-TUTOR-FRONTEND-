@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat, fetchChatHistory, streamChat, postEngagement, fetchEngagement, translate } from "@/lib/api";
+import { chat, fetchChatHistory, streamChat, postEngagement, translate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,7 +25,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [lastFailed, setLastFailed] = useState<string | null>(null);
+  // removed unused lastFailed state
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [userId, setUserId] = useState("123");
   const [language, setLanguage] = useState<"en" | "si" | "ta">("en");
@@ -143,11 +143,7 @@ export default function ChatPage() {
 
   // Engagement tracker (keyboard/mouse activity + optional camera toggle only; no image upload)
   useEffect(() => {
-    let last = Date.now();
     const update = () => {
-      const now = Date.now();
-      const delta = Math.min(10000, now - last);
-      last = now;
       setEngagement((e) => {
         const att = Math.min(100, Math.max(0, e.attention + 5));
         const fr = Math.max(0, e.frustration - 2);
@@ -178,6 +174,7 @@ export default function ChatPage() {
 
   // Webcam face presence detection (Shape Detection API) to refine attention/frustration
   useEffect(() => {
+    const effectVideo = videoRef.current;
     const run = async () => {
       if (!engagement.cameraEnabled) return;
       try {
@@ -320,7 +317,7 @@ export default function ChatPage() {
         clearTimeout(detectTimerRef.current);
         detectTimerRef.current = null;
       }
-      const localVideo = videoRef.current;
+      const localVideo = effectVideo;
       const src = localVideo?.srcObject as MediaStream | null | undefined;
       if (src) {
         src.getTracks().forEach((t) => t.stop());
@@ -413,7 +410,6 @@ export default function ChatPage() {
       // create a small practice suggestion
       const short = assembled.replace(/\s+/g, ' ').slice(0, 120);
       setSuggestion(`Practice now: ${subject || 'subject'} • ${short}`);
-      setLastFailed(null);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : "Something went wrong";
       const assistantMessage: Message = {
@@ -422,11 +418,10 @@ export default function ChatPage() {
         content: `Error: ${errorText}`,
       };
       setMessages((prev) => [...prev, assistantMessage]);
-      setLastFailed(userMessage.id);
     } finally {
       setIsSending(false);
     }
-  }, [input]);
+  }, [input, userId, language, mode, level, subject, translateTo]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
