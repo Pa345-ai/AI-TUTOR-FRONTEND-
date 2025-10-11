@@ -6,6 +6,7 @@ import { fetchDueReviews, listLessonSessions, fetchGoals } from "@/lib/api";
 export default function Home() {
   const [userId, setUserId] = useState<string>("123");
   const [continueUrl, setContinueUrl] = useState<string | null>(null);
+  const [resume, setResume] = useState<{ id: string; title: string } | null>(null);
   const [due, setDue] = useState<Array<{ topic: string }> | null>(null);
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsMsg, setGoalsMsg] = useState<string | null>(null);
@@ -29,6 +30,9 @@ export default function Home() {
           const incompletes = (sessions.sessions || []).filter((s) => !s.completed);
           if (incompletes[0]) setContinueUrl(`/lessons/interactive?session=${encodeURIComponent(incompletes[0].id)}`);
         }
+        // resume last incomplete
+        const incompletes = (sessions.sessions || []).filter((s) => !s.completed);
+        if (incompletes[0]) setResume({ id: incompletes[0].id, title: incompletes[0].lesson?.title || incompletes[0].topic });
       } catch {}
     })();
   }, [userId]);
@@ -42,6 +46,12 @@ export default function Home() {
         <div className="border rounded-md p-3 flex items-center justify-between">
           <div className="text-sm">Continue learning</div>
           <Link href={continueUrl} className="text-sm underline">Go</Link>
+        </div>
+      )}
+      {resume && (
+        <div className="border rounded-md p-3 flex items-center justify-between">
+          <div className="text-sm truncate">Resume: {resume.title}</div>
+          <Link href={`/lessons/interactive?session=${encodeURIComponent(resume.id)}`} className="text-sm underline">Open</Link>
         </div>
       )}
       <div className="border rounded-md p-3 flex items-center justify-between">
