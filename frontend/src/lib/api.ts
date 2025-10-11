@@ -483,6 +483,13 @@ export async function exportQuizletSet(params: { userId: string; title?: string;
   if (!res.ok) throw new Error(`Quizlet export error ${res.status}`);
   return res.json() as Promise<{ ok: boolean; setId?: string; url?: string }>;
 }
+
+export async function generateQuiz(params: { topic: string; difficulty: 'easy'|'medium'|'hard'; count?: number; language?: 'en'|'si'|'ta' }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/quizzes/generate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Generate quiz error ${res.status}`);
+  return res.json() as Promise<{ questions: { questions: Array<{ question: string; options: string[]; correctAnswer: string }> } }>;
+}
 export async function listLessonSessions(userId: string) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/lessons/sessions/${encodeURIComponent(userId)}`);

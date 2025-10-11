@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchParentDashboard } from "@/lib/api";
+import { fetchParentDashboard, generateHomeActivities } from "@/lib/api";
 
 export default function ParentDashboardPage() {
   const [parentId, setParentId] = useState<string>("p-1");
@@ -12,6 +12,8 @@ export default function ParentDashboardPage() {
   const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
   const [email, setEmail] = useState<string>("");
   const [digesting, setDigesting] = useState(false);
+  const [activities, setActivities] = useState<Array<{ title: string; description: string; steps: string[]; materials?: string[] }>>([]);
+  const [childForActivities, setChildForActivities] = useState<string>("");
   const addToast = useCallback((text: string) => {
     const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, text }]);
@@ -109,6 +111,16 @@ export default function ParentDashboardPage() {
                 <div className="font-medium">Child: {s.name || s.userId}</div>
                 <div className="text-xs text-muted-foreground">XP {s.progress?.xp ?? 0} • Lv {s.progress?.level ?? 1} • Streak {s.progress?.streak ?? 0}</div>
               </div>
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                <button className="h-7 px-2 border rounded-md" onClick={async ()=>{
+                  setChildForActivities(s.userId);
+                  try {
+                    const lang = (typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) as 'en'|'si'|'ta'|null;
+                    const r = await generateHomeActivities({ childId: s.userId, timeframe: 'weekly', language: lang ?? 'en', count: 3 });
+                    setActivities(r.items || []);
+                  } catch (e) { addToast(e instanceof Error ? e.message : String(e)); }
+                }}>Generate home activities</button>
+              </div>
               <div className="grid sm:grid-cols-2 gap-3 mt-2">
                 <div>
                   <div className="text-sm font-medium">Needs improvement</div>
@@ -129,6 +141,25 @@ export default function ParentDashboardPage() {
                   </ul>
                 </div>
               </div>
+              {childForActivities === s.userId && activities.length > 0 && (
+                <div className="mt-2 border rounded-md p-2">
+                  <div className="text-sm font-medium mb-1">At-home activities</div>
+                  <ul className="text-sm space-y-2">
+                    {activities.map((a,i)=> (
+                      <li key={i}>
+                        <div className="font-medium">{a.title}</div>
+                        <div className="text-xs text-muted-foreground">{a.description}</div>
+                        <ol className="list-decimal pl-5 text-xs mt-1 space-y-1">
+                          {a.steps.map((st,j)=> (<li key={j}>{st}</li>))}
+                        </ol>
+                        {a.materials && a.materials.length>0 && (
+                          <div className="text-[11px] mt-1">Materials: {a.materials.join(', ')}</div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ))}
         </div>
