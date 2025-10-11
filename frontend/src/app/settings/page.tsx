@@ -13,6 +13,8 @@ export default function SettingsPage() {
   const [level, setLevel] = useState<"eli5" | "normal" | "expert">("normal");
   const [voice, setVoice] = useState<boolean>(true);
   const [camera, setCamera] = useState<boolean>(false);
+  const [role, setRole] = useState<'student'|'teacher'|'parent'|'admin'>('student');
+  const [status, setStatus] = useState<string>("");
   const [subject, setSubject] = useState<string>("");
   const [grade, setGrade] = useState<string>("");
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
@@ -51,6 +53,21 @@ export default function SettingsPage() {
     window.localStorage.setItem("defaultSubject", subject);
     window.localStorage.setItem("defaultGrade", grade);
     window.localStorage.setItem("defaultCurriculum", curriculum);
+  };
+
+  const applyRole = async () => {
+    try {
+      setStatus('Updating role...');
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const res = await fetch(`${base}/api/auth/role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role }) });
+      if (!res.ok) {
+        const t = await res.text().catch(()=> '');
+        throw new Error(t || `Failed (${res.status})`);
+      }
+      setStatus('Role updated.');
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : String(e));
+    }
   };
 
   return (
@@ -100,6 +117,19 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Role (demo)</label>
+        <div className="flex items-center gap-3 text-sm">
+          {(['student','teacher','parent','admin'] as const).map(r => (
+            <label key={r} className="flex items-center gap-2">
+              <input type="radio" name="role" checked={role===r} onChange={()=>setRole(r)} />
+              <span className="capitalize">{r}</span>
+            </label>
+          ))}
+          <Button size="sm" variant="outline" onClick={applyRole}>Apply</Button>
+        </div>
+      </div>
+      {status && <div className="text-xs text-muted-foreground">{status}</div>}
       <div className="space-y-2">
         <label className="text-sm font-medium">Voice</label>
         <label className="flex items-center gap-2 text-sm">
