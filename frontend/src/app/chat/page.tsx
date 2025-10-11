@@ -38,6 +38,11 @@ export default function ChatPage() {
   const [engagement, setEngagement] = useState<{ attention: number; frustration: number; cameraEnabled: boolean }>({ attention: 50, frustration: 0, cameraEnabled: false });
   const [engagementEnabled, setEngagementEnabled] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const detectorRef = useRef<any>(null);
+  const detectTimerRef = useRef<number | null>(null);
+  const lastCenterRef = useRef<{ x: number; y: number } | null>(null);
+  const stillCounterRef = useRef<number>(0);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -122,6 +127,81 @@ export default function ChatPage() {
     }, 5000);
     return () => clearInterval(t);
   }, [engagementEnabled, userId, engagement.attention, engagement.frustration, engagement.cameraEnabled]);
+
+  // Webcam face presence detection (Shape Detection API) to refine attention/frustration
+  useEffect(() => {
+    const run = async () => {
+      if (!engagement.cameraEnabled) return;
+      try {
+        // start camera
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        if (!videoRef.current) return;
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+        // init FaceDetector if available
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const FD = (window as any).FaceDetector;
+        if (FD && !detectorRef.current) detectorRef.current = new FD({ fastMode: true });
+        if (!detectorRef.current) return; // no support; gracefully skip
+        const detectLoop = async () => {
+          if (!videoRef.current || !detectorRef.current) return;
+          try {
+            // @ts-expect-error FaceDetector types
+            const faces = await detectorRef.current.detect(videoRef.current);
+            const face = faces?.[0];
+            if (!face) {
+              setEngagement((e) => ({ ...e, attention: Math.max(0, e.attention - 3), frustration: Math.min(100, e.frustration + 2) }));
+              lastCenterRef.current = null;
+            } else {
+              const box = face.boundingBox || face.boundingClientRect || face.boundingBox || face;
+              const cx = (box.x || box.left || 0) + (box.width || 0) / 2;
+              const cy = (box.y || box.top || 0) + (box.height || 0) / 2;
+              const prev = lastCenterRef.current;
+              lastCenterRef.current = { x: cx, y: cy };
+              if (prev) {
+                const dx = Math.abs(cx - prev.x);
+                const dy = Math.abs(cy - prev.y);
+                const moved = Math.sqrt(dx * dx + dy * dy);
+                if (moved < 5) {
+                  stillCounterRef.current += 1;
+                } else {
+                  stillCounterRef.current = 0;
+                }
+              }
+              // adjust attention/frustration
+              setEngagement((e) => ({
+                ...e,
+                attention: Math.min(100, e.attention + 2),
+                frustration: Math.max(0, e.frustration - (stillCounterRef.current > 10 ? 0 : 1)),
+              }));
+            }
+          } catch {
+            // ignore
+          }
+        };
+        const tick = async () => {
+          await detectLoop();
+          detectTimerRef.current = window.setTimeout(tick, 2000);
+        };
+        tick();
+      } catch {
+        // camera disabled or permission denied
+      }
+    };
+    run();
+    return () => {
+      if (detectTimerRef.current) {
+        clearTimeout(detectTimerRef.current);
+        detectTimerRef.current = null;
+      }
+      if (videoRef.current && videoRef.current.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+        videoRef.current.srcObject = null;
+      }
+      lastCenterRef.current = null;
+      stillCounterRef.current = 0;
+    };
+  }, [engagement.cameraEnabled]);
 
   const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
 
@@ -322,6 +402,8 @@ export default function ChatPage() {
         </div>
       </div>
       <Separator />
+      {/* hidden video for face presence detection */}
+      <video ref={videoRef} style={{ display: 'none' }} playsInline muted />
       <Whiteboard />
       <div className="flex-1 min-h-0 rounded-md border">
         <ScrollArea className="h-full w-full p-3">
