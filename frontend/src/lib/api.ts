@@ -432,6 +432,27 @@ export async function getCareerAdvice(params: { userId: string; interests?: stri
   return res.json() as Promise<{ advice: CareerAdvice }>;
 }
 
+// Interactive sessions
+export interface LessonSession { id: string; userId: string; topic: string; currentStepIndex: number; score: number; lesson: { title: string; overview?: string; steps: Array<{ title: string; content: string; check?: { question: string; answer: string } }> } }
+export async function startLessonSession(params: { userId: string; topic: string; grade?: string|number; language?: 'en'|'si'|'ta' }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/lessons/session/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Start session error ${res.status}`);
+  return res.json() as Promise<{ id: string; lesson: LessonSession['lesson'] }>;
+}
+export async function fetchLessonSession(id: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/lessons/session/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error(`Get session error ${res.status}`);
+  return res.json() as Promise<{ session: LessonSession }>;
+}
+export async function answerLessonStep(id: string, answer: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/lessons/session/${encodeURIComponent(id)}/answer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answer }) });
+  if (!res.ok) throw new Error(`Answer step error ${res.status}`);
+  return res.json() as Promise<{ correct: boolean; nextIndex: number; score: number }>;
+}
+
 export async function fetchNextTopics(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/next`);

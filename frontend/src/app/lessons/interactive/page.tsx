@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { generateInteractiveLesson } from "@/lib/api";
+import { generateInteractiveLesson, startLessonSession, answerLessonStep } from "@/lib/api";
 type Step = { title: string; content: string; check?: { question: string; answer: string } };
 type InteractiveLesson = { title: string; overview: string; steps: Step[]; summary?: string; script?: string; srt?: string };
 
@@ -13,6 +13,10 @@ export default function InteractiveLessonPage() {
   const [grade, setGrade] = useState<string | number>("");
   const [loading, setLoading] = useState(false);
   const [lesson, setLesson] = useState<InteractiveLesson | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [answer, setAnswer] = useState<string>("");
+  const [score, setScore] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
 
   const run = async () => {
@@ -22,13 +26,25 @@ export default function InteractiveLessonPage() {
     setLesson(null);
     try {
       const language = (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) as "en"|"si"|"ta"|null;
-      const res = await generateInteractiveLesson({ topic, grade, language: language ?? 'en' });
-      setLesson(res.lesson);
+      const uid = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+      const started = await startLessonSession({ userId: uid, topic, grade, language: language ?? 'en' });
+      setSessionId(started.id);
+      setLesson(started.lesson as unknown as InteractiveLesson);
+      setCurrentIndex(0);
+      setScore(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
+  };
+
+  const submitAnswer = async () => {
+    if (!sessionId) return;
+    const res = await answerLessonStep(sessionId, answer);
+    setScore(res.score);
+    setCurrentIndex(res.nextIndex);
+    setAnswer("");
   };
 
   return (
@@ -53,15 +69,21 @@ export default function InteractiveLessonPage() {
             <div className="space-y-2">
               <div className="text-sm font-medium">Steps</div>
               <div className="grid gap-2">
-                {lesson.steps.map((s: Step, i: number) => (
-                  <div key={i} className="border rounded-md p-2 text-sm space-y-1">
-                    <div className="font-medium">{s.title || `Step ${i+1}`}</div>
-                    <div className="whitespace-pre-wrap">{s.content}</div>
-                    {s.check && (
-                      <div className="text-xs text-muted-foreground">Self-check: {s.check.question} — Answer: {s.check.answer}</div>
-                    )}
+                <div className="border rounded-md p-2 text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">Step {currentIndex + 1} of {lesson.steps.length}</div>
+                    <div className="text-xs text-muted-foreground">Score: {score}</div>
                   </div>
-                ))}
+                  <div className="font-medium">{lesson.steps[currentIndex]?.title || `Step ${currentIndex+1}`}</div>
+                  <div className="whitespace-pre-wrap">{lesson.steps[currentIndex]?.content}</div>
+                  {lesson.steps[currentIndex]?.check && (
+                    <div className="space-y-2">
+                      <div className="text-xs">Self-check: {lesson.steps[currentIndex]?.check?.question}</div>
+                      <Input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" />
+                      <Button size="sm" onClick={submitAnswer} disabled={!answer.trim()}>Submit</Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
