@@ -23,6 +23,8 @@ export default function HeatmapPage() {
   const [weak, setWeak] = useState<Array<{ topic: string; accuracy: number }>>([]);
   const [strong, setStrong] = useState<Array<{ topic: string; accuracy: number }>>([]);
   const [suggestions, setSuggestions] = useState<Array<{ topic: string; pCorrect: number; difficulty: 'easy'|'medium'|'hard' }>>([]);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planMsg, setPlanMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -126,7 +128,21 @@ export default function HeatmapPage() {
           <input type="checkbox" checked={onlyWeak} onChange={(e)=>setOnlyWeak(e.target.checked)} />
         </div>
         <Button size="sm" variant="outline" onClick={exportCsv}>Export CSV</Button>
+        <Button size="sm" onClick={async ()=>{
+          try {
+            setPlanLoading(true); setPlanMsg(null);
+            const topics = items.slice(0,5).map(x=>x.topic);
+            if (topics.length === 0) { setPlanMsg('No topics to plan.'); return; }
+            const goals = topics.map(t => ({ title: `Improve ${t}`, steps: [`Practice ${t} 20 min`, `Review notes for ${t}`, `Take 3 quiz questions on ${t}`], focusTopic: t }));
+            const base = process.env.NEXT_PUBLIC_BASE_URL!;
+            await fetch(`${base}/api/goals`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, timeframe: 'weekly', items: goals }) });
+            setPlanMsg('Weekly plan created. See Mastery → Your Goals.');
+          } catch (e) {
+            setPlanMsg(e instanceof Error ? e.message : String(e));
+          } finally { setPlanLoading(false); }
+        }} disabled={planLoading}>{planLoading ? 'Planning…' : 'One-click study plan'}</Button>
       </div>
+      {planMsg && <div className="text-xs text-muted-foreground">{planMsg}</div>}
       {error && <div className="text-sm text-red-600">{error}</div>}
       {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
 
