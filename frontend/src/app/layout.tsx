@@ -23,6 +23,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    // register ASAP
+    (async () => {
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+      } catch {}
+    })();
+  }
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
