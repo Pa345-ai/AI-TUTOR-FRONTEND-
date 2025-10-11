@@ -54,7 +54,10 @@ export default function TeacherDashboardPage() {
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Teacher Dashboard</h1>
-        <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.students?.length ?? 0) === 0}>Export CSV</button>
+        <div className="flex items-center gap-2">
+          <a className="h-9 px-3 border rounded-md text-sm inline-flex items-center" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/export/teacher/${encodeURIComponent(teacherId)}.pdf`} target="_blank" rel="noreferrer">Export PDF</a>
+          <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.students?.length ?? 0) === 0}>Export CSV</button>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <input className="h-9 px-2 border rounded-md text-sm" value={teacherId} onChange={(e)=>setTeacherId(e.target.value)} placeholder="Teacher ID" />

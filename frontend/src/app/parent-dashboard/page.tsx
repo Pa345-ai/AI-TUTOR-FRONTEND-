@@ -55,7 +55,10 @@ export default function ParentDashboardPage() {
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Parent Dashboard</h1>
-        <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.children?.length ?? 0) === 0}>Export CSV</button>
+        <div className="flex items-center gap-2">
+          <a className="h-9 px-3 border rounded-md text-sm inline-flex items-center" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/export/parent/${encodeURIComponent(parentId)}.pdf`} target="_blank" rel="noreferrer">Export PDF</a>
+          <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.children?.length ?? 0) === 0}>Export CSV</button>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <input className="h-9 px-2 border rounded-md text-sm" value={parentId} onChange={(e)=>setParentId(e.target.value)} placeholder="Parent ID" />
