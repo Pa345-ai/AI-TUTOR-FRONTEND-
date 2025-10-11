@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { chat, fetchChatHistory, streamChat, postEngagement, translate } from "@/lib/api";
+import { localTutorReply } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -441,16 +442,16 @@ export default function ChatPage() {
       setSuggestion(`Practice now: ${subject || 'subject'} • ${short}`);
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : "Something went wrong";
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Error: ${errorText}`,
-      };
+      // Offline/local fallback tutor reply
+      const fallback = localTutorReply(trimmed, { mode, level, subject, grade });
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      const content = isOffline ? fallback : `Error: ${errorText}\n\nLocal guidance:\n${fallback}`;
+      const assistantMessage: Message = { id: crypto.randomUUID(), role: "assistant", content };
       setMessages((prev) => [...prev, assistantMessage]);
     } finally {
       setIsSending(false);
     }
-  }, [input, userId, language, mode, level, subject, translateTo]);
+  }, [input, userId, language, mode, level, subject, grade, translateTo]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
