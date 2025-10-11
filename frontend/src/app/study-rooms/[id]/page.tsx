@@ -49,6 +49,11 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     setInput("");
   };
 
+  const facilitate = async () => {
+    const base = process.env.NEXT_PUBLIC_BASE_URL!;
+    await fetch(`${base}/api/rooms/${encodeURIComponent(roomId)}/facilitate`, { method: 'POST' });
+  };
+
   return (
     <div className="mx-auto max-w-3xl w-full flex flex-col h-[calc(100svh-4rem)] gap-2 py-4 px-3 sm:px-4">
       <h1 className="text-xl font-semibold">Study Room</h1>
@@ -65,7 +70,8 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
       </div>
       <div className="grid gap-2">
         <Textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." className="min-h-[88px]" />
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" onClick={facilitate}>Ask AI to facilitate</button>
           <Button onClick={send} disabled={!input.trim()}>Send</Button>
         </div>
       </div>
