@@ -469,6 +469,20 @@ export async function exportToDocs(params: { title: string; content: string; tok
   if (!res.ok) throw new Error(`Export docs error ${res.status}`);
   return res.json() as Promise<{ ok: boolean; docUrl?: string; docId?: string; docContent?: string }>;
 }
+
+export async function saveIntegrationToken(params: { userId: string; provider: 'google'|'quizlet'; accessToken: string; refreshToken?: string; expiry?: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/integrations/tokens`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Save token error ${res.status}`);
+  return res.json();
+}
+
+export async function exportQuizletSet(params: { userId: string; title?: string; accessToken?: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/quizlet/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Quizlet export error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; setId?: string; url?: string }>;
+}
 export async function listLessonSessions(userId: string) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/lessons/sessions/${encodeURIComponent(userId)}`);
