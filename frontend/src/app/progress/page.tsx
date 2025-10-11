@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchProgress, fetchAchievements, fetchMastery, listLessonSessions, type AchievementItem } from "@/lib/api";
+import { fetchProgress, fetchAchievements, fetchMastery, listLessonSessions, fetchDueReviews, type AchievementItem } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getWeakTopics } from "@/lib/mastery";
 import Link from "next/link";
@@ -24,6 +24,7 @@ export default function ProgressPage() {
   const [masteryMap, setMasteryMap] = useState<Record<string, { correct: number; attempts: number }>>({});
   const [lastLesson, setLastLesson] = useState<{ title: string; when: string } | null>(null);
   const [completedCount, setCompletedCount] = useState<number>(0);
+  const [continueUrl, setContinueUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -38,11 +39,12 @@ export default function ProgressPage() {
       try {
         setLoading(true);
         setError(null);
-        const [p, a, m, sessions] = await Promise.all([
+        const [p, a, m, sessions, due] = await Promise.all([
           fetchProgress(userId),
           fetchAchievements(),
           fetchMastery(userId),
           listLessonSessions(userId),
+          fetchDueReviews(userId, 1),
         ]);
         if (!mounted) return;
         setProgress(p);
@@ -53,6 +55,14 @@ export default function ProgressPage() {
         if (completed[0]) setLastLesson({ title: completed[0].lesson?.title || completed[0].topic, when: new Date(completed[0].completedAt || '').toLocaleString() });
         const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
         setWeakTopics(weak);
+        // Continue CTA
+        if (Array.isArray(due) && due[0]?.topic) {
+          setContinueUrl(`/adaptive?topic=${encodeURIComponent(due[0].topic)}`);
+        } else {
+          const incompletes = (sessions.sessions || []).filter((s) => !s.completed);
+          if (incompletes[0]) setContinueUrl(`/lessons/interactive?session=${encodeURIComponent(incompletes[0].id)}`);
+          else if (weak[0]) setContinueUrl(`/adaptive?topic=${encodeURIComponent(weak[0].topic)}`);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -101,6 +111,12 @@ export default function ProgressPage() {
         )}
       </div>
       <GoalsWidget />
+      {continueUrl && (
+        <div className="border rounded-md p-3 flex items-center justify-between">
+          <div className="text-sm">Continue learning</div>
+          <Link href={continueUrl} className="text-sm underline">Go</Link>
+        </div>
+      )}
       {(completedCount > 0 || lastLesson) && (
         <div className="border rounded-md p-3">
           <div className="text-sm">Completed interactive lessons: <span className="font-medium">{completedCount}</span></div>
