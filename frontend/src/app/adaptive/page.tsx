@@ -37,6 +37,7 @@ function AdaptiveInner() {
   const [weakList, setWeakList] = useState<Array<{ topic: string; accuracy: number }>>([]);
   const [prereqs, setPrereqs] = useState<string[]>([]);
   const [nextTopics, setNextTopics] = useState<string[]>([]);
+  const [pCorrect, setPCorrect] = useState<number | null>(null);
 
   useEffect(() => {
     const t = searchParams.get('topic');
@@ -53,6 +54,8 @@ function AdaptiveInner() {
       const data = await adaptiveNext({ userId, topic });
       const q = data?.question as QuizQuestion | null;
       setQuestion(q ?? null);
+      if (typeof data?.pCorrect === 'number') setPCorrect(data.pCorrect);
+      else setPCorrect(null);
       setSelected(null);
       try {
         const subj = topic;
@@ -83,7 +86,8 @@ function AdaptiveInner() {
       return prev === "medium" ? "easy" : prev === "hard" ? "medium" : "easy";
     });
     const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
-    await adaptiveGrade({ userId, topic: question.question, correct, difficulty });
+    const graded = await adaptiveGrade({ userId, topic: question.question, correct, difficulty });
+    if (typeof graded?.pCorrect === 'number') setPCorrect(graded.pCorrect);
     await logLearningEvent({ userId, subject: topic, topic: question.question, correct, difficulty });
     updateLocalMastery(userId, question.question, correct);
     const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
@@ -105,6 +109,9 @@ function AdaptiveInner() {
       {question && (
         <div className="space-y-2 border rounded-md p-3">
           <div className="font-medium">{question.question}</div>
+          {pCorrect !== null && (
+            <div className="text-xs text-muted-foreground">Model p(correct): {(pCorrect * 100).toFixed(0)}%</div>
+          )}
           <div className="space-y-2">
             {question.options.map((c, i) => (
               <label key={i} className="flex items-center gap-2 text-sm">
