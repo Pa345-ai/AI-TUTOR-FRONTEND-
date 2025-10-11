@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +26,14 @@ export default function InteractiveLessonPage() {
   const [voice, setVoice] = useState<string>("en-US");
   const [ytUploading, setYtUploading] = useState(false);
   const [ytUrl, setYtUrl] = useState<string>("");
+  // Animated lesson player state
+  const [showAnimated, setShowAnimated] = useState(false);
+  const [animPlaying, setAnimPlaying] = useState(false);
+  const [animSpeedMs, setAnimSpeedMs] = useState<number>(1800);
+  const [animTheme, setAnimTheme] = useState<"dark"|"light"|"ocean"|"sunset">("dark");
+  const [animSlideIndex, setAnimSlideIndex] = useState<number>(0);
+  const [animBulletIndex, setAnimBulletIndex] = useState<number>(0);
+  const animTimerRef = useRef<number | null>(null);
 
   const run = async () => {
     if (!topic.trim()) return;
@@ -129,6 +137,68 @@ export default function InteractiveLessonPage() {
     }
   };
 
+  // Helpers for animation content
+  const slides = useMemo(() => {
+    if (!lesson) return [] as Array<{ title: string; bullets: string[] }>;
+    const toBullets = (text: string): string[] => {
+      const raw = (text || "").split(/\n+/).map((s) => s.trim()).filter(Boolean);
+      if (raw.length > 0) return raw.slice(0, 6);
+      const sentences = (text || "").split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+      return sentences.slice(0, 6);
+    };
+    return lesson.steps.map((s) => ({ title: s.title || "Step", bullets: toBullets(s.content || "") }));
+  }, [lesson]);
+
+  const stopAnim = useCallback(() => {
+    if (animTimerRef.current) { clearTimeout(animTimerRef.current); animTimerRef.current = null; }
+    setAnimPlaying(false);
+  }, []);
+
+  const nextAnimTick = useCallback(() => {
+    if (slides.length === 0) return;
+    const current = slides[animSlideIndex];
+    const atLastBullet = animBulletIndex >= Math.max(0, current?.bullets.length - 1);
+    if (!atLastBullet) {
+      setAnimBulletIndex((i) => i + 1);
+      return;
+    }
+    // move to next slide
+    const nextSlide = animSlideIndex + 1;
+    if (nextSlide < slides.length) {
+      setAnimSlideIndex(nextSlide);
+      setAnimBulletIndex(0);
+    } else {
+      // end
+      stopAnim();
+    }
+  }, [slides, animSlideIndex, animBulletIndex, stopAnim]);
+
+  useEffect(() => {
+    if (!animPlaying) return;
+    animTimerRef.current = window.setTimeout(() => {
+      nextAnimTick();
+    }, Math.max(400, animSpeedMs));
+    return () => {
+      if (animTimerRef.current) { clearTimeout(animTimerRef.current); animTimerRef.current = null; }
+    };
+  }, [animPlaying, animSpeedMs, animSlideIndex, animBulletIndex, nextAnimTick]);
+
+  const startAnim = useCallback(() => {
+    if (slides.length === 0) return;
+    setAnimSlideIndex(0);
+    setAnimBulletIndex(0);
+    setAnimPlaying(true);
+  }, [slides.length]);
+
+  const bgStyle = useMemo((): React.CSSProperties => {
+    switch (animTheme) {
+      case "light": return { background: "#F8FAFC", color: "#0F172A" };
+      case "ocean": return { background: "linear-gradient(135deg,#0ea5e9,#1d4ed8)", color: "#FFFFFF" };
+      case "sunset": return { background: "linear-gradient(135deg,#f97316,#dc2626)", color: "#FFFFFF" };
+      default: return { background: "#0B1220", color: "#FFFFFF" };
+    }
+  }, [animTheme]);
+
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Interactive Lesson</h1>
@@ -154,6 +224,8 @@ export default function InteractiveLessonPage() {
             <option value="en-GB">Voice: en-GB</option>
           </select>
           <Button size="sm" variant="outline" onClick={uploadYouTube} disabled={!lesson || ytUploading}>{ytUploading ? 'Uploading…' : 'Render & Upload to YouTube'}</Button>
+          <span className="mx-2">|</span>
+          <Button size="sm" onClick={() => setShowAnimated((v) => !v)} disabled={!lesson}>{showAnimated ? 'Hide Animated' : 'Show Animated'}</Button>
         </div>
         {ytUrl && (
           <div className="mt-2 text-xs">Video: <a className="underline" href={ytUrl} target="_blank" rel="noreferrer">{ytUrl}</a></div>
@@ -219,6 +291,39 @@ export default function InteractiveLessonPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {lesson && showAnimated && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">Animated Lesson</div>
+            <div className="flex items-center gap-2 text-xs">
+              <select className="h-8 px-2 border rounded-md" value={animTheme} onChange={(e)=>setAnimTheme((e.target.value as "dark"|"light"|"ocean"|"sunset"))}>
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="ocean">Ocean</option>
+                <option value="sunset">Sunset</option>
+              </select>
+              <label>Speed</label>
+              <input type="range" min={400} max={3000} step={200} value={animSpeedMs} onChange={(e)=>setAnimSpeedMs(parseInt(e.target.value))} />
+              <Button size="sm" onClick={() => (animPlaying ? stopAnim() : startAnim())}>{animPlaying ? 'Pause' : 'Play'}</Button>
+              <Button size="sm" variant="outline" onClick={() => { setAnimSlideIndex((i)=> Math.max(0, i-1)); setAnimBulletIndex(0); }}>Prev</Button>
+              <Button size="sm" variant="outline" onClick={() => { setAnimSlideIndex((i)=> Math.min(slides.length-1, i+1)); setAnimBulletIndex(0); }}>Next</Button>
+            </div>
+          </div>
+          <div className="w-full h-64 rounded-md overflow-hidden border" style={bgStyle}>
+            <div className="h-full w-full p-4 flex flex-col">
+              <div className="text-lg font-semibold">{slides[animSlideIndex]?.title || ''}</div>
+              <div className="mt-2 flex-1">
+                <ul className="list-disc pl-6 space-y-1">
+                  {slides[animSlideIndex]?.bullets?.slice(0, animBulletIndex + 1).map((b, i) => (
+                    <li key={i} className="text-sm opacity-95">{b}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="text-xs opacity-70">Slide {animSlideIndex + 1} / {slides.length}</div>
+            </div>
+          </div>
         </div>
       )}
     </div>
