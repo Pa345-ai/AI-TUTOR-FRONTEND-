@@ -35,6 +35,13 @@ export default function NotificationsPage() {
     try { await markNotificationRead(id); await load(); } catch {}
   };
 
+  const actionHref = (n: Notification): string | null => {
+    if (n.type === 'assignment') return '/adaptive';
+    if (n.type === 'quiz' && n.relatedId) return `/quizzes?quizId=${encodeURIComponent(n.relatedId)}`;
+    if (n.type === 'system') return '/';
+    return null;
+  };
+
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Notifications</h1>
@@ -54,6 +61,9 @@ export default function NotificationsPage() {
             <div className="text-sm">{n.message}</div>
             <div className="mt-2 flex items-center gap-2 text-xs">
               {!n.isRead && <button className="h-7 px-2 border rounded-md" onClick={() => void read(n.id)}>Mark read</button>}
+              {actionHref(n) && (
+                <a className="h-7 px-2 border rounded-md inline-flex items-center" href={actionHref(n) || '#'}>Open</a>
+              )}
             </div>
           </div>
         ))}

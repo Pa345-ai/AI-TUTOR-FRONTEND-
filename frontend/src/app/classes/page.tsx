@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { listClasses, createClass, listClassMembers, addClassMember, fetchStudentTrends, fetchStudentSummary, fetchStudentSuggestions, fetchClassGaps, assignClassPractice } from "@/lib/api";
+import { listClasses, createClass, listClassMembers, addClassMember, fetchStudentTrends, fetchStudentSummary, fetchStudentSuggestions, fetchClassGaps, assignClassPractice, assignClassQuiz } from "@/lib/api";
 
 export default function ClassesPage() {
   const [teacherId, setTeacherId] = useState<string>("t-1");
@@ -17,6 +17,9 @@ export default function ClassesPage() {
   const [gaps, setGaps] = useState<Array<{ topic: string; accuracy: number; attempts: number }>>([]);
   const [assignTopics, setAssignTopics] = useState<string>("");
   const [dueDate, setDueDate] = useState<string>("");
+  const [quizTopic, setQuizTopic] = useState<string>("");
+  const [quizDiff, setQuizDiff] = useState<'easy'|'medium'|'hard'>('medium');
+  const [quizCount, setQuizCount] = useState<number>(5);
 
   const load = useCallback(async () => {
     const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
@@ -149,6 +152,33 @@ export default function ClassesPage() {
                     setAssignTopics("");
                     alert('Practice assigned to class');
                   }}>Assign practice</button>
+                </div>
+              </div>
+              <div className="grid md:grid-cols-4 gap-2 items-end mt-3">
+                <div className="md:col-span-2">
+                  <label className="text-xs text-muted-foreground">Quiz topic</label>
+                  <input className="h-9 px-2 border rounded-md text-sm w-full" value={quizTopic} onChange={(e)=>setQuizTopic(e.target.value)} placeholder="e.g., Fractions" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Difficulty</label>
+                  <select className="h-9 px-2 border rounded-md text-sm w-full" value={quizDiff} onChange={(e)=>setQuizDiff((e.target.value as 'easy'|'medium'|'hard'))}>
+                    <option value="easy">easy</option>
+                    <option value="medium">medium</option>
+                    <option value="hard">hard</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Count</label>
+                  <input type="number" min={1} max={20} className="h-9 px-2 border rounded-md text-sm w-full" value={quizCount} onChange={(e)=>setQuizCount(parseInt(e.target.value||'5'))} />
+                </div>
+                <div className="md:col-span-4">
+                  <button className="h-9 px-3 border rounded-md text-sm" onClick={async ()=>{
+                    if (!selectedClass || !quizTopic.trim()) return;
+                    const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
+                    await assignClassQuiz(selectedClass, { teacherId: tid, topic: quizTopic.trim(), difficulty: quizDiff, count: quizCount, dueDate: dueDate || undefined });
+                    setQuizTopic('');
+                    alert('Quiz assigned to class');
+                  }}>Assign quiz</button>
                 </div>
               </div>
               <ul className="text-sm space-y-1">

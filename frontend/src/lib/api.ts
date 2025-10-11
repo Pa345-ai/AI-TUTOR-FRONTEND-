@@ -600,6 +600,12 @@ export async function assignClassPractice(classId: string, input: { teacherId: s
   if (!res.ok) throw new Error(`Assign practice error ${res.status}`);
   return res.json() as Promise<{ ok: boolean; count: number }>;
 }
+export async function assignClassQuiz(classId: string, input: { teacherId: string; topic: string; difficulty?: 'easy'|'medium'|'hard'; count?: number; dueDate?: string }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/classes/${encodeURIComponent(classId)}/assign-quiz`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(`Assign quiz error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; count: number }>;
+}
 export async function fetchStudentTrends(userId: string, days = 14) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/dashboard/student/${encodeURIComponent(userId)}/trends?days=${days}`);
