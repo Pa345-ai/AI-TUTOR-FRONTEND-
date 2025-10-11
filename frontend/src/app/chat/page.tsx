@@ -46,6 +46,21 @@ export default function ChatPage() {
   const detectTimerRef = useRef<number | null>(null);
   const lastCenterRef = useRef<{ x: number; y: number } | null>(null);
   const stillCounterRef = useRef<number>(0);
+  type MeshLandmark = { x: number; y: number; z?: number };
+  type MeshResults = { multiFaceLandmarks?: MeshLandmark[][] };
+  type FaceMeshLike = {
+    setOptions(opts: {
+      maxNumFaces?: number;
+      refineLandmarks?: boolean;
+      minDetectionConfidence?: number;
+      minTrackingConfidence?: number;
+    }): void;
+    onResults(cb: (r: MeshResults) => void): void;
+    send(input: { image: HTMLVideoElement | HTMLCanvasElement | ImageBitmap }): Promise<void>;
+    close?: () => void;
+  };
+  const faceMeshRef = useRef<FaceMeshLike | null>(null);
+  const meshTimerRef = useRef<number | null>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -145,49 +160,126 @@ export default function ChatPage() {
         // init FaceDetector if available
         const FD = (window as unknown as { FaceDetector?: new (opts?: { fastMode?: boolean }) => FaceDetectorLike }).FaceDetector;
         if (FD && !detectorRef.current) detectorRef.current = new FD({ fastMode: true });
-        if (!detectorRef.current) return; // no support; gracefully skip
-        const detectLoop = async () => {
-          if (!videoRef.current || !detectorRef.current) return;
-          try {
-            const faces = await detectorRef.current.detect(videoRef.current);
-            const face = faces?.[0];
-            if (!face) {
-              setEngagement((e) => ({ ...e, attention: Math.max(0, e.attention - 3), frustration: Math.min(100, e.frustration + 2) }));
-              lastCenterRef.current = null;
-            } else {
-              const box = face.boundingBox ?? face.boundingClientRect;
-              if (box) {
-                const cx = (box.x ?? box.left ?? 0) + (box.width ?? 0) / 2;
-                const cy = (box.y ?? box.top ?? 0) + (box.height ?? 0) / 2;
-                const prev = lastCenterRef.current;
-                lastCenterRef.current = { x: cx, y: cy };
-                if (prev) {
-                  const dx = Math.abs(cx - prev.x);
-                  const dy = Math.abs(cy - prev.y);
-                  const moved = Math.sqrt(dx * dx + dy * dy);
-                  if (moved < 5) {
-                    stillCounterRef.current += 1;
-                  } else {
-                    stillCounterRef.current = 0;
+        if (detectorRef.current) {
+          // Native FaceDetector path
+          const detectLoop = async () => {
+            if (!videoRef.current || !detectorRef.current) return;
+            try {
+              const faces = await detectorRef.current.detect(videoRef.current);
+              const face = faces?.[0];
+              if (!face) {
+                setEngagement((e) => ({ ...e, attention: Math.max(0, e.attention - 3), frustration: Math.min(100, e.frustration + 2) }));
+                lastCenterRef.current = null;
+              } else {
+                const box = face.boundingBox ?? face.boundingClientRect;
+                if (box) {
+                  const cx = (box.x ?? box.left ?? 0) + (box.width ?? 0) / 2;
+                  const cy = (box.y ?? box.top ?? 0) + (box.height ?? 0) / 2;
+                  const prev = lastCenterRef.current;
+                  lastCenterRef.current = { x: cx, y: cy };
+                  if (prev) {
+                    const dx = Math.abs(cx - prev.x);
+                    const dy = Math.abs(cy - prev.y);
+                    const moved = Math.sqrt(dx * dx + dy * dy);
+                    if (moved < 5) {
+                      stillCounterRef.current += 1;
+                    } else {
+                      stillCounterRef.current = 0;
+                    }
                   }
                 }
+                setEngagement((e) => ({
+                  ...e,
+                  attention: Math.min(100, e.attention + 2),
+                  frustration: Math.max(0, e.frustration - (stillCounterRef.current > 10 ? 0 : 1)),
+                }));
               }
-              // adjust attention/frustration
-              setEngagement((e) => ({
-                ...e,
-                attention: Math.min(100, e.attention + 2),
-                frustration: Math.max(0, e.frustration - (stillCounterRef.current > 10 ? 0 : 1)),
-              }));
+            } catch {
+              // ignore
             }
-          } catch {
-            // ignore
-          }
-        };
-        const tick = async () => {
-          await detectLoop();
-          detectTimerRef.current = window.setTimeout(tick, 2000);
-        };
-        tick();
+          };
+          const tick = async () => {
+            await detectLoop();
+            detectTimerRef.current = window.setTimeout(tick, 2000);
+          };
+          tick();
+        } else {
+          // Fallback: load MediaPipe FaceMesh from CDN and detect landmarks
+          const loadScript = (src: string) =>
+            new Promise<void>((resolve, reject) => {
+              const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+              if (existing) {
+                if (existing.getAttribute('data-loaded') === 'true') return resolve();
+                existing.addEventListener('load', () => resolve());
+                existing.addEventListener('error', () => reject(new Error('script load error')));
+                return;
+              }
+              const s = document.createElement('script');
+              s.src = src;
+              s.async = true;
+              s.crossOrigin = 'anonymous';
+              s.addEventListener('load', () => {
+                s.setAttribute('data-loaded', 'true');
+                resolve();
+              });
+              s.addEventListener('error', () => reject(new Error('script load error')));
+              document.head.appendChild(s);
+            });
+          const base = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh';
+          await loadScript(`${base}/face_mesh.js`);
+          type FaceMeshGlobal = { FaceMesh?: new (init: { locateFile: (path: string) => string }) => FaceMeshLike };
+          const FaceMeshCtor = (window as unknown as FaceMeshGlobal).FaceMesh;
+          if (!FaceMeshCtor) return;
+          const faceMesh = new FaceMeshCtor({ locateFile: (path) => `${base}/${path}` });
+          faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+          faceMesh.onResults((res: MeshResults) => {
+            const face = res.multiFaceLandmarks?.[0];
+            if (!face || face.length === 0) {
+              setEngagement((e) => ({ ...e, attention: Math.max(0, e.attention - 3), frustration: Math.min(100, e.frustration + 2) }));
+              lastCenterRef.current = null;
+              return;
+            }
+            let minX = 1, minY = 1, maxX = 0, maxY = 0;
+            for (const lm of face) {
+              if (lm.x < minX) minX = lm.x;
+              if (lm.y < minY) minY = lm.y;
+              if (lm.x > maxX) maxX = lm.x;
+              if (lm.y > maxY) maxY = lm.y;
+            }
+            const cx = (minX + maxX) / 2;
+            const cy = (minY + maxY) / 2;
+            const prev = lastCenterRef.current;
+            lastCenterRef.current = { x: cx, y: cy };
+            if (prev) {
+              const dx = Math.abs(cx - prev.x);
+              const dy = Math.abs(cy - prev.y);
+              const moved = Math.sqrt(dx * dx + dy * dy);
+              if (moved < 0.01) {
+                stillCounterRef.current += 1;
+              } else {
+                stillCounterRef.current = 0;
+              }
+            }
+            setEngagement((e) => ({
+              ...e,
+              attention: Math.min(100, e.attention + 2),
+              frustration: Math.max(0, e.frustration - (stillCounterRef.current > 10 ? 0 : 1)),
+            }));
+          });
+          faceMeshRef.current = faceMesh;
+          const meshTick = async () => {
+            const vid = videoRef.current;
+            const mesh = faceMeshRef.current;
+            if (!vid || !mesh) return;
+            try {
+              await mesh.send({ image: vid });
+            } catch {
+              // ignore
+            }
+            meshTimerRef.current = window.setTimeout(meshTick, 2000);
+          };
+          meshTick();
+        }
       } catch {
         // camera disabled or permission denied
       }
@@ -203,6 +295,14 @@ export default function ChatPage() {
       if (src) {
         src.getTracks().forEach((t) => t.stop());
         if (localVideo) localVideo.srcObject = null;
+      }
+      if (meshTimerRef.current) {
+        clearTimeout(meshTimerRef.current);
+        meshTimerRef.current = null;
+      }
+      if (faceMeshRef.current && faceMeshRef.current.close) {
+        try { faceMeshRef.current.close(); } catch { /* noop */ }
+        faceMeshRef.current = null;
       }
       lastCenterRef.current = null;
       stillCounterRef.current = 0;
