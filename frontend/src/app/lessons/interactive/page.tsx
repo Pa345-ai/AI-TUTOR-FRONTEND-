@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { generateInteractiveLesson, startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession } from "@/lib/api";
+import { generateInteractiveLesson, startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession, getLessonHint } from "@/lib/api";
 type Step = { title: string; content: string; check?: { question: string; answer: string } };
 type InteractiveLesson = { title: string; overview: string; steps: Step[]; summary?: string; script?: string; srt?: string };
 
@@ -17,6 +17,7 @@ export default function InteractiveLessonPage() {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [answer, setAnswer] = useState<string>("");
   const [score, setScore] = useState<number>(0);
+  const [hint, setHint] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Array<{ id: string; topic: string; currentStepIndex: number; score: number }>>([]);
 
@@ -46,6 +47,13 @@ export default function InteractiveLessonPage() {
     setScore(res.score);
     setCurrentIndex(res.nextIndex);
     setAnswer("");
+    setHint("");
+  };
+
+  const fetchHint = async () => {
+    if (!sessionId) return;
+    const res = await getLessonHint(sessionId);
+    setHint(res.hint || "");
   };
 
   const loadSessions = async () => {
@@ -108,7 +116,11 @@ export default function InteractiveLessonPage() {
                     <div className="space-y-2">
                       <div className="text-xs">Self-check: {lesson.steps[currentIndex]?.check?.question}</div>
                       <Input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Your answer" />
-                      <Button size="sm" onClick={submitAnswer} disabled={!answer.trim()}>Submit</Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={submitAnswer} disabled={!answer.trim()}>Submit</Button>
+                        <Button size="sm" variant="outline" onClick={fetchHint}>Get Hint</Button>
+                      </div>
+                      {hint && <div className="text-xs text-muted-foreground">Hint: {hint}</div>}
                     </div>
                   )}
                 </div>

@@ -452,6 +452,12 @@ export async function answerLessonStep(id: string, answer: string) {
   if (!res.ok) throw new Error(`Answer step error ${res.status}`);
   return res.json() as Promise<{ correct: boolean; nextIndex: number; score: number }>;
 }
+export async function getLessonHint(id: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/lessons/session/${encodeURIComponent(id)}/hint`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Hint error ${res.status}`);
+  return res.json() as Promise<{ hint: string }>;
+}
 export async function listLessonSessions(userId: string) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/lessons/sessions/${encodeURIComponent(userId)}`);
