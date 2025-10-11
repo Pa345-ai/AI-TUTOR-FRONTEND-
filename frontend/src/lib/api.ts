@@ -416,6 +416,22 @@ export async function fetchPrereqs(params: { userId: string; subject?: string; t
   return res.json() as Promise<{ prereqs: string[] }>;
 }
 
+export async function generateInteractiveLesson(params: { topic: string; grade?: string|number; language?: 'en'|'si'|'ta' }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/lessons/interactive`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Interactive lesson error ${res.status}`);
+  return res.json() as Promise<{ lesson: { title: string; overview: string; steps: Array<{ title: string; content: string; check?: { question: string; answer: string } }>; summary?: string; script?: string; srt?: string } }>;
+}
+
+export type CareerPath = { name: string; why: string; requiredSkills: string[]; sampleUniversities: string[] };
+export type CareerAdvice = { summary: string; recommendedSubjects: string[]; careerPaths: CareerPath[]; roadmap: { next3Months: string[]; nextYear: string[]; resources: string[] } };
+export async function getCareerAdvice(params: { userId: string; interests?: string[]; strengths?: string[]; region?: string; language?: 'en'|'si'|'ta' }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/career/advice`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Career advice error ${res.status}`);
+  return res.json() as Promise<{ advice: CareerAdvice }>;
+}
+
 export async function fetchNextTopics(params: { userId: string; subject?: string; topic: string }) {
   const baseUrl = getBaseUrl();
   const url = new URL(`${baseUrl}/api/knowledge/next`);
