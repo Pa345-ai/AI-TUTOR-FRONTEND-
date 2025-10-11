@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { fetchMastery, fetchPrereqs, fetchNextTopics } from "@/lib/api";
@@ -43,11 +43,11 @@ export default function KnowledgeGraphPage() {
     }
   };
 
-  const accuracyOf = (t: string) => {
+  const accuracyOf = useCallback((t: string) => {
     const s = mastery[t];
     const a = s ? (s.correct || 0) / Math.max(1, s.attempts || 0) : 0;
     return a;
-  };
+  }, [mastery]);
 
   const colorFor = (acc: number) => {
     if (acc >= 0.85) return "bg-green-600 text-white";
@@ -68,7 +68,7 @@ export default function KnowledgeGraphPage() {
     const weakPrereqs = prereqs.filter((p) => accuracyOf(p) < 0.6);
     const okPrereqs = prereqs.filter((p) => accuracyOf(p) >= 0.6);
     return [...weakPrereqs, ...okPrereqs, topic].filter(Boolean);
-  }, [prereqs, topic, mastery]);
+  }, [prereqs, topic, accuracyOf]);
 
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
