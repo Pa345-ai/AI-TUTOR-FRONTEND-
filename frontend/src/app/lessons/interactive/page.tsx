@@ -95,6 +95,11 @@ export default function InteractiveLessonPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Interactive Lesson</h1>
+      {lesson && (
+        <div className="w-full h-2 bg-muted rounded">
+          <div className="h-full bg-green-600 rounded" style={{ width: `${Math.round(((currentIndex+1)/Math.max(1, lesson.steps.length))*100)}%` }} />
+        </div>
+      )}
       <div className="grid sm:grid-cols-3 gap-2">
         <Input className="sm:col-span-2" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Topic (e.g., Photosynthesis)" />
         <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="Grade (optional)" />
@@ -151,6 +156,9 @@ export default function InteractiveLessonPage() {
                 </div>
               </div>
             </div>
+          )}
+          {sessionId && currentIndex >= (lesson.steps.length - 1) && (
+            <div className="text-sm text-green-700">Session complete! XP awarded and mastery updated.</div>
           )}
           {(lesson.script || lesson.srt) && (
             <div className="grid sm:grid-cols-2 gap-2">
