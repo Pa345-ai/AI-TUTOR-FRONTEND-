@@ -433,7 +433,7 @@ export async function getCareerAdvice(params: { userId: string; interests?: stri
 }
 
 // Interactive sessions
-export interface LessonSession { id: string; userId: string; topic: string; currentStepIndex: number; score: number; lesson: { title: string; overview?: string; steps: Array<{ title: string; content: string; check?: { question: string; answer: string } }> } }
+export interface LessonSession { id: string; userId: string; topic: string; currentStepIndex: number; score: number; completed?: boolean; completedAt?: string; lesson: { title: string; overview?: string; steps: Array<{ title: string; content: string; check?: { question: string; answer: string } }> } }
 export async function startLessonSession(params: { userId: string; topic: string; grade?: string|number; language?: 'en'|'si'|'ta' }) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/lessons/session/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
