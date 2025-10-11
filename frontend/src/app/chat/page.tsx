@@ -24,6 +24,7 @@ interface Message {
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [attachments, setAttachments] = useState<Record<string, string[]>>({});
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   // removed unused lastFailed state
@@ -462,6 +463,111 @@ export default function ChatPage() {
     recRef.current = null;
   }, []);
 
+  const attachToMessage = useCallback((id: string, dataUrl: string) => {
+    setAttachments((prev) => {
+      const list = prev[id] ? [...prev[id], dataUrl] : [dataUrl];
+      return { ...prev, [id]: list };
+    });
+  }, []);
+
+  const generateDiagramFromText = useCallback(async (text: string): Promise<string> => {
+    const canvas = document.createElement('canvas');
+    const width = 1024;
+    const height = 768;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(0, 0, width, height);
+    ctx.font = '20px sans-serif';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textBaseline = 'top';
+    const lines = text.split(/\n|(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean).slice(0, 8);
+    const nodes = lines.length > 0 ? lines : ['Key idea', 'Step 1', 'Step 2', 'Conclusion'];
+    const nodeWidth = Math.min(900, Math.floor(width * 0.85));
+    const marginX = Math.floor((width - nodeWidth) / 2);
+    const nodeHeight = 80;
+    const gap = 20;
+    const startY = Math.floor((height - nodes.length * (nodeHeight + gap) + gap) / 2);
+    const wrapText = (t: string, maxWidth: number): string[] => {
+      const words = t.split(/\s+/);
+      const lines: string[] = [];
+      let cur = '';
+      for (const w of words) {
+        const test = (cur ? cur + ' ' : '') + w;
+        if (ctx.measureText(test).width > maxWidth) {
+          if (cur) lines.push(cur);
+          cur = w;
+        } else {
+          cur = test;
+        }
+      }
+      if (cur) lines.push(cur);
+      return lines.slice(0, 3);
+    };
+    nodes.forEach((n, i) => {
+      const y = startY + i * (nodeHeight + gap);
+      // box
+      ctx.fillStyle = i === 0 ? '#2563EB' : i === nodes.length - 1 ? '#16A34A' : '#334155';
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      const radius = 10;
+      const x = marginX;
+      const w = nodeWidth;
+      const h = nodeHeight;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // text
+      ctx.fillStyle = '#FFFFFF';
+      const textLines = wrapText(n, w - 24);
+      const lineH = 20 + 4;
+      const textTotalH = textLines.length * lineH;
+      let ty = y + (h - textTotalH) / 2;
+      for (const ln of textLines) {
+        ctx.fillText(ln, x + 12, ty);
+        ty += lineH;
+      }
+      // arrows
+      if (i < nodes.length - 1) {
+        const ax = x + w / 2;
+        const ay = y + h;
+        const by = y + h + gap;
+        ctx.strokeStyle = '#94A3B8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay + 2);
+        ctx.lineTo(ax, by - 2);
+        ctx.stroke();
+        // arrow head
+        ctx.beginPath();
+        ctx.moveTo(ax - 6, by - 6);
+        ctx.lineTo(ax, by);
+        ctx.lineTo(ax + 6, by - 6);
+        ctx.stroke();
+      }
+    });
+    return canvas.toDataURL('image/png');
+  }, []);
+
+  const visualizeMessage = useCallback(async (id: string, content: string) => {
+    try {
+      const url = await generateDiagramFromText(content);
+      if (url) attachToMessage(id, url);
+    } catch {}
+  }, [generateDiagramFromText, attachToMessage]);
+
   const voiceSend = useCallback(async (text: string) => {
     // mirror sendMessage but capture final text and auto-TTS
     const trimmed = text.trim();
@@ -896,7 +1002,11 @@ export default function ChatPage() {
         </div>
       </div>
     )}
-      <Whiteboard />
+      <Whiteboard onSend={(url) => {
+        const msg: Message = { id: crypto.randomUUID(), role: 'user', content: 'Shared whiteboard sketch' };
+        setMessages((prev) => [...prev, msg]);
+        attachToMessage(msg.id, url);
+      }} />
       <div className="flex-1 min-h-0 rounded-md border">
         <ScrollArea className="h-full w-full p-3">
           <div ref={viewportRef} className="flex flex-col gap-3">
@@ -908,6 +1018,8 @@ export default function ChatPage() {
                   key={m.id}
                   role={m.role}
                   content={m.content}
+                  images={attachments[m.id] || []}
+                  onVisualize={m.role === 'assistant' ? () => void visualizeMessage(m.id, m.content) : undefined}
                   onPractice={(topic) => {
                     const short = topic.replace(/\s+/g, ' ').slice(0, 120);
                     const prompt = `Give me 3 practice problems in ${subject || 'subject'} for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}). Focus on: ${short}`;
@@ -1031,7 +1143,7 @@ export default function ChatPage() {
   );
 }
 
-function Whiteboard() {
+function Whiteboard({ onSend }: { onSend?: (dataUrl: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [color, setColor] = useState("#111827");
@@ -1086,6 +1198,13 @@ function Whiteboard() {
     link.click();
   };
 
+  const sendToChat = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !onSend) return;
+    const url = canvas.toDataURL("image/png");
+    onSend(url);
+  };
+
   return (
     <div className="border rounded-md p-2 space-y-2">
       <div className="flex items-center gap-2">
@@ -1094,6 +1213,7 @@ function Whiteboard() {
         <input type="range" min={1} max={10} value={lineWidth} onChange={(e) => setLineWidth(parseInt(e.target.value))} />
         <button onClick={clear} className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs"><Eraser className="h-4 w-4" /> Clear</button>
         <button onClick={download} className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs"><Download className="h-4 w-4" /> Download</button>
+        <button onClick={sendToChat} className="inline-flex items-center gap-1 border rounded-md px-2 py-1 text-xs">Send to chat</button>
       </div>
       <div className="h-48 w-full">
         <canvas
@@ -1109,7 +1229,7 @@ function Whiteboard() {
   );
 }
 
-function MessageBubble({ role, content, onPractice }: { role: Role; content: string; onPractice?: (topic: string) => void }) {
+function MessageBubble({ role, content, images, onPractice, onVisualize }: { role: Role; content: string; images?: string[]; onPractice?: (topic: string) => void; onVisualize?: () => void }) {
   const isUser = role === "user";
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
@@ -1124,9 +1244,23 @@ function MessageBubble({ role, content, onPractice }: { role: Role; content: str
         ) : (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         )}
+        {images && images.length > 0 && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {images.map((src, i) => (
+              <a key={i} href={src} target="_blank" rel="noreferrer" className="block">
+                <img src={src} alt="diagram" className="w-full h-auto rounded border" />
+              </a>
+            ))}
+          </div>
+        )}
         {!isUser && (
           <div className="mt-2 flex gap-2">
             <InlineRephraseButtons text={content} />
+            {onVisualize && (
+              <Button variant="outline" size="sm" onClick={onVisualize}>
+                Visualize
+              </Button>
+            )}
             {onPractice && (
               <Button variant="outline" size="sm" onClick={() => onPractice(content)}>
                 Practice this
