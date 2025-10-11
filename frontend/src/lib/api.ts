@@ -554,3 +554,15 @@ export async function fetchStudentTrends(userId: string, days = 14) {
   if (!res.ok) throw new Error(`Trends error ${res.status}`);
   return res.json() as Promise<{ trends: Array<{ date: string; attempts: number; correct: number }> }>;
 }
+export async function fetchStudentSummary(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/dashboard/student/${encodeURIComponent(userId)}/summary`);
+  if (!res.ok) throw new Error(`Summary error ${res.status}`);
+  return res.json() as Promise<{ progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }>;
+}
+export async function fetchStudentSuggestions(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/dashboard/student/${encodeURIComponent(userId)}/suggestions`);
+  if (!res.ok) throw new Error(`Suggestions error ${res.status}`);
+  return res.json() as Promise<{ suggestions: Array<{ topic: string; pCorrect: number; difficulty: 'easy'|'medium'|'hard' }> }>;
+}

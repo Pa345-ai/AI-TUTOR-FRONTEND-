@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listClasses, createClass, listClassMembers, addClassMember, fetchStudentTrends } from "@/lib/api";
+import { listClasses, createClass, listClassMembers, addClassMember, fetchStudentTrends, fetchStudentSummary, fetchStudentSuggestions } from "@/lib/api";
 
 export default function ClassesPage() {
   const [teacherId, setTeacherId] = useState<string>("t-1");
@@ -12,6 +12,8 @@ export default function ClassesPage() {
   const [newStudent, setNewStudent] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [trends, setTrends] = useState<Array<{ date: string; attempts: number; correct: number }>>([]);
+  const [summary, setSummary] = useState<{ progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> } | null>(null);
+  const [suggestions, setSuggestions] = useState<Array<{ topic: string; pCorrect: number; difficulty: 'easy'|'medium'|'hard' }>>([]);
 
   const load = async () => {
     const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
@@ -47,6 +49,8 @@ export default function ClassesPage() {
     setSelectedStudent(studentId);
     const res = await fetchStudentTrends(studentId, 14);
     setTrends(res.trends || []);
+    try { const s = await fetchStudentSummary(studentId); setSummary(s); } catch { setSummary(null); }
+    try { const sug = await fetchStudentSuggestions(studentId); setSuggestions(sug.suggestions || []); } catch { setSuggestions([]); }
   };
 
   return (
@@ -94,7 +98,12 @@ export default function ClassesPage() {
       </div>
       {selectedStudent && (
         <div className="border rounded-md p-3">
-          <div className="text-sm font-medium mb-2">{selectedStudent} — Last 14 days</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">{selectedStudent} — Last 14 days</div>
+            {summary?.progress && (
+              <div className="text-xs text-muted-foreground">XP {summary.progress.xp} • Lv {summary.progress.level} • Streak {summary.progress.streak}</div>
+            )}
+          </div>
           <div className="grid gap-1 text-xs">
             {trends.map((t) => (
               <div key={t.date} className="flex items-center gap-2">
@@ -106,6 +115,36 @@ export default function ClassesPage() {
               </div>
             ))}
           </div>
+          {summary && (
+            <div className="grid sm:grid-cols-2 gap-3 mt-3">
+              <div>
+                <div className="text-sm font-medium">Weak topics</div>
+                <ul className="text-sm space-y-1">
+                  {summary.weak.map((w,i)=> (
+                    <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <div className="text-sm font-medium">Strong topics</div>
+                <ul className="text-sm space-y-1">
+                  {summary.strong.map((w,i)=> (
+                    <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          {suggestions.length > 0 && (
+            <div className="mt-3">
+              <div className="text-sm font-medium">Suggested next topics</div>
+              <ul className="text-sm space-y-1">
+                {suggestions.map((s,i)=> (
+                  <li key={i}>{s.topic} — {(s.pCorrect*100).toFixed(0)}% p(correct) • {s.difficulty}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
