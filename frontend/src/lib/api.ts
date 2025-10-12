@@ -251,6 +251,60 @@ export async function updateLearningPath(id: string, data: Partial<{ currentTopi
   return res.json() as Promise<{ ok: boolean }>;
 }
 
+// Schedule & catch-up
+export type ScheduleItem = { id: string; userId: string; pathId?: string|null; subject?: string|null; topic: string; startAt: string; durationMinutes: number; status: 'planned'|'completed'|'missed'|'rescheduled' };
+export type SchedulePrefs = { userId: string; timezone?: string; dailyMinutes?: number; quietStartMin?: number; quietEndMin?: number; daysAvailable?: string[] };
+export async function fetchSchedule(userId: string, range?: { from?: string; to?: string }): Promise<ScheduleItem[]> {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/schedule/${encodeURIComponent(userId)}`);
+  if (range?.from) url.searchParams.set('from', range.from);
+  if (range?.to) url.searchParams.set('to', range.to);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Schedule fetch error ${res.status}`);
+  const data = await res.json() as { schedule: ScheduleItem[] };
+  return data.schedule || [];
+}
+export async function upsertSchedule(items: Array<Omit<ScheduleItem, 'id'>>): Promise<{ count: number }> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/schedule/upsert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+  if (!res.ok) throw new Error(`Schedule upsert error ${res.status}`);
+  return res.json();
+}
+export async function setScheduleStatus(id: string, status: ScheduleItem['status']): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/schedule/${encodeURIComponent(id)}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+  if (!res.ok) throw new Error(`Schedule status error ${res.status}`);
+}
+export async function getSchedulePrefs(userId: string): Promise<{ prefs?: SchedulePrefs }> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/schedule/prefs/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Prefs fetch error ${res.status}`);
+  return res.json();
+}
+export async function setSchedulePrefs(prefs: SchedulePrefs): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/schedule/prefs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefs) });
+  if (!res.ok) throw new Error(`Prefs set error ${res.status}`);
+}
+export async function fetchCatchUp(userId: string, since?: string): Promise<Array<{ topic: string; minutes: number }>> {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/schedule/catchup/${encodeURIComponent(userId)}`);
+  if (since) url.searchParams.set('since', since);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Catch-up fetch error ${res.status}`);
+  const data = await res.json() as { plan: Array<{ topic: string; minutes: number }> };
+  return data.plan || [];
+}
+export async function exportICS(userId: string, range?: { from?: string; to?: string }): Promise<string> {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/schedule/ics/${encodeURIComponent(userId)}`);
+  if (range?.from) url.searchParams.set('from', range.from);
+  if (range?.to) url.searchParams.set('to', range.to);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`ICS export error ${res.status}`);
+  return res.text();
+}
+
 export async function logLearningEvent(params: { userId: string; subject?: string; topic: string; correct: boolean; difficulty?: 'easy'|'medium'|'hard' }) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/learning/log`, {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchLearningPaths, type LearningPathItem, fetchPrereqs, fetchNextTopics, fetchMastery, getSavedGoals, updateGoalsProgress, fetchGoals, createLearningPath, updateLearningPath } from "@/lib/api";
+import { fetchLearningPaths, type LearningPathItem, fetchPrereqs, fetchNextTopics, fetchMastery, getSavedGoals, updateGoalsProgress, fetchGoals, createLearningPath, updateLearningPath, fetchSchedule, upsertSchedule, getSchedulePrefs, setSchedulePrefs, fetchCatchUp, exportICS, type ScheduleItem, type SchedulePrefs } from "@/lib/api";
 import Link from "next/link";
 
 export default function LearningPathsPage() {
@@ -20,6 +20,9 @@ export default function LearningPathsPage() {
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsError, setGoalsError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [prefs, setPrefs] = useState<SchedulePrefs | null>(null);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [catchup, setCatchup] = useState<Array<{ topic: string; minutes: number }>>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -34,13 +37,19 @@ export default function LearningPathsPage() {
       try {
         setLoading(true);
         setError(null);
-        const [data, m] = await Promise.all([
+        const [data, m, pf, sch, cu] = await Promise.all([
           fetchLearningPaths(userId),
           fetchMastery(userId),
+          getSchedulePrefs(userId).catch(()=>({} as any)),
+          fetchSchedule(userId).catch(()=>[]),
+          fetchCatchUp(userId).catch(()=>[]),
         ]);
         if (!mounted) return;
         setItems(data);
         setMastery(m);
+        setPrefs((pf as any).prefs || null);
+        setSchedule(sch as any);
+        setCatchup(cu as any);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -123,6 +132,27 @@ export default function LearningPathsPage() {
     } finally { setCreating(false); }
   }, [userId, subject, topic, prereqs, accuracyOf]);
 
+  const savePrefs = useCallback(async () => {
+    if (!prefs) return;
+    await setSchedulePrefs({ userId, ...prefs });
+  }, [prefs, userId]);
+
+  const planWeek = useCallback(async () => {
+    // naive plan: schedule pathPlan topics for this week at 6pm for 30m respecting quiet hours
+    const base = new Date();
+    base.setHours(18,0,0,0);
+    const items: Array<Omit<ScheduleItem,'id'>> = [] as any;
+    let dayOffset = 0;
+    for (const t of pathPlan) {
+      const start = new Date(base.getTime() + dayOffset * 24*60*60*1000);
+      items.push({ userId, pathId: (items[0] as any)?.pathId || null, subject, topic: t, startAt: start.toISOString(), durationMinutes: 30, status: 'planned' } as any);
+      dayOffset += 1;
+    }
+    await upsertSchedule(items as any);
+    const sch = await fetchSchedule(userId);
+    setSchedule(sch);
+  }, [userId, subject, pathPlan]);
+
   const toggleStep = useCallback(async (gi: number, si: number) => {
     const key = `${gi}:${si}`;
     const next = { ...goalsProgress, [key]: !goalsProgress[key] };
@@ -199,6 +229,41 @@ export default function LearningPathsPage() {
               </ul>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Scheduling & Calendar */}
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="text-sm font-medium">Schedule & Calendar</div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <input className="h-8 px-2 border rounded-md" placeholder="Timezone (e.g., UTC)" value={prefs?.timezone || ''} onChange={(e)=>setPrefs({ ...(prefs||{ userId }), userId, timezone: e.target.value })} />
+          <input className="h-8 px-2 border rounded-md w-28" placeholder="Daily minutes" type="number" value={prefs?.dailyMinutes ?? 60} onChange={(e)=>setPrefs({ ...(prefs||{ userId }), userId, dailyMinutes: parseInt(e.target.value||'60') })} />
+          <button className="h-8 px-3 border rounded-md" onClick={()=>void savePrefs()}>Save Prefs</button>
+          <button className="h-8 px-3 border rounded-md" onClick={()=>void planWeek()}>Plan Week</button>
+          <button className="h-8 px-3 border rounded-md" onClick={async ()=>{ const ics = await exportICS(userId); const blob = new Blob([ics], { type: 'text/calendar' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'learning-path.ics'; a.click(); URL.revokeObjectURL(url); }}>Export ICS</button>
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div>
+            <div className="text-xs font-medium mb-1">Upcoming</div>
+            <ul className="text-sm space-y-1 max-h-[200px] overflow-auto">
+              {schedule.filter(s=>new Date(s.startAt)>=new Date()).slice(0,20).map((s)=> (
+                <li key={s.id} className="flex items-center justify-between border rounded px-2 py-1">
+                  <span>{new Date(s.startAt).toLocaleString()} — {s.topic}</span>
+                  <span className="text-[11px] text-muted-foreground">{s.status}</span>
+                </li>
+              ))}
+              {schedule.filter(s=>new Date(s.startAt)>=new Date()).length===0 && <li className="text-xs text-muted-foreground">No upcoming items.</li>}
+            </ul>
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1">Catch-up Plan</div>
+            <ul className="text-sm space-y-1">
+              {catchup.map((c,i)=> (
+                <li key={i} className="flex items-center justify-between border rounded px-2 py-1"><span>{c.topic}</span><span className="text-[11px] text-muted-foreground">{c.minutes} min</span></li>
+              ))}
+              {catchup.length===0 && <li className="text-xs text-muted-foreground">No catch-up needed.</li>}
+            </ul>
+          </div>
         </div>
       </div>
 
