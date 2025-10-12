@@ -9,8 +9,11 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<Array<{ id: string; userId: string; content: string; createdAt?: string }>>([]);
   const [metrics, setMetrics] = useState<Record<string, unknown>>({});
   const base = process.env.NEXT_PUBLIC_BASE_URL!;
-  const [items, setItems] = useState<Array<{ id: string; topic: string; subject?: string; difficulty?: string; question: string }>>([]);
+  const [items, setItems] = useState<Array<{ id: string; topic: string; subject?: string; difficulty?: string; question: string; tags?: string[] }>>([]);
   const [itemCsv, setItemCsv] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [irt, setIrt] = useState<{ aDiscrimination: number; bDifficulty: number } | null>(null);
+  const [attempts, setAttempts] = useState<Array<{ correct: boolean; userAbility: number; createdAt: string }>>([]);
 
   const loadAll = async () => {
     try {
@@ -23,7 +26,7 @@ export default function AdminPage() {
       setFlags(f.flags || {});
       setMessages((m.messages || []).map((x: { id?: string; userId: string; content: string; createdAt?: string }) => ({ id: x.id || crypto.randomUUID(), userId: x.userId, content: x.content, createdAt: x.createdAt })));
       setMetrics(mm || {} as Record<string, unknown>);
-      setItems((ib.items || []).map((x: any)=>({ id: x.id, topic: x.topic, subject: x.subject, difficulty: x.difficulty, question: x.question })));
+      setItems((ib.items || []).map((x: any)=>({ id: x.id, topic: x.topic, subject: x.subject, difficulty: x.difficulty, question: x.question, tags: x.tags || [] })));
     } catch {}
   };
 
@@ -88,17 +91,46 @@ export default function AdminPage() {
         <textarea className="w-full min-h-[120px] border rounded-md p-2 text-xs" placeholder="CSV here" value={itemCsv} onChange={(e)=>setItemCsv(e.target.value)} />
         <div className="grid gap-2 text-xs max-h-[260px] overflow-auto">
           {items.map((it)=> (
-            <div key={it.id} className="border rounded-md p-2">
+            <div key={it.id} className={`border rounded-md p-2 ${selectedItemId===it.id?'ring-1 ring-blue-500':''}`} onClick={async ()=>{
+              setSelectedItemId(it.id); setIrt(null); setAttempts([]);
+              try {
+                const r1 = await fetch(`${base}/api/items/${encodeURIComponent(it.id)}/attempts`); const a = await r1.json(); setAttempts(a.attempts||[]);
+                const r2 = await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`); const d = await r2.json(); if (d.item && d.item.irt) setIrt(d.item.irt);
+              } catch {}
+            }}>
               <div className="flex items-center justify-between">
                 <div className="font-medium">{it.topic} — {it.difficulty}</div>
-                <button className="h-7 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ difficulty: it.difficulty==='easy'?'medium': it.difficulty==='medium'?'hard':'easy' }) }); await loadAll(); }}>Toggle Difficulty</button>
+                <div className="flex items-center gap-2">
+                  <input className="w-40 border rounded px-1" defaultValue={(it.tags||[]).join(' ')} placeholder="tags (space-separated)" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ tags: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
+                  <button className="h-7 px-2 border rounded-md" onClick={async (ev)=>{ ev.stopPropagation(); await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ difficulty: it.difficulty==='easy'?'medium': it.difficulty==='medium'?'hard':'easy' }) }); await loadAll(); }}>Toggle Difficulty</button>
+                </div>
               </div>
               <div className="mt-1">{it.question}</div>
             </div>
           ))}
         </div>
+        {selectedItemId && (
+          <div className="mt-3 grid md:grid-cols-2 gap-3 text-xs">
+            <div className="border rounded-md p-2">
+              <div className="font-medium mb-1">IRT Estimation</div>
+              <div className="flex items-center gap-2">
+                <button className="h-7 px-2 border rounded-md" onClick={async ()=>{ const r = await fetch(`${base}/api/items/${encodeURIComponent(selectedItemId)}/irt/estimate`, { method: 'POST' }); const d = await r.json(); setIrt(d.irt || null); }}>Estimate IRT</button>
+                {irt && (<div className="text-[11px]">a={irt.aDiscrimination/1000} b={irt.bDifficulty}</div>)}
+              </div>
+            </div>
+            <div className="border rounded-md p-2">
+              <div className="font-medium mb-1">Recent Attempts</div>
+              <div className="max-h-[140px] overflow-auto space-y-1">
+                {attempts.map((a,i)=> (
+                  <div key={i} className="flex justify-between"><span>{new Date(a.createdAt).toLocaleString()}</span><span>{a.userAbility}</span><span className={a.correct? 'text-green-600':'text-red-600'}>{a.correct? 'correct':'wrong'}</span></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-xs">
-          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/recalibrate`, { method: 'POST' }); await loadAll(); }}>Recalibrate</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/recalibrate`, { method: 'POST' }); await loadAll(); }}>Recalibrate (difficulty)</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/irt/reestimate-all`, { method: 'POST' }); await loadAll(); }}>Re-estimate IRT (all)</button>
         </div>
       </div>
     </div>
