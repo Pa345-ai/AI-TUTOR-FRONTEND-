@@ -11,6 +11,8 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
   const [messages, setMessages] = useState<Array<{ id: string; userId: string | null; type: string; content: string; createdAt?: string }>>([]);
   const [input, setInput] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -34,6 +36,10 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
           const data = JSON.parse(ev.data);
           if (data?.type === 'room:message' && data.roomId === roomId) {
             setMessages((prev) => [...prev, { id: crypto.randomUUID(), userId: data.userId ?? null, type: 'chat', content: data.content }]);
+          } else if (data?.type === 'room:audio' && data.roomId === roomId && typeof data.audio === 'string') {
+            const src = data.audio; // data URL
+            const audio = new Audio(src);
+            audio.play().catch(()=>{});
           }
         } catch {}
       };
@@ -47,6 +53,27 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     if (!text) return;
     wsRef.current?.send(JSON.stringify({ type: 'room:message', roomId, userId, content: text }));
     setInput("");
+  };
+
+  const pushToTalk = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const media = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRef.current = media;
+      chunksRef.current = [];
+      media.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      media.onstop = async () => {
+        try {
+          const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+          const buf = await blob.arrayBuffer();
+          const b64 = `data:audio/webm;base64,${btoa(String.fromCharCode(...new Uint8Array(buf)))}`;
+          wsRef.current?.send(JSON.stringify({ type: 'room:audio', roomId, userId, audio: b64, mime: 'audio/webm' }));
+        } catch {}
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      media.start();
+      setTimeout(()=> media.stop(), 3000);
+    } catch {}
   };
 
   const facilitate = async () => {
@@ -72,6 +99,7 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
         <Textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type your message..." className="min-h-[88px]" />
         <div className="flex items-center justify-between gap-2">
           <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" onClick={facilitate}>Ask AI to facilitate</button>
+          <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs" onClick={pushToTalk}>Push to talk (3s)</button>
           <Button onClick={send} disabled={!input.trim()}>Send</Button>
         </div>
       </div>
