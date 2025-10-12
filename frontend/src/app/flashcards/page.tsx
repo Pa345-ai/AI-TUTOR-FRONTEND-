@@ -127,6 +127,21 @@ export default function FlashcardsPage() {
                 {decks.map((d)=> (<option key={d.id} value={d.id}>{d.name}</option>))}
               </select>
             </div>
+            <div className="mt-2 flex items-center gap-2">
+              <button className="h-8 px-3 border rounded-md text-xs" onClick={async ()=>{
+                // Simple due review: mark as reviewed now, next interval +1 day
+                try {
+                  const base = process.env.NEXT_PUBLIC_BASE_URL!;
+                  await fetch(`${base}/api/flashcards/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, cardId: c.id, grade: 4 }) });
+                } catch {}
+              }}>I knew this</button>
+              <button className="h-8 px-3 border rounded-md text-xs" onClick={async ()=>{
+                try {
+                  const base = process.env.NEXT_PUBLIC_BASE_URL!;
+                  await fetch(`${base}/api/flashcards/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, cardId: c.id, grade: 2 }) });
+                } catch {}
+              }}>Unsure</button>
+            </div>
           </div>
         ))}
         {items.length === 0 && !loading && (
