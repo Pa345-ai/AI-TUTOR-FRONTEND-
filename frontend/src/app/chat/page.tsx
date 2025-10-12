@@ -42,6 +42,7 @@ export default function ChatPage() {
   const [personaSocratic, setPersonaSocratic] = useState<number>(50);
   const [personaStrictness, setPersonaStrictness] = useState<number>(20);
   const [personaEncouragement, setPersonaEncouragement] = useState<number>(70);
+  const personaBySubjectRef = useRef<Record<string, { mode: typeof mode; level: typeof level; personaSocratic: number; personaStrictness: number; personaEncouragement: number }>>({});
   const [subject, setSubject] = useState<string>("");
   const [grade, setGrade] = useState<string>("");
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
@@ -189,6 +190,7 @@ export default function ChatPage() {
           navigator.mediaDevices.enumerateDevices().then(setDevices).catch(() => {});
         });
       }
+      try { const map = JSON.parse(window.localStorage.getItem('personaBySubject') || '{}'); if (map && typeof map === 'object') personaBySubjectRef.current = map; } catch {}
     }
     // Also try to load server history if we have a userId (defaults to "123")
     const uid = typeof window !== "undefined" ? window.localStorage.getItem("userId") || "123" : "123";
@@ -203,6 +205,34 @@ export default function ChatPage() {
         // ignore history fetch errors
       });
   }, [voiceName]);
+
+  // Persist persona per subject and load on subject change
+  useEffect(() => {
+    if (!subject) return;
+    const map = personaBySubjectRef.current || {};
+    const ps = map[subject];
+    if (ps) {
+      setMode(ps.mode);
+      setLevel(ps.level);
+      setPersonaSocratic(ps.personaSocratic);
+      setPersonaStrictness(ps.personaStrictness);
+      setPersonaEncouragement(ps.personaEncouragement);
+    } else {
+      // save current as default for this subject
+      map[subject] = { mode, level, personaSocratic, personaStrictness, personaEncouragement };
+      personaBySubjectRef.current = map;
+      try { window.localStorage.setItem('personaBySubject', JSON.stringify(map)); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subject]);
+
+  useEffect(() => {
+    if (!subject) return;
+    const map = personaBySubjectRef.current || {};
+    map[subject] = { mode, level, personaSocratic, personaStrictness, personaEncouragement };
+    personaBySubjectRef.current = map;
+    try { window.localStorage.setItem('personaBySubject', JSON.stringify(map)); } catch {}
+  }, [subject, mode, level, personaSocratic, personaStrictness, personaEncouragement]);
 
   const getVideoConstraints = useCallback(() => ({
     video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : { facingMode: 'user' as const },
@@ -644,14 +674,26 @@ export default function ChatPage() {
     try {
       const rec = new Ctor();
       rec.lang = localeFor(language);
-      // Optional properties available on some browsers
-      try { (rec as unknown as { interimResults?: boolean }).interimResults = false; } catch {}
+      // Enable partial results
+      try { (rec as unknown as { interimResults?: boolean }).interimResults = true; } catch {}
       try { (rec as unknown as { maxAlternatives?: number }).maxAlternatives = 1; } catch {}
-      rec.onresult = async (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => {
-        const result0 = event.results[0] as unknown as { 0: { transcript: string } };
-        const text = result0?.[0]?.transcript ?? "";
-        if (!text) return;
-        await voiceSend(text);
+      // Barge-in: cancel any ongoing TTS
+      try { if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel(); } catch {}
+      rec.onresult = async (event: any) => {
+        try {
+          const results: SpeechRecognitionResultList = event.results;
+          const idx = results.length - 1;
+          const res: any = results[idx];
+          const transcript = (res && res[0] && res[0].transcript) ? String(res[0].transcript) : '';
+          if (!transcript) return;
+          // show partial in input
+          setInput(transcript);
+          // if final, send
+          if ((res && typeof res.isFinal === 'boolean' && res.isFinal) || transcript.endsWith('.')) {
+            await voiceSend(transcript);
+            setInput('');
+          }
+        } catch {}
       };
       rec.onend = () => {
         if (voiceTutorOn && !speakingRef.current) {
@@ -700,6 +742,7 @@ export default function ChatPage() {
     try {
       // streaming path
       let assembled = "";
+      const spokenUpToRef = { current: 0 } as { current: number };
       for await (const chunk of streamChat({ userId, message: trimmed, language, mode, level })) {
         assembled += chunk;
         const partial: Message = { id: "stream", role: "assistant", content: assembled };
@@ -707,6 +750,21 @@ export default function ChatPage() {
           const withoutStream = prev.filter((m) => m.id !== "stream");
           return [...withoutStream, partial];
         });
+        // Low-latency TTS: speak complete sentences as they stream in
+        try {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window && voiceTutorOn) {
+            const upto = assembled.lastIndexOf('.') + 1 || assembled.lastIndexOf('!') + 1 || assembled.lastIndexOf('?') + 1;
+            if (upto > spokenUpToRef.current) {
+              const seg = assembled.slice(spokenUpToRef.current, upto).trim();
+              if (seg) {
+                // cancel queued to reduce lag (barge-in TTS)
+                window.speechSynthesis.cancel();
+                void speak(seg);
+              }
+              spokenUpToRef.current = upto;
+            }
+          }
+        } catch {}
       }
       // finalize stream message id
       let finalText = assembled;
