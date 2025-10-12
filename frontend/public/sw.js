@@ -88,14 +88,35 @@ self.addEventListener('message', (event) => {
     if (!userId) return;
     event.waitUntil((async () => {
       try {
-        // Respect quiet hours from localStorage if provided via a broadcast in the future
-        // For now, keep behavior simple to avoid SW-localStorage limitations
-        const res = await fetch(`/api/learning/review/${encodeURIComponent(userId)}?limit=3`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const items = (data.due || []).map((d) => (typeof d === 'string' ? d : d.topic));
-        const body = items && items.length ? `Due topics: ${items.join(', ')}` : 'No reviews due. Keep your streak!';
-        await self.registration.showNotification('AI Tutor', { body, tag: 'ai-tutor-due', icon: '/icon-192.png' });
+        // Topics due (spaced review)
+        const topicRes = await fetch(`/api/learning/review/${encodeURIComponent(userId)}?limit=3`);
+        let topicList = [];
+        if (topicRes.ok) {
+          const data = await topicRes.json();
+          topicList = (data.due || []).map((d) => (typeof d === 'string' ? d : d.topic));
+        }
+        // Deck-aware flashcard due counts
+        let deckLines = [];
+        try {
+          const decksRes = await fetch(`/api/flashcards/decks/${encodeURIComponent(userId)}`);
+          if (decksRes.ok) {
+            const decksData = await decksRes.json();
+            const decks = (decksData.decks || []) as string[];
+            for (const name of decks.slice(0, 5)) {
+              try {
+                const dueRes = await fetch(`/api/flashcards/due/${encodeURIComponent(userId)}?deck=${encodeURIComponent(name)}`);
+                const dueData = await dueRes.json();
+                const n = Array.isArray(dueData?.due) ? dueData.due.length : 0;
+                if (n > 0) deckLines.push(`${name}: ${n}`);
+              } catch {}
+            }
+          }
+        } catch {}
+        const topicPart = topicList.length ? `Topics: ${topicList.join(', ')}` : '';
+        const deckPart = deckLines.length ? `Cards due — ${deckLines.join(' • ')}` : '';
+        const body = [topicPart, deckPart].filter(Boolean).join('\n');
+        const finalBody = body || 'No reviews due. Keep your streak!';
+        await self.registration.showNotification('AI Tutor', { body: finalBody, tag: 'ai-tutor-due-srs', icon: '/icon-192.png' });
       } catch {}
     })());
   }
