@@ -429,6 +429,17 @@ export default function ChatPage() {
     }, 5000);
   }, []);
 
+  // Persist input draft offline
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('chatDraft');
+    if (saved && !input) setInput(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.setItem('chatDraft', input); } catch {}
+  }, [input]);
   const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
 
   // Voice Tutor helpers
@@ -657,6 +668,7 @@ export default function ChatPage() {
     };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    if (typeof window !== 'undefined') try { window.localStorage.removeItem('chatDraft'); } catch {}
     setIsSending(true);
     try {
       // streaming path
