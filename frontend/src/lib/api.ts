@@ -176,6 +176,7 @@ export interface FlashcardItem {
   front: string;
   back: string;
   subject?: string;
+  deckId?: string | null;
   tags?: string[];
 }
 
@@ -185,6 +186,27 @@ export async function fetchFlashcards(userId: string): Promise<FlashcardItem[]> 
   if (!res.ok) throw new Error(`Flashcards error ${res.status}`);
   const data = (await res.json()) as { flashcards?: FlashcardItem[] };
   return data.flashcards ?? [];
+}
+
+export async function listDecks(userId: string): Promise<Array<{ id: string; name: string }>> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/decks?userId=${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Decks error ${res.status}`);
+  const data = await res.json() as { decks?: Array<{ id: string; name: string }> };
+  return data.decks ?? [];
+}
+
+export async function createDeck(userId: string, name: string): Promise<{ id: string; name: string }> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/decks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, name }) });
+  if (!res.ok) throw new Error(`Create deck error ${res.status}`);
+  return res.json() as Promise<{ deck: { id: string; name: string } }> as any;
+}
+
+export async function moveCardToDeck(cardId: string, deckId: string | null): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/decks/move`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cardId, deckId }) });
+  if (!res.ok) throw new Error(`Move card error ${res.status}`);
 }
 
 export async function generateFlashcards(params: { userId: string; content: string; subject?: string; language?: string }) {

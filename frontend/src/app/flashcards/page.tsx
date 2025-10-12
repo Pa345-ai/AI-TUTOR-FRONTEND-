@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchFlashcards, generateFlashcards, exportQuizletSet, saveIntegrationToken, type FlashcardItem } from "@/lib/api";
+import { fetchFlashcards, generateFlashcards, exportQuizletSet, saveIntegrationToken, type FlashcardItem, listDecks, createDeck, moveCardToDeck } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ export default function FlashcardsPage() {
   const [error, setError] = useState<string | null>(null);
   const [quizletToken, setQuizletToken] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [decks, setDecks] = useState<Array<{ id: string; name: string }>>([]);
+  const [newDeck, setNewDeck] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -30,9 +32,10 @@ export default function FlashcardsPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await fetchFlashcards(userId);
+        const [data, dks] = await Promise.all([fetchFlashcards(userId), listDecks(userId)]);
         if (!mounted) return;
         setItems(data);
+        setDecks(dks);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -76,6 +79,13 @@ export default function FlashcardsPage() {
     }
   };
 
+  const addDeck = async () => {
+    if (!newDeck.trim()) return;
+    const d = await createDeck(userId, newDeck.trim());
+    setDecks((prev) => [...prev, { id: (d as any).deck?.id || d.id, name: (d as any).deck?.name || d.name }]);
+    setNewDeck("");
+  };
+
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Flashcards</h1>
@@ -89,6 +99,11 @@ export default function FlashcardsPage() {
           <Button onClick={generate} disabled={!content.trim() || loading}>{loading ? "Generating..." : "Generate"}</Button>
           {error && <span className="text-sm text-red-600">{error}</span>}
         </div>
+        <div className="flex items-center gap-2 text-sm">
+          <input className="h-9 px-2 border rounded-md" placeholder="New deck name" value={newDeck} onChange={(e)=>setNewDeck(e.target.value)} />
+          <button className="h-9 px-3 border rounded-md" onClick={addDeck}>Add Deck</button>
+          {decks.length>0 && <span className="text-xs text-muted-foreground">Decks: {decks.map(d=>d.name).join(', ')}</span>}
+        </div>
         <div className="flex items-center gap-2 text-xs">
           <input className="h-8 px-2 border rounded-md" placeholder="Quizlet access token (optional)" value={quizletToken} onChange={(e)=>setQuizletToken(e.target.value)} />
           <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1" onClick={saveToken}>Save Token</button>
@@ -100,6 +115,18 @@ export default function FlashcardsPage() {
           <div key={c.id} className="border rounded-md p-3">
             <div className="font-medium">{c.front}</div>
             <div className="text-sm text-muted-foreground mt-1">{c.back}</div>
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              <label>Deck</label>
+              <select className="h-8 px-2 border rounded-md" value={c.deckId ?? ''} onChange={async (e)=>{
+                const val = e.target.value || null;
+                await moveCardToDeck(c.id, val);
+                const next = await fetchFlashcards(userId);
+                setItems(next);
+              }}>
+                <option value="">None</option>
+                {decks.map((d)=> (<option key={d.id} value={d.id}>{d.name}</option>))}
+              </select>
+            </div>
           </div>
         ))}
         {items.length === 0 && !loading && (
