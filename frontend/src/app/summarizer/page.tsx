@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { chat, exportToDocs, generateFlashcards } from "@/lib/api";
@@ -14,6 +14,10 @@ export default function SummarizerPage() {
   const [subject, setSubject] = useState("");
   const [exporting, setExporting] = useState(false);
   const [creatingCards, setCreatingCards] = useState(false);
+  const [highlights, setHighlights] = useState<Array<{ page: number; quote: string; reason?: string }>>([]);
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const summarize = async () => {
     if (!text.trim()) return;
@@ -95,6 +99,15 @@ export default function SummarizerPage() {
               const res = await fetch(`${base}/api/summarize/upload`, { method: 'POST', body: form });
               const data = await res.json();
               setSummary(data.summary || '');
+              setHighlights(Array.isArray(data.highlights) ? data.highlights : []);
+              setNumPages(typeof data.pages === 'number' ? data.pages : null);
+              // create a blob url for PDF preview if uploaded file is PDF
+              if (file && file.type === 'application/pdf') {
+                const url = URL.createObjectURL(file);
+                setPdfUrl(url);
+              } else {
+                setPdfUrl(null);
+              }
             } catch (e) {
               setSummary(e instanceof Error ? e.message : String(e));
             } finally {
@@ -116,6 +129,32 @@ export default function SummarizerPage() {
         )}
       </div>
       {summary && <Textarea value={summary} readOnly className="min-h-[200px]" />}
+      {pdfUrl && highlights.length > 0 && (
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="border rounded-md p-2">
+            <div className="text-sm font-medium mb-2">Highlights</div>
+            <ul className="text-sm space-y-1">
+              {highlights.map((h, i) => (
+                <li key={i}>
+                  <button className="underline" onClick={() => {
+                    // navigate pdf.js viewer to page
+                    const frame = iframeRef.current;
+                    if (frame && frame.contentWindow) {
+                      frame.contentWindow.postMessage({ type: 'pdf:setPage', page: h.page, quote: h.quote }, '*');
+                    }
+                  }}>p.{h.page}</button>
+                  : “{h.quote.slice(0, 120)}{h.quote.length>120?'…':''}”
+                  {h.reason ? <div className="text-xs text-muted-foreground">{h.reason}</div> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="border rounded-md">
+            {/* Embed a lightweight PDF.js viewer page with postMessage API */}
+            <iframe ref={iframeRef} src={`/pdf-viewer.html#${encodeURIComponent(pdfUrl)}`} className="w-full h-[480px]" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
