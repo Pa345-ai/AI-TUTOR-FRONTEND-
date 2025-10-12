@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MathMarkdown } from "@/components/MathMarkdown";
 import { startLessonSession, answerLessonStep, listLessonSessions, fetchLessonSession, getLessonHint, exportToDocs } from "@/lib/api";
 import { saveLessonPack, listLessonPacks, getLessonPack, deleteLessonPack, type LessonPack } from "@/lib/offline-packs";
 type Step = { title: string; content: string; check?: { question: string; answer: string } };
@@ -302,7 +303,7 @@ export default function InteractiveLessonPage() {
                     <div className="text-xs text-muted-foreground">Score: {score}</div>
                   </div>
                   <div className="font-medium">{lesson.steps[currentIndex]?.title || `Step ${currentIndex+1}`}</div>
-                  <div className="whitespace-pre-wrap prose max-w-none" dangerouslySetInnerHTML={{ __html: lesson.steps[currentIndex]?.content || '' }} />
+                  <div className="prose prose-sm dark:prose-invert max-w-none"><MathMarkdown content={lesson.steps[currentIndex]?.content || ''} /></div>
                   {lesson.steps[currentIndex]?.check && (
                     <div className="space-y-2">
                       <div className="text-xs">Self-check: {lesson.steps[currentIndex]?.check?.question}</div>

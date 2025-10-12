@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MathMarkdown } from "@/components/MathMarkdown";
 import { logLearningEvent, adaptiveNext, adaptiveGrade, fetchPrereqs, fetchNextTopics, setSubjectAbility } from "@/lib/api";
 import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 
@@ -148,11 +149,7 @@ function AdaptiveInner() {
       </div>
       {question && (
         <div className="space-y-2 border rounded-md p-3">
-          <div className="font-medium">
-            <span className="prose max-w-none">
-              <span dangerouslySetInnerHTML={{ __html: question.question }} />
-            </span>
-          </div>
+          <div className="font-medium prose prose-sm dark:prose-invert max-w-none"><MathMarkdown content={question.question} /></div>
           {pCorrect !== null && (
             <div className="text-xs text-muted-foreground">Model p(correct): {(pCorrect * 100).toFixed(0)}%</div>
           )}
@@ -160,7 +157,7 @@ function AdaptiveInner() {
             {question.options.map((c, i) => (
               <label key={i} className="flex items-center gap-2 text-sm">
                 <input type="radio" name="opt" checked={selected === i} onChange={() => setSelected(i)} />
-                <span className="prose max-w-none" dangerouslySetInnerHTML={{ __html: c }} />
+                <span className="inline-block prose prose-sm dark:prose-invert max-w-none"><MathMarkdown content={c} /></span>
               </label>
             ))}
           </div>
