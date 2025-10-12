@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchLearningPaths, type LearningPathItem, fetchPrereqs, fetchNextTopics, fetchMastery, getSavedGoals, updateGoalsProgress, fetchGoals } from "@/lib/api";
+import { fetchLearningPaths, type LearningPathItem, fetchPrereqs, fetchNextTopics, fetchMastery, getSavedGoals, updateGoalsProgress, fetchGoals, createLearningPath, updateLearningPath } from "@/lib/api";
 import Link from "next/link";
 
 export default function LearningPathsPage() {
@@ -19,6 +19,7 @@ export default function LearningPathsPage() {
   const [goalsProgress, setGoalsProgress] = useState<Record<string, boolean>>({});
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsError, setGoalsError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -109,6 +110,19 @@ export default function LearningPathsPage() {
     }
   }, [userId, goalsTimeframe, pathPlan, topic]);
 
+  const createPath = useCallback(async () => {
+    if (!topic.trim()) return;
+    try {
+      setCreating(true);
+      const { id } = await createLearningPath({ userId, subject, currentTopic: topic, completedTopics: prereqs.filter((p)=>accuracyOf(p)>=0.85), recommendedResources: [] });
+      // refresh
+      const list = await fetchLearningPaths(userId);
+      setItems(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally { setCreating(false); }
+  }, [userId, subject, topic, prereqs, accuracyOf]);
+
   const toggleStep = useCallback(async (gi: number, si: number) => {
     const key = `${gi}:${si}`;
     const next = { ...goalsProgress, [key]: !goalsProgress[key] };
@@ -128,6 +142,7 @@ export default function LearningPathsPage() {
           <input className="h-8 px-2 border rounded-md text-xs flex-1" value={topic} onChange={(e)=>setTopic(e.target.value)} placeholder="Target topic (e.g., Algebra)" />
           <button className="h-8 px-3 border rounded-md text-xs" onClick={()=>void loadGraph(topic)} disabled={!topic.trim()}>Load</button>
           <button className="h-8 px-3 border rounded-md text-xs" onClick={()=>void saveAsGoals()} disabled={!topic.trim() || goalsLoading}>{goalsLoading ? 'Saving…' : 'Save as Goals'}</button>
+          <button className="h-8 px-3 border rounded-md text-xs" onClick={()=>void createPath()} disabled={!topic.trim() || creating}>{creating ? 'Creating…' : 'Create Path'}</button>
           <select className="h-8 px-2 border rounded-md text-xs" value={goalsTimeframe} onChange={(e)=>setGoalsTimeframe(e.target.value === 'weekly' ? 'weekly' : 'daily')}>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>

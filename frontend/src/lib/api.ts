@@ -237,6 +237,20 @@ export async function fetchLearningPaths(userId: string): Promise<LearningPathIt
   return data.paths ?? [];
 }
 
+export async function createLearningPath(input: { userId: string; subject: string; currentTopic: string; completedTopics?: string[]; recommendedResources?: Array<{ title: string; url: string; type: string }> }) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/learning-paths`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(`Create learning path error ${res.status}`);
+  return res.json() as Promise<{ id: string }>;
+}
+
+export async function updateLearningPath(id: string, data: Partial<{ currentTopic: string; completedTopics: string[]; recommendedResources: Array<{ title: string; url: string; type: string }> }>) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/learning-paths/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  if (!res.ok) throw new Error(`Update learning path error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean }>;
+}
+
 export async function logLearningEvent(params: { userId: string; subject?: string; topic: string; correct: boolean; difficulty?: 'easy'|'medium'|'hard' }) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/learning/log`, {
