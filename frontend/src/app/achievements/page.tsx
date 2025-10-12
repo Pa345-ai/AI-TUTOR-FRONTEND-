@@ -9,6 +9,7 @@ export default function AchievementsPage() {
   const [mine, setMine] = useState<AchievementItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -27,6 +28,10 @@ export default function AchievementsPage() {
       ]);
       setAll(a);
       setMine(m);
+      try {
+        const me = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/me`).then(r=>r.json());
+        setIsAdmin(!!me?.user && me.user.role === 'admin');
+      } catch {}
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -41,6 +46,9 @@ export default function AchievementsPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Achievements</h1>
+      {isAdmin && (
+        <a href="/admin" className="text-xs underline">Open Admin Console</a>
+      )}
       <div className="flex items-center gap-2">
         <input className="h-9 px-2 border rounded-md text-sm" value={userId} onChange={(e)=>setUserId(e.target.value)} placeholder="User ID" />
         <button className="h-9 px-3 border rounded-md text-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
