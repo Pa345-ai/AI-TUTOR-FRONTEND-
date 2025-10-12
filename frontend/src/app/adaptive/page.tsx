@@ -38,6 +38,9 @@ function AdaptiveInner() {
   const [prereqs, setPrereqs] = useState<string[]>([]);
   const [nextTopics, setNextTopics] = useState<string[]>([]);
   const [pCorrect, setPCorrect] = useState<number | null>(null);
+  const [calibrating, setCalibrating] = useState(false);
+  const [calCount, setCalCount] = useState(0);
+  const [calCorrect, setCalCorrect] = useState(0);
 
   useEffect(() => {
     const t = searchParams.get('topic');
@@ -92,6 +95,26 @@ function AdaptiveInner() {
     updateLocalMastery(userId, question.question, correct);
     const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
     setWeakList(weak);
+    if (calibrating) {
+      setCalCount((c)=>c+1);
+      if (correct) setCalCorrect((x)=>x+1);
+      if (calCount + 1 >= 5) {
+        setCalibrating(false);
+        // Simple baseline feedback
+        const rate = Math.round(((calCorrect + (correct?1:0)) / 5) * 100);
+        alert(`Calibration done. Baseline accuracy ~${rate}%`);
+      } else {
+        await nextQuestion();
+      }
+    }
+  };
+
+  const startCalibration = async () => {
+    if (!topic.trim()) return;
+    setCalibrating(true);
+    setCalCount(0);
+    setCalCorrect(0);
+    await nextQuestion();
   };
 
   return (
@@ -104,6 +127,7 @@ function AdaptiveInner() {
       <div className="text-xs text-muted-foreground">Difficulty: {difficulty.toUpperCase()}</div>
       <div className="flex items-center gap-2">
         <Button onClick={nextQuestion} disabled={!topic.trim() || loading}>{loading ? "Loading..." : (question ? "Next" : "Start")}</Button>
+        <Button variant="outline" onClick={startCalibration} disabled={!topic.trim() || calibrating}>Calibrate (5)</Button>
         {question && <Button variant="outline" onClick={submit} disabled={selected == null}>Submit</Button>}
       </div>
       {question && (
