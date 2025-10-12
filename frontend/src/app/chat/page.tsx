@@ -14,7 +14,6 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import { CodeRunner } from "@/components/CodeRunner";
-import { CodeRunner } from "@/components/CodeRunner";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
 import { Mic, Volume2, PencilLine, Eraser, Download, Radio } from "lucide-react";
 import { grades, getSubjects } from "@/lib/syllabus";
@@ -26,6 +25,8 @@ interface Message {
   role: Role;
   content: string;
 }
+
+type WhiteboardHandle = { autoDraw: (text: string) => Promise<void>; setBackground?: (dataUrl: string) => void };
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -609,6 +610,8 @@ export default function ChatPage() {
     } catch {}
   }, [generateDiagramFromText, attachToMessage]);
 
+  const whiteboardRef = useRef<WhiteboardHandle | null>(null);
+
   const voiceSend = useCallback(async (text: string) => {
     // mirror sendMessage but capture final text and auto-TTS
     const trimmed = text.trim();
@@ -1107,7 +1110,7 @@ export default function ChatPage() {
         </div>
       </div>
     )}
-      <Whiteboard onSend={(url) => {
+      <Whiteboard ref={whiteboardRef} onSend={(url) => {
         const msg: Message = { id: crypto.randomUUID(), role: 'user', content: 'Shared whiteboard sketch' };
         setMessages((prev) => [...prev, msg]);
         attachToMessage(msg.id, url);
@@ -1125,6 +1128,8 @@ export default function ChatPage() {
                   content={m.content}
                   images={attachments[m.id] || []}
                   onVisualize={m.role === 'assistant' ? () => void visualizeMessage(m.id, m.content) : undefined}
+                  onSpeak={m.role === 'assistant' ? () => void speak(m.content) : undefined}
+                  onWhiteboard={m.role === 'assistant' ? async () => { try { await whiteboardRef.current?.autoDraw(m.content); } catch {} } : undefined}
                   onPractice={(topic) => {
                     const short = topic.replace(/\s+/g, ' ').slice(0, 120);
                     const prompt = `Give me 3 practice problems in ${subject || 'subject'} for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}). Focus on: ${short}`;
@@ -1252,7 +1257,7 @@ export default function ChatPage() {
   );
 }
 
-function Whiteboard({ onSend }: { onSend?: (dataUrl: string) => void }) {
+const Whiteboard = React.forwardRef<WhiteboardHandle, { onSend?: (dataUrl: string) => void }>(function Whiteboard({ onSend }, ref) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [color, setColor] = useState("#111827");
@@ -1314,6 +1319,34 @@ function Whiteboard({ onSend }: { onSend?: (dataUrl: string) => void }) {
     onSend(url);
   };
 
+  // auto-draw simple diagram from text: draw boxes and arrows like generateDiagramFromText, but directly on board
+  const autoDraw = useCallback(async (text: string) => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d'); if (!ctx) return;
+    // clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const width = canvas.width; const height = canvas.height;
+    const lines = text.split(/\n|(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean).slice(0,6);
+    const nodes = lines.length>0?lines:['Idea','Step 1','Step 2','Conclusion'];
+    const nodeWidth = Math.min(width*0.8, 500);
+    const gap = 12; const nodeHeight = 50; const startY = Math.max(10, Math.floor((height - nodes.length*(nodeHeight+gap)+gap)/2));
+    ctx.font = '14px sans-serif'; ctx.textBaseline = 'middle'; ctx.lineWidth = 2;
+    nodes.forEach((n,i)=>{
+      const x = Math.floor((width - nodeWidth)/2); const y = startY + i*(nodeHeight+gap);
+      ctx.fillStyle = i===0? '#2563EB' : i===nodes.length-1? '#16A34A' : '#334155';
+      ctx.strokeStyle = '#FFFFFF';
+      const r = 8; const w=nodeWidth; const h=nodeHeight;
+      ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#FFF'; const txt = n.length>80? n.slice(0,77)+'…' : n; const tw = ctx.measureText(txt).width; ctx.fillText(txt, x + Math.max(10,(w-tw)/2), y + h/2);
+      if (i<nodes.length-1) {
+        const ax = x+w/2; const ay = y+h; const by = y+h+gap;
+        ctx.strokeStyle = '#94A3B8'; ctx.beginPath(); ctx.moveTo(ax,ay+2); ctx.lineTo(ax,by-2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ax-5,by-5); ctx.lineTo(ax,by); ctx.lineTo(ax+5,by-5); ctx.stroke();
+      }
+    });
+  }, []);
+
+  React.useImperativeHandle(ref, () => ({ autoDraw }));
+
   return (
     <div className="border rounded-md p-2 space-y-2">
       <div className="flex items-center gap-2">
@@ -1336,9 +1369,9 @@ function Whiteboard({ onSend }: { onSend?: (dataUrl: string) => void }) {
       </div>
     </div>
   );
-}
+});
 
-function MessageBubble({ role, content, images, onPractice, onVisualize }: { role: Role; content: string; images?: string[]; onPractice?: (topic: string) => void; onVisualize?: () => void }) {
+function MessageBubble({ role, content, images, onPractice, onVisualize, onSpeak, onWhiteboard }: { role: Role; content: string; images?: string[]; onPractice?: (topic: string) => void; onVisualize?: () => void; onSpeak?: () => void; onWhiteboard?: () => void }) {
   const isUser = role === "user";
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
@@ -1375,6 +1408,12 @@ function MessageBubble({ role, content, images, onPractice, onVisualize }: { rol
               <Button variant="outline" size="sm" onClick={onVisualize}>
                 Visualize
               </Button>
+            )}
+            {onSpeak && (
+              <Button variant="outline" size="sm" onClick={onSpeak}>Speak</Button>
+            )}
+            {onWhiteboard && (
+              <Button variant="outline" size="sm" onClick={onWhiteboard}>Draw</Button>
             )}
             {onPractice && (
               <Button variant="outline" size="sm" onClick={() => onPractice(content)}>
