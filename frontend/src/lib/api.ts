@@ -275,6 +275,9 @@ export async function* streamChat(request: ChatRequest): AsyncGenerator<string, 
       language: request.language ?? 'en',
       mode: request.mode,
       level: request.level,
+      personaSocratic: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaSocratic') || '0') : 0) || undefined,
+      personaStrictness: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaStrictness') || '0') : 0) || undefined,
+      personaEncouragement: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaEncouragement') || '0') : 0) || undefined,
     }),
   });
   if (!res.ok || !res.body) {

@@ -33,6 +33,9 @@ export default function ChatPage() {
   const [language, setLanguage] = useState<"en" | "si" | "ta">("en");
   const [mode, setMode] = useState<"socratic" | "exam" | "friendly" | "motivational">("friendly");
   const [level, setLevel] = useState<"eli5" | "normal" | "expert">("normal");
+  const [personaSocratic, setPersonaSocratic] = useState<number>(50);
+  const [personaStrictness, setPersonaStrictness] = useState<number>(20);
+  const [personaEncouragement, setPersonaEncouragement] = useState<number>(70);
   const [subject, setSubject] = useState<string>("");
   const [grade, setGrade] = useState<string>("");
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
@@ -139,6 +142,9 @@ export default function ChatPage() {
       if (defaultGrade) setGrade(defaultGrade);
       const defaultCurr = window.localStorage.getItem("defaultCurriculum");
       if (defaultCurr === "lk" || defaultCurr === "international") setCurriculum(defaultCurr);
+      const ps = window.localStorage.getItem('personaSocratic'); if (ps) setPersonaSocratic(parseInt(ps));
+      const pst = window.localStorage.getItem('personaStrictness'); if (pst) setPersonaStrictness(parseInt(pst));
+      const pe = window.localStorage.getItem('personaEncouragement'); if (pe) setPersonaEncouragement(parseInt(pe));
       const enabled = window.localStorage.getItem("cameraEnabled");
       if (enabled === 'true') setEngagement((e) => ({ ...e, cameraEnabled: true }));
       // Track permission state if supported
@@ -853,7 +859,13 @@ export default function ChatPage() {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-xs">
+            <span>Persona</span>
+            <label className="flex items-center gap-1">Socratic <input type="range" min={0} max={100} value={personaSocratic} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaSocratic(v); try { window.localStorage.setItem('personaSocratic', String(v)); } catch {} }} /></label>
+            <label className="flex items-center gap-1">Strict <input type="range" min={0} max={100} value={personaStrictness} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaStrictness(v); try { window.localStorage.setItem('personaStrictness', String(v)); } catch {} }} /></label>
+            <label className="flex items-center gap-1">Encourage <input type="range" min={0} max={100} value={personaEncouragement} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaEncouragement(v); try { window.localStorage.setItem('personaEncouragement', String(v)); } catch {} }} /></label>
+          </div>
           <div className="flex items-center gap-2 mr-2">
             <label className="text-xs text-muted-foreground flex items-center gap-1"><Radio className="h-3 w-3" /> Voice tutor</label>
             <Button size="sm" variant={voiceTutorOn ? 'default' : 'outline'} onClick={() => setVoiceTutorOn(v => !v)}>
