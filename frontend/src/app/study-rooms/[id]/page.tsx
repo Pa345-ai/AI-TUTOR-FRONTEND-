@@ -19,6 +19,7 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
   const [stroke, setStroke] = useState<number>(2);
   const undoStack = useRef<ImageData[]>([]);
   const redoStack = useRef<ImageData[]>([]);
+  const [userColors, setUserColors] = useState<Record<string, string>>({});
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -66,8 +67,16 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
               redoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
               ctx.putImageData(last, 0, 0);
             }
-          } else if (data?.type === 'room:wb:snapshot' && data.roomId === roomId) {
-            // ignore; snapshots persisted on server
+          } else if (data?.type === 'room:wb:redo' && data.roomId === roomId) {
+            const ctx = canvasRef.current?.getContext('2d');
+            if (ctx && canvasRef.current && redoStack.current.length > 0) {
+              const next = redoStack.current.pop()!;
+              undoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
+              ctx.putImageData(next, 0, 0);
+            }
+          } else if (data?.type === 'room:wb:snapshot' && data.roomId === roomId && data.payload?.image) {
+            const ctx = canvasRef.current?.getContext('2d');
+            const img = new Image(); img.onload = () => { ctx?.clearRect(0,0,canvasRef.current!.width, canvasRef.current!.height); ctx?.drawImage(img, 0, 0); }; img.src = data.payload.image;
           } else if (data?.type === 'room:cursor' && data.roomId === roomId && data.payload) {
             setCursor({ x: data.payload.x, y: data.payload.y });
           }
@@ -151,6 +160,22 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     if (!wsRef.current) return;
     wsRef.current.send(JSON.stringify({ type: 'room:wb:undo', roomId, userId }));
   };
+  const redo = () => {
+    if (!wsRef.current) return;
+    wsRef.current.send(JSON.stringify({ type: 'room:wb:redo', roomId, userId }));
+  };
+
+  const exportPDF = async () => {
+    const c = canvasRef.current; if (!c) return;
+    const dataUrl = c.toDataURL('image/png');
+    // Simple client-only PDF via canvas; minimal A4 portrait
+    const w = 595; const h = 842; // pt
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0"><img src="${dataUrl}" style="width:100%"/></body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `whiteboard-${roomId}.html`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const facilitate = async () => {
     const base = process.env.NEXT_PUBLIC_BASE_URL!;
@@ -176,10 +201,19 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
               <label>Color <input type="color" value={color} onChange={(e)=>setColor(e.target.value)} /></label>
               <label>Stroke <input type="range" min={1} max={8} value={stroke} onChange={(e)=>setStroke(parseInt(e.target.value))} /></label>
               <button className="h-7 px-2 border rounded-md" onClick={undo}>Undo</button>
+              <button className="h-7 px-2 border rounded-md" onClick={redo}>Redo</button>
               <button className="h-7 px-2 border rounded-md" onClick={takeSnapshot}>Save snapshot</button>
+              <button className="h-7 px-2 border rounded-md" onClick={() => { const c = canvasRef.current; if (!c) return; const url = c.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = `whiteboard-${roomId}.png`; a.click(); }}>Export PNG</button>
+              <button className="h-7 px-2 border rounded-md" onClick={exportPDF}>Export PDF</button>
             </div>
             <canvas ref={canvasRef} className="w-full h-64 bg-white rounded border" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} onPointerOut={onPointer} />
             {cursor && <div className="absolute text-[10px]" style={{ left: cursor.x, top: cursor.y }}>+</div>}
+          </div>
+          <div className="border rounded-md p-2">
+            <div className="text-xs font-medium mb-1">History</div>
+            <ul className="text-xs grid gap-1 max-h-24 overflow-auto">
+              {/* Timeline would be fed by server later; client shows join/draw/undo/redo */}
+            </ul>
           </div>
         </div>
       </div>
