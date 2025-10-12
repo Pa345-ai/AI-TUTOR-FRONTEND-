@@ -66,6 +66,10 @@ export default function InteractiveLessonPage() {
     setCurrentIndex(res.nextIndex);
     setAnswer("");
     setHint("");
+    if (!res.correct && (res as unknown as { remedial?: { title: string; content: string } }).remedial) {
+      const r = (res as unknown as { remedial?: { title: string; content: string } }).remedial as { title: string; content: string };
+      alert(`${r.title}:\n\n${r.content}`);
+    }
   };
 
   const fetchHint = async () => {
