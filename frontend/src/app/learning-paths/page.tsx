@@ -195,7 +195,7 @@ export default function LearningPathsPage() {
               ))}
               {nextTopics.length===0 && <span className="text-xs text-muted-foreground">None</span>}
             </div>
-            <div className="text-xs font-medium">Remediation sequence</div>
+          <div className="text-xs font-medium">Remediation sequence (with prereq gating)</div>
             <ol className="list-decimal pl-5 text-sm space-y-1">
               {pathPlan.map((t,i)=>(
                 <li key={`${t}-${i}`}>
