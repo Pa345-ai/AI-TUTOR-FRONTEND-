@@ -8,6 +8,7 @@ const steps = [
   { id: 'goals', title: 'Generate your goals', desc: 'Daily/weekly learning plan' },
   { id: 'practice', title: 'Start adaptive practice', desc: 'Personalized question flow' },
   { id: 'lessons', title: 'Try an interactive lesson', desc: 'Guided, step-by-step learning' },
+  { id: 'calibrate', title: 'Calibrate a subject', desc: '5 quick questions to baseline' },
 ];
 
 export default function OnboardingPage() {
@@ -47,6 +48,7 @@ export default function OnboardingPage() {
               {s.id === 'profile' && <Link className="text-xs underline" href={`/settings`}>Open</Link>}
               {s.id === 'goals' && <Link className="text-xs underline" href={`/mastery`}>Open</Link>}
               {s.id === 'practice' && <Link className="text-xs underline" href={`/adaptive`}>Open</Link>}
+              {s.id === 'calibrate' && <Link className="text-xs underline" href={`/adaptive`}>Open</Link>}
               {s.id === 'lessons' && <Link className="text-xs underline" href={`/lessons/interactive`}>Open</Link>}
             </div>
           </div>

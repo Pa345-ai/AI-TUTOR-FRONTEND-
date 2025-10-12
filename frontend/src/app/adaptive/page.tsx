@@ -6,7 +6,7 @@ import { Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { logLearningEvent, adaptiveNext, adaptiveGrade, fetchPrereqs, fetchNextTopics } from "@/lib/api";
+import { logLearningEvent, adaptiveNext, adaptiveGrade, fetchPrereqs, fetchNextTopics, setSubjectAbility } from "@/lib/api";
 import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 
 type QuizQuestion = {
@@ -90,6 +90,10 @@ function AdaptiveInner() {
     });
     const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
     const graded = await adaptiveGrade({ userId, topic: question.question, correct, difficulty });
+    if (!correct && Array.isArray((graded as any)?.hints) && (graded as any).hints.length > 0) {
+      const h = (graded as any).hints[0];
+      alert(`Hint: ${h.text}${h.source ? `\n(${h.source})` : ''}`);
+    }
     if (typeof graded?.pCorrect === 'number') setPCorrect(graded.pCorrect);
     await logLearningEvent({ userId, subject: topic, topic: question.question, correct, difficulty });
     updateLocalMastery(userId, question.question, correct);
@@ -116,6 +120,18 @@ function AdaptiveInner() {
     setCalCorrect(0);
     await nextQuestion();
   };
+
+  useEffect(() => {
+    if (!calibrating) return;
+    if (calCount >= 5) {
+      const uid = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+      const rate = Math.round((calCorrect / Math.max(1, calCount)) * 100);
+      const subj = topic || 'general';
+      // map accuracy to Elo baseline roughly
+      const rating = 800 + Math.round((rate / 100) * 1200);
+      void setSubjectAbility(uid, subj, rating).catch(()=>{});
+    }
+  }, [calibrating, calCount, calCorrect, topic]);
 
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">

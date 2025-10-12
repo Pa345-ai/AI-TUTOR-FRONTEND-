@@ -7,10 +7,27 @@ export interface ChatRequest {
   subject?: string;
   grade?: number | string;
   curriculum?: "lk" | "international";
+  personaSocratic?: number;
+  personaStrictness?: number;
+  personaEncouragement?: number;
 }
 
 export interface ChatResponse {
   reply: string;
+}
+
+export async function getSubjectAbility(userId: string, subject: string): Promise<number> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/calibration/ability?userId=${encodeURIComponent(userId)}&subject=${encodeURIComponent(subject)}`);
+  if (!res.ok) throw new Error(`Ability get error ${res.status}`);
+  const data = await res.json() as { rating?: number };
+  return data.rating ?? 1500;
+}
+
+export async function setSubjectAbility(userId: string, subject: string, rating: number): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/calibration/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, subject, rating }) });
+  if (!res.ok) throw new Error(`Ability set error ${res.status}`);
 }
 
 export interface BackendMessage {
@@ -52,6 +69,9 @@ export async function chat(request: ChatRequest, init?: RequestInit): Promise<Ch
       subject: request.subject,
       grade: request.grade,
       curriculum: request.curriculum,
+      personaSocratic: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaSocratic') || '0') : 0) || undefined,
+      personaStrictness: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaStrictness') || '0') : 0) || undefined,
+      personaEncouragement: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaEncouragement') || '0') : 0) || undefined,
     }),
     ...init,
   });
