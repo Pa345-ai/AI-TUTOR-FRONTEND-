@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchLearningPaths, type LearningPathItem, fetchMastery, fetchDueReviews, type DueTopicReview, fetchGoals, getSavedGoals, updateGoalsProgress, fetchMemory, summarizeMemory } from "@/lib/api";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { computeAccuracy, getProficiencyTier } from "@/lib/mastery";
 
@@ -140,11 +141,17 @@ export default function MasteryMapPage() {
         <div className="grid sm:grid-cols-2 gap-2 text-sm">
           <div>
             <div className="text-xs text-muted-foreground mb-1">Daily</div>
-            <div className="rounded-md border p-2 whitespace-pre-wrap min-h-16">{dailyMemory || 'No daily memory yet.'}</div>
+            <Textarea className="rounded-md border p-2 whitespace-pre-wrap min-h-16 w-full" value={dailyMemory} onChange={(e)=>setDailyMemory(e.target.value)} placeholder="Write a short daily memory summary…" />
+            <div className="mt-1 flex gap-2">
+              <button className="text-xs underline" onClick={async ()=>{ try { await summarizeMemory(userId, 'daily'); } catch {} }}>AI suggest</button>
+            </div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground mb-1">Weekly</div>
-            <div className="rounded-md border p-2 whitespace-pre-wrap min-h-16">{weeklyMemory || 'No weekly memory yet.'}</div>
+            <Textarea className="rounded-md border p-2 whitespace-pre-wrap min-h-16 w-full" value={weeklyMemory} onChange={(e)=>setWeeklyMemory(e.target.value)} placeholder="Write a short weekly memory summary…" />
+            <div className="mt-1 flex gap-2">
+              <button className="text-xs underline" onClick={async ()=>{ try { await summarizeMemory(userId, 'weekly'); } catch {} }}>AI suggest</button>
+            </div>
           </div>
         </div>
       </div>

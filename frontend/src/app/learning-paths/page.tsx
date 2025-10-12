@@ -172,7 +172,7 @@ export default function LearningPathsPage() {
             <div key={gi} className="border rounded-md p-2">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-medium">{g.title}</div>
-                <div className="text-xs text-muted-foreground">{Object.values(goalsProgress).filter(Boolean).length}/{g.steps.length}</div>
+                <div className="text-xs text-muted-foreground">{Object.values(goalsProgress).filter(Boolean).length}/{g.steps.length}{(g as unknown as { minutes?: number }).minutes ? ` • ${(g as unknown as { minutes?: number }).minutes} min` : ''}</div>
               </div>
               <ul className="mt-2 space-y-1">
                 {g.steps.map((s, si)=> (
