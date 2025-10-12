@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { fetchDueReviews, listLessonSessions, fetchGoals, fetchNotifications, fetchProgress, streakCheckin, type Notification } from "@/lib/api";
+import { fetchDueReviews, listLessonSessions, fetchGoals, fetchNotifications, fetchProgress, streakCheckin, streakFreeze, type Notification } from "@/lib/api";
 
 export default function Home() {
   const [userId, setUserId] = useState<string>("123");
@@ -85,20 +85,35 @@ export default function Home() {
       )}
       <div className="border rounded-md p-3 flex items-center justify-between bg-green-50">
         <div className="text-sm">{checkinDone ? `Daily check-in complete — Streak ${streak} day${streak===1?'':'s'}.` : `Don't lose your streak (${streak} day${streak===1?'':'s'}).`}{checkinMsg ? ` ${checkinMsg}` : ''}</div>
-        {!checkinDone && (
+        <div className="flex items-center gap-3">
+          {!checkinDone && (
+            <button
+              className="text-sm underline"
+              onClick={async ()=>{
+                try {
+                  const res = await streakCheckin(userId);
+                  setStreak(res.streak);
+                  setCheckinDone(true);
+                  const iso = new Date().toISOString().slice(0,10);
+                  if (typeof window !== 'undefined') window.localStorage.setItem(`checkin:${userId}:${iso}`, '1');
+                } catch {}
+              }}
+            >Check-in</button>
+          )}
           <button
             className="text-sm underline"
             onClick={async ()=>{
               try {
-                const res = await streakCheckin(userId);
-                setStreak(res.streak);
-                setCheckinDone(true);
-                const iso = new Date().toISOString().slice(0,10);
-                if (typeof window !== 'undefined') window.localStorage.setItem(`checkin:${userId}:${iso}`, '1');
+                const lastFreeze = typeof window !== 'undefined' ? window.localStorage.getItem('streakFreezeAt') : null;
+                const now = Date.now();
+                if (lastFreeze && now - parseInt(lastFreeze) < 7*24*60*60*1000) return;
+                await streakFreeze(userId);
+                if (typeof window !== 'undefined') window.localStorage.setItem('streakFreezeAt', String(now));
+                setCheckinMsg('Streak frozen for today.');
               } catch {}
             }}
-          >Check-in</button>
-        )}
+          >Freeze once</button>
+        </div>
       </div>
       <div className="border rounded-md p-3">
         <div className="text-sm font-medium mb-1">Quick note</div>
@@ -106,7 +121,15 @@ export default function Home() {
       </div>
       <div className="border rounded-md p-3 flex items-center justify-between">
         <div className="text-sm">Calendar</div>
-        <a className="text-sm underline" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendar/${encodeURIComponent(userId)}.ics`}>Add to calendar (ICS)</a>
+        <div className="flex items-center gap-3">
+          <a className="text-sm underline" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendar/${encodeURIComponent(userId)}.ics`}>Add to calendar (ICS)</a>
+          <button className="text-sm underline" onClick={async ()=>{
+            try {
+              const url = `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendar/${encodeURIComponent(userId)}.ics`;
+              await navigator.clipboard.writeText(url);
+            } catch {}
+          }}>Copy link</button>
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         Start a conversation with your tutor, generate lessons, or create quizzes.

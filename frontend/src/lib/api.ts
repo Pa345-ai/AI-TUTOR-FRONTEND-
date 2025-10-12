@@ -106,6 +106,13 @@ export async function streakCheckin(userId: string) {
   return res.json() as Promise<{ ok: boolean; streak: number; xp: number }>;
 }
 
+export async function streakFreeze(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/streak/freeze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+  if (!res.ok) throw new Error(`Freeze error ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; streak: number }>;
+}
+
 export interface AchievementItem {
   id: string;
   name: string;

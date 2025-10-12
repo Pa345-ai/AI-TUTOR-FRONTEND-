@@ -441,6 +441,19 @@ export default function ChatPage() {
     try { window.localStorage.setItem('chatDraft', input); } catch {}
   }, [input]);
   const canSend = useMemo(() => input.trim().length > 0 && !isSending, [input, isSending]);
+  // Autosave draft
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('chatDraft');
+    if (saved) setInput(saved);
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const t = setTimeout(() => {
+      try { window.localStorage.setItem('chatDraft', input); } catch {}
+    }, 200);
+    return () => clearTimeout(t);
+  }, [input]);
 
   // Voice Tutor helpers
   type SpeechRecognitionType = new () => SR;
