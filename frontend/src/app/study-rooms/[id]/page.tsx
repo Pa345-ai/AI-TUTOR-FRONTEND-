@@ -13,6 +13,9 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -40,6 +43,24 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
             const src = data.audio; // data URL
             const audio = new Audio(src);
             audio.play().catch(()=>{});
+          } else if (data?.type === 'room:wb' && data.roomId === roomId && data.payload) {
+            const ctx = canvasRef.current?.getContext('2d');
+            if (!ctx) return;
+            ctx.strokeStyle = '#111827';
+            ctx.lineWidth = 2;
+            const pts = data.payload.points as Array<{ x: number; y: number }>;
+            ctx.beginPath();
+            for (let i = 0; i < pts.length; i++) {
+              const p = pts[i];
+              if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+          } else if (data?.type === 'room:wb:undo' && data.roomId === roomId) {
+            // simple snapshot-based undo could be added; for now, clear
+            const ctx = canvasRef.current?.getContext('2d');
+            if (ctx && canvasRef.current) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          } else if (data?.type === 'room:cursor' && data.roomId === roomId && data.payload) {
+            setCursor({ x: data.payload.x, y: data.payload.y });
           }
         } catch {}
       };
@@ -76,6 +97,35 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     } catch {}
   };
 
+  // Whiteboard handlers
+  const onPointer = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || !wsRef.current) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    wsRef.current.send(JSON.stringify({ type: 'room:cursor', roomId, userId, payload: { x, y } }));
+  };
+  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    setDrawing(true);
+    const ctx = canvasRef.current?.getContext('2d');
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!ctx || !rect) return;
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!ctx || !rect || !wsRef.current) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    wsRef.current.send(JSON.stringify({ type: 'room:wb', roomId, userId, payload: { points: [{ x, y }] } }));
+  };
+  const onPointerUp = () => setDrawing(false);
+
   const facilitate = async () => {
     const base = process.env.NEXT_PUBLIC_BASE_URL!;
     await fetch(`${base}/api/rooms/${encodeURIComponent(roomId)}/facilitate`, { method: 'POST' });
@@ -86,13 +136,19 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
       <h1 className="text-xl font-semibold">Study Room</h1>
       <div className="flex-1 min-h-0 rounded-md border p-3 space-y-2">
         <div className="text-xs text-muted-foreground">Room ID: {roomId}</div>
-        <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+        <div className="grid md:grid-cols-2 gap-2 max-h-[55vh]">
+          <div className="space-y-2 overflow-y-auto">
           {messages.map((m) => (
             <div key={m.id} className="text-sm">
               <span className="text-xs text-muted-foreground mr-2">{m.userId ?? 'system'}</span>
               {m.content}
             </div>
           ))}
+          </div>
+          <div className="relative">
+            <canvas ref={canvasRef} className="w-full h-64 bg-white rounded border" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} onPointerOut={onPointer} />
+            {cursor && <div className="absolute text-[10px]" style={{ left: cursor.x, top: cursor.y }}>+</div>}
+          </div>
         </div>
       </div>
       <div className="grid gap-2">
