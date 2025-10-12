@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { addQaDocLocal, listQaDocsLocal, deleteQaDocLocal, queryLocalQa } from "@/lib/offline-qa";
 import { fetchDueReviews, listLessonSessions, fetchGoals, fetchNotifications, fetchProgress, streakCheckin, streakFreeze, type Notification } from "@/lib/api";
 
 export default function Home() {
@@ -15,6 +16,11 @@ export default function Home() {
   const [checkinDone, setCheckinDone] = useState<boolean>(false);
   const [checkinMsg, setCheckinMsg] = useState<string | null>(null);
   const [note, setNote] = useState<string>("");
+  const [qaDocs, setQaDocs] = useState<Array<{ id: string; title: string; createdAt: string }>>([]);
+  const [qaFile, setQaFile] = useState<File | null>(null);
+  const [qaSync, setQaSync] = useState<boolean>(false);
+  const [qaQuery, setQaQuery] = useState<string>("");
+  const [qaAnswers, setQaAnswers] = useState<Array<{ text: string; score: number }>>([]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const uid = window.localStorage.getItem('userId');
@@ -22,6 +28,7 @@ export default function Home() {
       const saved = window.localStorage.getItem('quickNote');
       if (saved) setNote(saved);
     }
+    (async () => { const list = await listQaDocsLocal(); setQaDocs(list); })();
   }, []);
   useEffect(() => {
     (async () => {
@@ -118,6 +125,59 @@ export default function Home() {
       <div className="border rounded-md p-3">
         <div className="text-sm font-medium mb-1">Quick note</div>
         <textarea className="w-full h-24 border rounded-md p-2 text-sm" value={note} onChange={(e)=>{ setNote(e.target.value); if (typeof window!== 'undefined') window.localStorage.setItem('quickNote', e.target.value); }} placeholder="Write a quick thought or to-do..." />
+      </div>
+      <div className="border rounded-md p-3">
+        <div className="text-sm font-medium">Offline Q&A (local corpus)</div>
+        <div className="flex items-center gap-2 text-xs mb-2">
+          <label className="flex items-center gap-1"><input type="checkbox" checked={qaSync} onChange={(e)=>setQaSync(e.target.checked)} /> Sync to cloud</label>
+        </div>
+        <div className="flex items-center gap-2 text-sm mb-2">
+          <input type="file" accept=".pdf,.txt" onChange={(e)=>setQaFile(e.target.files?.[0]||null)} />
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
+            if (!qaFile) return;
+            try {
+              let content = '';
+              if (qaFile.type === 'text/plain') { content = await qaFile.text(); }
+              else if (qaFile.type === 'application/pdf') {
+                const form = new FormData(); form.append('file', qaFile); form.append('language','en');
+                const base = process.env.NEXT_PUBLIC_BASE_URL!;
+                const r = await fetch(`${base}/api/summarize/upload`, { method: 'POST', body: form });
+                const d = await r.json();
+                content = Array.isArray(d?.highlights) ? d.highlights.map((h: any)=>h.quote).join('\n') : (d?.summary || '');
+              }
+              const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+              await addQaDocLocal(uid, qaFile.name, content);
+              if (qaSync) {
+                try { await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/qa/docs`, { method:'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ userId: uid, title: qaFile.name, content }) }); } catch {}
+              }
+              const list = await listQaDocsLocal(); setQaDocs(list); setQaFile(null);
+            } catch {}
+          }}>Ingest</button>
+        </div>
+        <div className="text-xs text-muted-foreground mb-2">Docs: {qaDocs.length}</div>
+        <ul className="text-sm space-y-1 mb-2 max-h-32 overflow-auto">
+          {qaDocs.map((d)=> (
+            <li key={d.id} className="flex items-center justify-between gap-2">
+              <span className="truncate">{d.title}</span>
+              <button className="h-6 px-2 border rounded-md text-xs" onClick={async ()=>{ await deleteQaDocLocal(d.id); const list = await listQaDocsLocal(); setQaDocs(list); }}>Delete</button>
+            </li>
+          ))}
+          {qaDocs.length === 0 && <li className="text-xs text-muted-foreground">No local docs yet.</li>}
+        </ul>
+        <div className="flex items-center gap-2">
+          <input className="flex-1 h-9 px-2 border rounded-md text-sm" placeholder="Ask your local corpus (offline)" value={qaQuery} onChange={(e)=>setQaQuery(e.target.value)} />
+          <button className="h-9 px-3 border rounded-md text-sm" onClick={async ()=>{ const res = await queryLocalQa(qaQuery, 5); setQaAnswers(res); }}>Ask</button>
+        </div>
+        {qaAnswers.length > 0 && (
+          <div className="mt-2 space-y-1 text-xs">
+            {qaAnswers.map((a,i)=> (
+              <div key={i} className="border rounded-md p-2">
+                <div className="opacity-70">Score: {(a.score*100).toFixed(0)}%</div>
+                <div className="mt-1 whitespace-pre-wrap">{a.text}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="border rounded-md p-3 flex items-center justify-between">
         <div className="text-sm">Calendar</div>
