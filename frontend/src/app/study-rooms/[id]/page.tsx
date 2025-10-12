@@ -15,6 +15,10 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
   const chunksRef = useRef<Blob[]>([]);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [drawing, setDrawing] = useState(false);
+  const [color, setColor] = useState<string>("#111827");
+  const [stroke, setStroke] = useState<number>(2);
+  const undoStack = useRef<ImageData[]>([]);
+  const redoStack = useRef<ImageData[]>([]);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -46,8 +50,8 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
           } else if (data?.type === 'room:wb' && data.roomId === roomId && data.payload) {
             const ctx = canvasRef.current?.getContext('2d');
             if (!ctx) return;
-            ctx.strokeStyle = '#111827';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = data.payload.color || '#111827';
+            ctx.lineWidth = data.payload.stroke || 2;
             const pts = data.payload.points as Array<{ x: number; y: number }>;
             ctx.beginPath();
             for (let i = 0; i < pts.length; i++) {
@@ -56,9 +60,14 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
             }
             ctx.stroke();
           } else if (data?.type === 'room:wb:undo' && data.roomId === roomId) {
-            // simple snapshot-based undo could be added; for now, clear
             const ctx = canvasRef.current?.getContext('2d');
-            if (ctx && canvasRef.current) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            if (ctx && canvasRef.current && undoStack.current.length > 0) {
+              const last = undoStack.current.pop()!;
+              redoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
+              ctx.putImageData(last, 0, 0);
+            }
+          } else if (data?.type === 'room:wb:snapshot' && data.roomId === roomId) {
+            // ignore; snapshots persisted on server
           } else if (data?.type === 'room:cursor' && data.roomId === roomId && data.payload) {
             setCursor({ x: data.payload.x, y: data.payload.y });
           }
@@ -110,6 +119,11 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     const ctx = canvasRef.current?.getContext('2d');
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!ctx || !rect) return;
+    // push snapshot for undo
+    if (canvasRef.current) {
+      undoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
+      redoStack.current = [];
+    }
     ctx.beginPath();
     ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
   };
@@ -118,13 +132,25 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     const ctx = canvasRef.current?.getContext('2d');
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!ctx || !rect || !wsRef.current) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = stroke;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     ctx.lineTo(x, y);
     ctx.stroke();
-    wsRef.current.send(JSON.stringify({ type: 'room:wb', roomId, userId, payload: { points: [{ x, y }] } }));
+    wsRef.current.send(JSON.stringify({ type: 'room:wb', roomId, userId, payload: { points: [{ x, y }], color, stroke } }));
   };
   const onPointerUp = () => setDrawing(false);
+
+  const takeSnapshot = () => {
+    const url = canvasRef.current?.toDataURL('image/png') || '';
+    if (!url || !wsRef.current) return;
+    wsRef.current.send(JSON.stringify({ type: 'room:wb:snapshot', roomId, userId, payload: { image: url } }));
+  };
+  const undo = () => {
+    if (!wsRef.current) return;
+    wsRef.current.send(JSON.stringify({ type: 'room:wb:undo', roomId, userId }));
+  };
 
   const facilitate = async () => {
     const base = process.env.NEXT_PUBLIC_BASE_URL!;
@@ -145,7 +171,13 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
             </div>
           ))}
           </div>
-          <div className="relative">
+          <div className="relative space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <label>Color <input type="color" value={color} onChange={(e)=>setColor(e.target.value)} /></label>
+              <label>Stroke <input type="range" min={1} max={8} value={stroke} onChange={(e)=>setStroke(parseInt(e.target.value))} /></label>
+              <button className="h-7 px-2 border rounded-md" onClick={undo}>Undo</button>
+              <button className="h-7 px-2 border rounded-md" onClick={takeSnapshot}>Save snapshot</button>
+            </div>
             <canvas ref={canvasRef} className="w-full h-64 bg-white rounded border" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} onPointerOut={onPointer} />
             {cursor && <div className="absolute text-[10px]" style={{ left: cursor.x, top: cursor.y }}>+</div>}
           </div>
