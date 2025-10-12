@@ -28,6 +28,15 @@ export default function InteractiveLessonPage() {
   const [voice, setVoice] = useState<string>("en-US");
   const [ytUploading, setYtUploading] = useState(false);
   const [ytUrl, setYtUrl] = useState<string>("");
+  // Media exports
+  const [exportingMp4, setExportingMp4] = useState(false);
+  const [exportingGif, setExportingGif] = useState(false);
+  const [mp4Url, setMp4Url] = useState<string>("");
+  const [gifUrl, setGifUrl] = useState<string>("");
+  // SRT editor & timeline
+  const [srtText, setSrtText] = useState<string>("");
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(0);
   // Offline packs
   const [packs, setPacks] = useState<Array<Pick<LessonPack,'id'|'topic'|'grade'|'createdAt'>>>([]);
   const [showPacks, setShowPacks] = useState(false);
@@ -102,6 +111,14 @@ export default function InteractiveLessonPage() {
     setLesson(s.lesson as unknown as InteractiveLesson);
     setCurrentIndex(s.currentStepIndex || 0);
     setScore(s.score || 0);
+    // Initialize SRT editor from session
+    if (s.lesson?.srt) {
+      setSrtText(s.lesson.srt);
+    } else {
+      const steps = s.lesson?.steps || [];
+      const plain = steps.map((st: any) => (st?.title ? `${st.title}. ${st.content || ''}` : (st.content || ''))).join("\n");
+      setSrtText(plain);
+    }
   };
 
   const exportDoc = async () => {
@@ -144,6 +161,82 @@ export default function InteractiveLessonPage() {
     } finally {
       setYtUploading(false);
     }
+  };
+
+  // Export MP4 using backend renderer
+  const exportMp4 = async () => {
+    if (!lesson) return;
+    setExportingMp4(true); setMp4Url("");
+    try {
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const steps = Array.isArray(lesson.steps) ? lesson.steps.map(s => ({ title: s.title, content: s.content })) : [];
+      const resp = await fetch(`${base}/api/lessons/render`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: lesson.title || topic || 'AI Tutor Lesson', steps, script: lesson.script || undefined, bgColor: 'black', width: 1280, height: 720, voice }) });
+      if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'render failed'); }
+      const buf = await resp.arrayBuffer();
+      const blob = new Blob([buf], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      setMp4Url(url);
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+    finally { setExportingMp4(false); }
+  };
+
+  // Export GIF by converting MP4 on backend
+  const exportGif = async () => {
+    try {
+      setExportingGif(true); setGifUrl("");
+      // ensure we have an MP4 url; if not, render quickly
+      let localMp4Url = mp4Url;
+      if (!localMp4Url) {
+        await exportMp4();
+        localMp4Url = mp4Url;
+      }
+      if (!localMp4Url) throw new Error('MP4 not available');
+      // fetch mp4 as data URL
+      const resp = await fetch(localMp4Url);
+      const buf = await resp.arrayBuffer();
+      const dataUrl = await new Promise<string>((resolve) => {
+        const fr = new FileReader(); fr.onload = () => resolve(fr.result as string); fr.readAsDataURL(new Blob([buf], { type: 'video/mp4' }));
+      });
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const r = await fetch(`${base}/api/lessons/gif`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mp4: dataUrl }) });
+      if (!r.ok) { const t = await r.text(); throw new Error(t || 'gif failed'); }
+      const ab = await r.arrayBuffer();
+      const url = URL.createObjectURL(new Blob([ab], { type: 'image/gif' }));
+      setGifUrl(url);
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+    finally { setExportingGif(false); }
+  };
+
+  // SRT parsing helpers & save
+  const cues = useMemo(() => {
+    if (!srtText) { setDuration(0); return [] as Array<{ start: number; end: number; text: string }>; }
+    const lines = srtText.split(/\r?\n/);
+    const cs: Array<{ start: number; end: number; text: string }> = [];
+    let i = 0; const toSec = (ts: string) => { const m = ts.match(/(\d+):(\d+):(\d+),(\d+)/); if (!m) return 0; return (+m[1])*3600+(+m[2])*60+(+m[3])+(+m[4])/1000; };
+    while (i < lines.length) {
+      if (/^\d+$/.test(lines[i])) i++;
+      const timeLine = lines[i++] || '';
+      const mm = timeLine.match(/(\d+:\d+:\d+,\d+)\s+-->\s+(\d+:\d+:\d+,\d+)/);
+      if (!mm) { i++; continue; }
+      const start = toSec(mm[1]); const end = toSec(mm[2]);
+      const text: string[] = [];
+      while (i < lines.length && lines[i].trim() !== '') { text.push(lines[i++]); }
+      while (i < lines.length && lines[i].trim() === '') i++;
+      cs.push({ start, end, text: text.join('\n') });
+    }
+    if (cs.length > 0) setDuration(cs[cs.length-1].end);
+    return cs;
+  }, [srtText]);
+
+  const currentCue = useMemo(() => cues.find(c => currentTime >= c.start && currentTime <= c.end), [cues, currentTime]);
+
+  const saveSrt = async () => {
+    if (!sessionId) return;
+    try {
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const resp = await fetch(`${base}/api/lessons/session/${encodeURIComponent(sessionId)}/srt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ srt: srtText }) });
+      if (!resp.ok) throw new Error('Failed to save SRT');
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
   };
 
   const saveOffline = async () => {
@@ -283,6 +376,12 @@ export default function InteractiveLessonPage() {
           </div>
         )}
       </div>
+      <div className="mt-2 flex items-center gap-2 text-xs">
+        <Button size="sm" variant="outline" onClick={exportMp4} disabled={!lesson || exportingMp4}>{exportingMp4 ? 'Exporting…' : 'Export MP4'}</Button>
+        {mp4Url && <a className="underline" href={mp4Url} download>Download MP4</a>}
+        <Button size="sm" variant="outline" onClick={exportGif} disabled={!lesson || exportingGif}>{exportingGif ? 'Exporting…' : 'Export GIF'}</Button>
+        {gifUrl && <a className="underline" href={gifUrl} download>Download GIF</a>}
+      </div>
       {error && <div className="text-sm text-red-600">{error}</div>}
       {lesson && (
         <div className="space-y-3">
@@ -322,15 +421,30 @@ export default function InteractiveLessonPage() {
           {sessionId && currentIndex >= (lesson.steps.length - 1) && (
             <div className="text-sm text-green-700">Session complete! XP awarded and mastery updated.</div>
           )}
-          {(lesson.script || lesson.srt) && (
+          {(lesson.script || lesson.srt || srtText) && (
             <div className="grid sm:grid-cols-2 gap-2">
               <div>
                 <div className="text-sm font-medium">Narration Script</div>
                 <Textarea readOnly className="min-h-[160px]" value={lesson.script || ''} />
               </div>
               <div>
-                <div className="text-sm font-medium">SRT Captions</div>
-                <Textarea readOnly className="min-h-[160px]" value={lesson.srt || ''} />
+                <div className="text-sm font-medium flex items-center justify-between">
+                  <span>SRT Captions</span>
+                  <Button size="sm" variant="outline" onClick={saveSrt} disabled={!sessionId}>Save</Button>
+                </div>
+                <Textarea className="min-h-[160px]" value={srtText} onChange={(e)=>setSrtText(e.target.value)} />
+                {duration > 0 && (
+                  <div className="mt-2 border rounded-md p-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <label>Time</label>
+                      <input type="range" min={0} max={Math.ceil(duration)} value={currentTime} onChange={(e)=>setCurrentTime(parseInt(e.target.value))} className="flex-1" />
+                      <span>{Math.floor(currentTime)}s / {Math.ceil(duration)}s</span>
+                    </div>
+                    <div className="mt-1 text-xs whitespace-pre-wrap">
+                      {currentCue ? currentCue.text : '—'}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
