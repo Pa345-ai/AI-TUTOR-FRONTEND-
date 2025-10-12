@@ -10,6 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
+import { CodeRunner } from "@/components/CodeRunner";
+import { CodeRunner } from "@/components/CodeRunner";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
 import { Mic, Volume2, PencilLine, Eraser, Download, Radio } from "lucide-react";
 import { grades, getSubjects } from "@/lib/syllabus";
@@ -1132,6 +1137,10 @@ export default function ChatPage() {
         </ScrollArea>
       </div>
       <div className="grid gap-2">
+        <div className="border rounded-md p-2">
+          <div className="text-sm font-medium mb-1">Runnable code cell</div>
+          <CodeRunner />
+        </div>
         {suggestion && (
           <div className="flex items-center justify-between border rounded-md px-3 py-2 text-xs bg-accent/40">
             <div className="truncate mr-2">{suggestion}</div>
@@ -1342,7 +1351,13 @@ function MessageBubble({ role, content, images, onPractice, onVisualize }: { rol
         {isUser ? (
           content
         ) : (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>{content}</ReactMarkdown>
+          {/* Inline runnable cell trigger: if block contains ```js or ```python we can show a run button */}
+          {/^```(js|javascript|python)/m.test(content) && (
+            <div className="mt-2">
+              <CodeRunner />
+            </div>
+          )}
         )}
         {images && images.length > 0 && (
           <div className="mt-2 grid grid-cols-2 gap-2">

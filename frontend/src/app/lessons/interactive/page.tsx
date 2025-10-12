@@ -302,7 +302,7 @@ export default function InteractiveLessonPage() {
                     <div className="text-xs text-muted-foreground">Score: {score}</div>
                   </div>
                   <div className="font-medium">{lesson.steps[currentIndex]?.title || `Step ${currentIndex+1}`}</div>
-                  <div className="whitespace-pre-wrap">{lesson.steps[currentIndex]?.content}</div>
+                  <div className="whitespace-pre-wrap prose max-w-none" dangerouslySetInnerHTML={{ __html: lesson.steps[currentIndex]?.content || '' }} />
                   {lesson.steps[currentIndex]?.check && (
                     <div className="space-y-2">
                       <div className="text-xs">Self-check: {lesson.steps[currentIndex]?.check?.question}</div>
