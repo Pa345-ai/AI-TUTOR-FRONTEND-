@@ -9,17 +9,21 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<Array<{ id: string; userId: string; content: string; createdAt?: string }>>([]);
   const [metrics, setMetrics] = useState<Record<string, unknown>>({});
   const base = process.env.NEXT_PUBLIC_BASE_URL!;
+  const [items, setItems] = useState<Array<{ id: string; topic: string; subject?: string; difficulty?: string; question: string }>>([]);
+  const [itemCsv, setItemCsv] = useState("");
 
   const loadAll = async () => {
     try {
-      const [f, m, mm] = await Promise.all([
+      const [f, m, mm, ib] = await Promise.all([
         fetch(`${base}/api/admin/flags`).then(r=>r.json()),
         fetch(`${base}/api/admin/mod/messages`).then(r=>r.json()),
         fetch(`${base}/api/admin/metrics`).then(r=>r.json()),
+        fetch(`${base}/api/items`).then(r=>r.json()).catch(()=>({ items: [] })),
       ]);
       setFlags(f.flags || {});
       setMessages((m.messages || []).map((x: { id?: string; userId: string; content: string; createdAt?: string }) => ({ id: x.id || crypto.randomUUID(), userId: x.userId, content: x.content, createdAt: x.createdAt })));
       setMetrics(mm || {} as Record<string, unknown>);
+      setItems((ib.items || []).map((x: any)=>({ id: x.id, topic: x.topic, subject: x.subject, difficulty: x.difficulty, question: x.question })));
     } catch {}
   };
 
@@ -66,6 +70,35 @@ export default function AdminPage() {
               <div className="text-[11px] text-muted-foreground">{m.createdAt ? new Date(m.createdAt).toLocaleString() : ''}</div>
             </div>
           ))}
+        </div>
+      </div>
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="text-sm font-medium">Item Bank</div>
+        <div className="flex items-center gap-2 text-xs">
+          <button className="h-8 px-2 border rounded-md" onClick={loadAll}>Refresh</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
+            const r = await fetch(`${base}/api/items/export`); const d = await r.json(); const rows = [ ['id','subject','topic','difficulty','question'].join(',') ] as string[]; for (const it of (d.items||[])) rows.push([it.id,it.subject||'',it.topic||'',it.difficulty||'',(it.question||'').replace(/\n|\r|,/g,' ')].join(',')); setItemCsv(rows.join('\n'));
+          }}>Export CSV</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
+            const lines = itemCsv.split(/\r?\n/).slice(1).filter(Boolean); const items = lines.map((ln)=>{ const [id,subject,topic,difficulty,question] = ln.split(','); return { subject: subject||null, topic, difficulty: (['easy','medium','hard'].includes(difficulty||'')?difficulty:'medium'), question, options: [], correctAnswer: '', explanation: '' }; });
+            await fetch(`${base}/api/items/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+            await loadAll();
+          }}>Import CSV</button>
+        </div>
+        <textarea className="w-full min-h-[120px] border rounded-md p-2 text-xs" placeholder="CSV here" value={itemCsv} onChange={(e)=>setItemCsv(e.target.value)} />
+        <div className="grid gap-2 text-xs max-h-[260px] overflow-auto">
+          {items.map((it)=> (
+            <div key={it.id} className="border rounded-md p-2">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">{it.topic} — {it.difficulty}</div>
+                <button className="h-7 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ difficulty: it.difficulty==='easy'?'medium': it.difficulty==='medium'?'hard':'easy' }) }); await loadAll(); }}>Toggle Difficulty</button>
+              </div>
+              <div className="mt-1">{it.question}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/recalibrate`, { method: 'POST' }); await loadAll(); }}>Recalibrate</button>
         </div>
       </div>
     </div>
