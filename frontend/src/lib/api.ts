@@ -196,6 +196,33 @@ export async function listDecks(userId: string): Promise<Array<{ id: string; nam
   return data.decks ?? [];
 }
 
+// Flashcards SRS helpers (due/review/deck ops)
+export async function getDueFlashcards(userId: string, deck?: string, limit = 50) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/flashcards/due/${encodeURIComponent(userId)}`);
+  if (deck) url.searchParams.set('deck', deck);
+  if (limit) url.searchParams.set('limit', String(limit));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Due flashcards error ${res.status}`);
+  return res.json() as Promise<{ cards: FlashcardItem[] }>;
+}
+export async function reviewFlashcard(userId: string, flashcardId: string, quality: 0|1|2|3|4|5) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/flashcards/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, flashcardId, quality, cardId: flashcardId }) });
+  if (!res.ok) throw new Error(`Review error ${res.status}`);
+  return res.json();
+}
+export async function renameDeck(userId: string, from: string, to: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/flashcards/decks/rename`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, from, to }) });
+  if (!res.ok) throw new Error(`Rename deck error ${res.status}`);
+}
+export async function deleteDeck(userId: string, subject: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/flashcards/decks/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, subject }) });
+  if (!res.ok) throw new Error(`Delete deck error ${res.status}`);
+}
+
 export async function createDeck(userId: string, name: string): Promise<{ id: string; name: string }> {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/decks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, name }) });
