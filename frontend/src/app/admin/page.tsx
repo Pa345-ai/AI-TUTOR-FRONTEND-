@@ -9,7 +9,7 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<Array<{ id: string; userId: string; content: string; createdAt?: string }>>([]);
   const [metrics, setMetrics] = useState<Record<string, unknown>>({});
   const base = process.env.NEXT_PUBLIC_BASE_URL!;
-  const [items, setItems] = useState<Array<{ id: string; topic: string; subject?: string; difficulty?: string; question: string; tags?: string[] }>>([]);
+  const [items, setItems] = useState<Array<{ id: string; topic: string; subject?: string; difficulty?: string; question: string; tags?: string[]; skills?: string[]; standards?: string[]; graphNodes?: string[] }>>([]);
   const [itemCsv, setItemCsv] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [irt, setIrt] = useState<{ aDiscrimination: number; bDifficulty: number } | null>(null);
@@ -26,7 +26,7 @@ export default function AdminPage() {
       setFlags(f.flags || {});
       setMessages((m.messages || []).map((x: { id?: string; userId: string; content: string; createdAt?: string }) => ({ id: x.id || crypto.randomUUID(), userId: x.userId, content: x.content, createdAt: x.createdAt })));
       setMetrics(mm || {} as Record<string, unknown>);
-      setItems((ib.items || []).map((x: any)=>({ id: x.id, topic: x.topic, subject: x.subject, difficulty: x.difficulty, question: x.question, tags: x.tags || [] })));
+      setItems((ib.items || []).map((x: any)=>({ id: x.id, topic: x.topic, subject: x.subject, difficulty: x.difficulty, question: x.question, tags: x.tags || [], skills: x.skills || [], standards: x.standards || [], graphNodes: x.graphNodes || [] })));
     } catch {}
   };
 
@@ -100,8 +100,11 @@ export default function AdminPage() {
             }}>
               <div className="flex items-center justify-between">
                 <div className="font-medium">{it.topic} — {it.difficulty}</div>
-                <div className="flex items-center gap-2">
-                  <input className="w-40 border rounded px-1" defaultValue={(it.tags||[]).join(' ')} placeholder="tags (space-separated)" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ tags: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input className="w-36 border rounded px-1" defaultValue={(it.tags||[]).join(' ')} placeholder="tags" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ tags: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
+                  <input className="w-36 border rounded px-1" defaultValue={(it.skills||[]).join(' ')} placeholder="skills" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ skills: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
+                  <input className="w-40 border rounded px-1" defaultValue={(it.standards||[]).join(' ')} placeholder="standards" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ standards: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
+                  <input className="w-40 border rounded px-1" defaultValue={(it.graphNodes||[]).join(' ')} placeholder="graph nodes" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ graphNodes: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
                   <button className="h-7 px-2 border rounded-md" onClick={async (ev)=>{ ev.stopPropagation(); await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ difficulty: it.difficulty==='easy'?'medium': it.difficulty==='medium'?'hard':'easy' }) }); await loadAll(); }}>Toggle Difficulty</button>
                 </div>
               </div>
