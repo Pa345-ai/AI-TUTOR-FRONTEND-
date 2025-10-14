@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -61,6 +62,32 @@ export default function SignUpPage() {
           </p>
 
           <form onSubmit={submit} className="mt-6 grid gap-4">
+            {/* Social auth */}
+            <div className="grid gap-3">
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={()=>signIn('google')} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm hover:bg-white/15 transition shadow-[0_0_16px_rgba(59,130,246,0.15)]">
+                  <img src="/google.svg" alt="Google" className="h-4 w-4" />
+                  <span>Continue with Google</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={()=>signIn('github')} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-black/80 px-3 py-2 text-sm hover:bg-black transition">
+                  <img src="/github.svg" alt="GitHub" className="h-4 w-4 invert" />
+                  <span className="text-white">Continue with GitHub</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={()=>signIn('facebook')} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-[#1877F2] bg-[#1877F2] px-3 py-2 text-sm text-white hover:brightness-110 transition shadow-[0_0_16px_rgba(24,119,242,0.35)]">
+                  <img src="/facebook.svg" alt="Facebook" className="h-4 w-4" />
+                  <span>Continue with Facebook</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-white/60">
+                <div className="h-px flex-1 bg-white/15" />
+                <span>or continue with email</span>
+                <div className="h-px flex-1 bg-white/15" />
+              </div>
+            </div>
             {/* Name */}
             <label className="block">
               <span className="sr-only">Full Name</span>
