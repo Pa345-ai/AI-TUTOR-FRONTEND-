@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchFlashcards, generateFlashcards, exportQuizletSet, saveIntegrationToken, type FlashcardItem, listDecks, createDeck, moveCardToDeck } from "@/lib/api";
+import { fetchFlashcards, generateFlashcards, exportQuizletSet, saveIntegrationToken, type FlashcardItem, listDecks, createDeck, moveCardToDeck, getDueFlashcards, reviewFlashcard } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,11 @@ export default function FlashcardsPage() {
   const [exporting, setExporting] = useState(false);
   const [decks, setDecks] = useState<Array<{ id: string; name: string }>>([]);
   const [newDeck, setNewDeck] = useState("");
+  const [due, setDue] = useState<FlashcardItem[]>([]);
+  const [reviewing, setReviewing] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const [showBack, setShowBack] = useState(false);
+  const [ankiText, setAnkiText] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -36,6 +41,7 @@ export default function FlashcardsPage() {
         if (!mounted) return;
         setItems(data);
         setDecks(dks);
+        try { const d = await getDueFlashcards(userId, undefined, 200); setDue((d as any).cards || []); } catch {}
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -109,7 +115,39 @@ export default function FlashcardsPage() {
           <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1" onClick={saveToken}>Save Token</button>
           <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1" onClick={exportQuizlet} disabled={exporting || items.length===0}>{exporting ? 'Exporting…' : 'Export to Quizlet'}</button>
         </div>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="border rounded-md p-2">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium">Due queue</div>
+              <div className="text-xs text-muted-foreground">{due.length} cards</div>
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">Cards due now for review. Click start to begin a focused session.</div>
+            <div className="mt-2"><button className="h-8 px-3 border rounded-md text-sm" disabled={due.length===0} onClick={()=>{ setReviewing(true); setIdx(0); setShowBack(false); }}>Start review</button></div>
+          </div>
+          <div className="border rounded-md p-2">
+            <div className="text-sm font-medium">Anki import/export</div>
+            <div className="text-xs text-muted-foreground mb-1">CSV format: front,back per line. Paste to import or copy to export.</div>
+            <textarea className="w-full min-h-[120px] border rounded-md p-2 text-xs" placeholder="front,back" value={ankiText} onChange={(e)=>setAnkiText(e.target.value)} />
+            <div className="mt-2 flex items-center gap-2">
+              <button className="h-8 px-3 border rounded-md text-sm" onClick={async ()=>{
+                const lines = ankiText.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+                const base = process.env.NEXT_PUBLIC_BASE_URL!;
+                for (const ln of lines) {
+                  const [front, back] = ln.split(',');
+                  if (!front || !back) continue;
+                  await fetch(`${base}/api/flashcards`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, front: front.trim(), back: back.trim(), subject: subject || 'General' }) });
+                }
+                const data = await fetchFlashcards(userId); setItems(data);
+              }}>Import CSV</button>
+              <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>{
+                const rows = items.map(c => `${(c.front||'').replace(/\n|\r|,/g,' ')},${(c.back||'').replace(/\n|\r|,/g,' ')}`).join('\n');
+                setAnkiText(rows);
+              }}>Export CSV</button>
+            </div>
+          </div>
+        </div>
       </div>
+      {!reviewing && (
       <div className="grid sm:grid-cols-2 gap-3">
         {items.map((c) => (
           <div key={c.id} className="border rounded-md p-3">
@@ -148,6 +186,27 @@ export default function FlashcardsPage() {
           <div className="text-sm text-muted-foreground">No flashcards yet.</div>
         )}
       </div>
+      )}
+      {reviewing && due.length>0 && (
+        <div className="border rounded-md p-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm">Card {idx+1}/{due.length}</div>
+            <button className="h-7 px-2 border rounded-md text-xs" onClick={()=>{ setReviewing(false); }}>End</button>
+          </div>
+          <div className="mt-3 text-lg font-medium">{showBack ? (due[idx] as any).back : (due[idx] as any).front}</div>
+          <div className="mt-2"><button className="h-8 px-3 border rounded-md text-sm" onClick={()=>setShowBack(s=>!s)}>{showBack ? 'Show Front' : 'Show Back'}</button></div>
+          <div className="mt-3 flex items-center gap-2">
+            {([1,2,3,4,5] as const).map(q => (
+              <button key={q} className="h-8 px-3 border rounded-md text-sm" onClick={async ()=>{
+                try { await reviewFlashcard(userId, due[idx].id, q as any); } catch {}
+                const nextIdx = idx+1;
+                if (nextIdx>=due.length) { setReviewing(false); const d = await getDueFlashcards(userId); setDue((d as any).cards||[]); }
+                else { setIdx(nextIdx); setShowBack(false); }
+              }}>{q===1?'Again':q===2?'Hard':q===3?'OK':q===4?'Good':'Easy'}</button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
