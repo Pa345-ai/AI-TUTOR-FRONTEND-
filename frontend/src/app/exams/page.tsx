@@ -137,6 +137,12 @@ export default function ExamsPage() {
     setReviewMode(true);
     const presencePct = presenceRef.current.frames>0? Math.round((presenceRef.current.seen/presenceRef.current.frames)*100) : 0;
     setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'result', detail: `score ${correct}/${questions.length}; presence ${presencePct}%` }]);
+    // send result
+    try {
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const sectionsPayload = sections.map(s => ({ name: s.name, correct: 0, total: s.count }));
+      await fetch(`${base}/api/exams/result`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ userId, sessionId, score: correct, total: questions.length, sections: sectionsPayload, cheat: { events: cheatEvents } }) });
+    } catch {}
   }, [answers, questions]);
 
   const remainingClock = useMemo(() => {
