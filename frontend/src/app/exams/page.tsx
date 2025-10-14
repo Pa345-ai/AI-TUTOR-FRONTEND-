@@ -19,8 +19,51 @@ export default function ExamsPage() {
   const [variant, setVariant] = useState<'A'|'B'|'none'>('none');
   const timerRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [cheatEvents, setCheatEvents] = useState<Array<{ at: string; type: string; detail?: string }>>([]);
+  const presenceRef = useRef<{ seen: number; frames: number }>({ seen: 0, frames: 0 });
+  const proctorTimerRef = useRef<number | null>(null);
 
   useEffect(() => { if (typeof window !== 'undefined') { const uid = window.localStorage.getItem('userId'); if (uid) setUserId(uid); } }, []);
+
+  // Restore unfinished session
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('examSession');
+      if (!raw) return;
+      const s = JSON.parse(raw) as any;
+      if (s && s.questions && Array.isArray(s.questions) && s.remaining>0) {
+        setSessionId(s.sessionId || null);
+        setTopic(s.topic || '');
+        setDifficulty(s.difficulty || 'medium');
+        setQuestions(s.questions || []);
+        setAnswers(s.answers || {});
+        setRemaining(s.remaining || 0);
+        setRunning(true);
+      }
+    } catch {}
+  }, []);
+
+  // Persist session periodically
+  useEffect(() => {
+    if (!running) return;
+    if (typeof window === 'undefined') return;
+    const payload = { sessionId, topic, difficulty, questions, answers, remaining };
+    try { window.localStorage.setItem('examSession', JSON.stringify(payload)); } catch {}
+  }, [running, sessionId, topic, difficulty, questions, answers, remaining]);
+
+  // Anti-cheat: blur/tab switch/fullscreen
+  useEffect(() => {
+    const onBlur = () => setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'blur' }]);
+    const onVis = () => { if (document.visibilityState !== 'visible') setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'hidden' }]); };
+    const onFs = () => { if (!document.fullscreenElement) setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'exit-fullscreen' }]); };
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('visibilitychange', onVis);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => { window.removeEventListener('blur', onBlur); document.removeEventListener('visibilitychange', onVis); document.removeEventListener('fullscreenchange', onFs); };
+  }, []);
 
   const addSection = () => setSections(prev => [...prev, { name: `Section ${String.fromCharCode(65+prev.length)}`, count: 5, difficulty: 'medium' }]);
   const removeSection = (idx: number) => setSections(prev => prev.filter((_,i)=>i!==idx));
@@ -37,6 +80,7 @@ export default function ExamsPage() {
   const startExam = useCallback(async () => {
     try {
       setRunning(false); setQuestions([]); setAnswers({});
+      setCheatEvents([]); setReviewMode(false);
       const base = process.env.NEXT_PUBLIC_BASE_URL!;
       const qs: Array<{ question: string; options: string[]; correctAnswer?: string }> = [];
       const plan = sections.length>0 ? sections : [{ name:'Exam', count, difficulty } as any];
@@ -49,6 +93,7 @@ export default function ExamsPage() {
       setQuestions(qs);
       setRemaining(timeLimit * 60);
       setRunning(true);
+      setSessionId(crypto.randomUUID());
       // start timer
       if (timerRef.current) window.clearInterval(timerRef.current);
       timerRef.current = window.setInterval(() => setRemaining(r => {
@@ -60,6 +105,21 @@ export default function ExamsPage() {
         try {
           const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
           videoRef.current.srcObject = s; await videoRef.current.play().catch(()=>{});
+          // basic face presence using FaceDetector if available
+          const FaceDetectorCtor = (window as any).FaceDetector as (new (opts?: any) => any) | undefined;
+          if (FaceDetectorCtor) {
+            const det = new FaceDetectorCtor({ fastMode: true });
+            const tick = async () => {
+              try {
+                if (!videoRef.current) return;
+                const faces = await det.detect(videoRef.current);
+                presenceRef.current.frames += 1;
+                if (faces && faces.length>0) presenceRef.current.seen += 1;
+              } catch {}
+              proctorTimerRef.current = window.setTimeout(tick, 1500);
+            };
+            tick();
+          }
         } catch {}
       }
     } catch {}
@@ -69,7 +129,14 @@ export default function ExamsPage() {
     setRunning(false);
     if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null; }
     const correct = questions.reduce((acc, q, i) => acc + ((q.correctAnswer && answers[i]!=null && q.options[answers[i] as number]===q.correctAnswer) ? 1 : 0), 0);
-    alert(`Exam submitted. Score: ${correct}/${questions.length}`);
+    // stop proctor timers & camera
+    if (proctorTimerRef.current) { window.clearTimeout(proctorTimerRef.current); proctorTimerRef.current = null; }
+    const stream = (videoRef.current?.srcObject as MediaStream | null); if (stream) stream.getTracks().forEach(t => t.stop());
+    // clear persisted session
+    try { if (typeof window !== 'undefined') window.localStorage.removeItem('examSession'); } catch {}
+    setReviewMode(true);
+    const presencePct = presenceRef.current.frames>0? Math.round((presenceRef.current.seen/presenceRef.current.frames)*100) : 0;
+    setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'result', detail: `score ${correct}/${questions.length}; presence ${presencePct}%` }]);
   }, [answers, questions]);
 
   const remainingClock = useMemo(() => {
@@ -110,6 +177,10 @@ export default function ExamsPage() {
         <div className="flex items-center gap-2">
           <Button onClick={startExam}>Start exam</Button>
           {running && <span className="text-sm">Time left: {remainingClock}</span>}
+          {!running && questions.length>0 && !reviewMode && (
+            <button className="h-8 px-3 border rounded-md text-sm" onClick={()=> setRunning(true)}>Resume</button>
+          )}
+          <button className="h-8 px-3 border rounded-md text-sm" onClick={async ()=>{ try { await document.documentElement.requestFullscreen?.(); } catch {} }}>Go full-screen</button>
         </div>
         {proctor && (<video ref={videoRef} className="w-full max-h-48 bg-black rounded" muted playsInline />)}
       </div>
@@ -131,6 +202,36 @@ export default function ExamsPage() {
           ))}
           <div className="flex items-center gap-2">
             <Button onClick={submit} disabled={running}>Submit</Button>
+          </div>
+        </div>
+      )}
+
+      {reviewMode && (
+        <div className="grid gap-3 border rounded-md p-3">
+          <div className="text-sm font-medium">Result review</div>
+          <div className="grid gap-2">
+            {questions.map((q, i) => {
+              const picked = answers[i] as number | undefined;
+              const correct = q.correctAnswer ? q.options[picked ?? -1] === q.correctAnswer : undefined;
+              return (
+                <div key={i} className={`border rounded p-2 ${correct===true?'border-green-600':correct===false?'border-red-600':''}`}>
+                  <div className="text-sm font-medium">Q{i+1}. {q.question}</div>
+                  {typeof picked === 'number' && (
+                    <div className="text-xs mt-1">Your answer: {q.options[picked]}</div>
+                  )}
+                  {q.correctAnswer && (
+                    <div className="text-xs text-muted-foreground">Correct: {q.correctAnswer}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2">
+            <div className="text-sm font-medium">Proctoring & anti‑cheat evidence</div>
+            <ul className="text-xs list-disc pl-5">
+              {cheatEvents.map((e, idx) => (<li key={idx}>{e.at} — {e.type}{e.detail? ` (${e.detail})`: ''}</li>))}
+              {cheatEvents.length===0 && (<li className="text-muted-foreground">No events recorded.</li>)}
+            </ul>
           </div>
         </div>
       )}
