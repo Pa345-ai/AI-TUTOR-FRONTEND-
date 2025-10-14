@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function OfflineModelsPage() {
-  const [supported, setSupported] = useState<{ stt: boolean; tts: boolean; wasm: boolean } | null>(null);
+  const [supported, setSupported] = useState<{ stt: boolean; tts: boolean; wasm: boolean; webrtc: boolean; webgpu: boolean } | null>(null);
   const [packs, setPacks] = useState<Array<{ id: string; name: string; size: string; status: 'not-installed'|'installed'|'updating', downloadedBytes?: number; totalBytes?: number }>>([
     { id: 'tiny-qna', name: 'Tiny Q&A model (~40MB)', size: '40MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 40*1024*1024 },
     { id: 'mini-sum', name: 'Mini Summarizer (~60MB)', size: '60MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 60*1024*1024 },
@@ -17,7 +17,9 @@ export default function OfflineModelsPage() {
     const stt = !!(window as any).webkitSpeechRecognition || !!(window as any).SpeechRecognition;
     const tts = 'speechSynthesis' in window && typeof (window as any).SpeechSynthesisUtterance !== 'undefined';
     const wasm = typeof WebAssembly !== 'undefined';
-    setSupported({ stt, tts, wasm });
+    const webrtc = typeof (window as any).RTCPeerConnection !== 'undefined';
+    const webgpu = typeof (navigator as any).gpu !== 'undefined';
+    setSupported({ stt, tts, wasm, webrtc, webgpu });
     // Storage quota
     (async () => {
       try {
@@ -74,12 +76,22 @@ export default function OfflineModelsPage() {
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Offline Models</h1>
       {supported && (
-        <div className="grid sm:grid-cols-3 gap-3 text-sm">
+        <div className="grid sm:grid-cols-5 gap-3 text-sm">
           <div className={`border rounded p-2 ${supported.stt?'':'opacity-60'}`}><div className="font-medium">Speech‑to‑Text</div><div>{supported.stt? 'Supported' : 'Not available'}</div></div>
           <div className={`border rounded p-2 ${supported.tts?'':'opacity-60'}`}><div className="font-medium">Text‑to‑Speech</div><div>{supported.tts? 'Supported' : 'Not available'}</div></div>
           <div className={`border rounded p-2 ${supported.wasm?'':'opacity-60'}`}><div className="font-medium">WebAssembly</div><div>{supported.wasm? 'Supported' : 'Not available'}</div></div>
+          <div className={`border rounded p-2 ${supported.webrtc?'':'opacity-60'}`}><div className="font-medium">WebRTC</div><div>{supported.webrtc? 'Supported' : 'Not available'}</div></div>
+          <div className={`border rounded p-2 ${supported.webgpu?'':'opacity-60'}`}><div className="font-medium">WebGPU</div><div>{supported.webgpu? 'Supported' : 'Not available'}</div></div>
         </div>
       )}
+      <div className="border rounded-md p-3 text-xs">
+        <div className="text-sm font-medium mb-1">Local inference fallback</div>
+        <div className="flex items-center gap-2">
+          <button className="h-8 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only','true'); } catch {} }}>Force local</button>
+          <button className="h-8 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only','false'); } catch {} }}>Auto (online first)</button>
+          <span className="text-muted-foreground">Chat and summarizer will respect this.</span>
+        </div>
+      </div>
       <div className="grid gap-3">
         {packs.map(p => (
           <div key={p.id} className="border rounded-md p-3 flex items-center justify-between">

@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [attempts, setAttempts] = useState<Array<{ correct: boolean; userAbility: number; createdAt: string }>>([]);
   const [irtMap, setIrtMap] = useState<Array<{ id: string; subject?: string; topic: string; irt?: { aDiscrimination: number; bDifficulty: number } }>>([]);
   const [jobs, setJobs] = useState<Array<{ id?: string; name: string; createdAt?: string; props?: any }>>([]);
+  const [examEvents, setExamEvents] = useState<Array<{ createdAt?: string; userId?: string; sessionId?: string; score?: number; total?: number; cheat?: any }>>([]);
   const [audits, setAudits] = useState<Array<{ id?: string; userId?: string; action?: string; target?: string; createdAt?: string }>>([]);
   const [auditFilter, setAuditFilter] = useState<{ action: string; q: string }>({ action: '', q: '' });
   const [deletions, setDeletions] = useState<Array<{ id: string; userId: string; reason?: string; status?: string; createdAt?: string }>>([]);
@@ -27,7 +28,7 @@ export default function AdminPage() {
 
   const loadAll = async () => {
     try {
-      const [f, m, mm, ib, irts, jb, au, del] = await Promise.all([
+      const [f, m, mm, ib, irts, jb, au, del, ex] = await Promise.all([
         fetch(`${base}/api/admin/flags`).then(r=>r.json()),
         fetch(`${base}/api/admin/mod/messages`).then(r=>r.json()),
         fetch(`${base}/api/admin/metrics`).then(r=>r.json()),
@@ -36,6 +37,7 @@ export default function AdminPage() {
         fetch(`${base}/api/items/jobs`).then(r=>r.json()).catch(()=>({ jobs: [] })),
         fetch(`${base}/api/admin/audit`).then(r=>r.json()).catch(()=>({ logs: [] })),
         fetch(`${base}/api/admin/deletions`).then(r=>r.json()).catch(()=>({ deletions: [] })),
+        fetch(`${base}/api/admin/events?name=exam.result`).then(r=>r.json()).catch(()=>({ events: [] })),
       ]);
       setFlags(f.flags || {});
       setMessages((m.messages || []).map((x: { id?: string; userId: string; content: string; createdAt?: string }) => ({ id: x.id || crypto.randomUUID(), userId: x.userId, content: x.content, createdAt: x.createdAt })));
@@ -45,6 +47,7 @@ export default function AdminPage() {
       setJobs((jb.jobs || []).map((j: any)=>({ id: j.id, name: j.name, createdAt: j.createdAt, props: j.props })));
       setAudits((au.logs || []).map((x: any)=>({ id: x.id, userId: x.userId, action: x.action, target: x.target, createdAt: x.createdAt })));
       setDeletions((del.deletions || []).map((d: any)=>({ id: d.id, userId: d.userId, reason: d.reason, status: d.status, createdAt: d.createdAt })));
+      setExamEvents((ex.events || []).map((e: any)=>({ createdAt: e.createdAt, userId: e.userId, sessionId: e.props?.sessionId, score: e.props?.score, total: e.props?.total, cheat: e.props?.cheat })));
     } catch {}
   };
 
@@ -79,6 +82,25 @@ export default function AdminPage() {
           <div className="text-sm font-medium">Metrics</div>
           <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(metrics, null, 2)}</pre>
           <button className="h-9 px-3 border rounded-md text-sm" onClick={()=>void loadAll()}>Refresh</button>
+        </div>
+      </div>
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="text-sm font-medium">Exams: Proctoring Evidence</div>
+        <div className="text-xs text-muted-foreground">Recent exam results with attached anti‑cheat/proctoring events. Click to expand.</div>
+        <div className="max-h-[260px] overflow-auto grid gap-1 text-xs">
+          {examEvents.map((e,i)=> (
+            <details key={i} className="border rounded-md p-2">
+              <summary className="flex items-center justify-between cursor-pointer">
+                <span>{e.userId} — {e.score}/{e.total}</span>
+                <span className="text-muted-foreground">{e.createdAt ? new Date(e.createdAt).toLocaleString() : ''}</span>
+              </summary>
+              <div className="mt-2">
+                <div className="font-medium mb-1">Cheat events</div>
+                <pre className="whitespace-pre-wrap bg-muted rounded p-2 overflow-auto max-h-40">{JSON.stringify(e.cheat || {}, null, 2)}</pre>
+              </div>
+            </details>
+          ))}
+          {examEvents.length===0 && <div className="text-muted-foreground">No exam events.</div>}
         </div>
       </div>
       <div className="border rounded-md p-3 space-y-2">

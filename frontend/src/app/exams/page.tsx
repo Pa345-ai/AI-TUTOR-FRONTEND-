@@ -54,15 +54,25 @@ export default function ExamsPage() {
     try { window.localStorage.setItem('examSession', JSON.stringify(payload)); } catch {}
   }, [running, sessionId, topic, difficulty, questions, answers, remaining]);
 
-  // Anti-cheat: blur/tab switch/fullscreen
+  // Anti-cheat: blur/tab switch/fullscreen + copy/paste
   useEffect(() => {
     const onBlur = () => setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'blur' }]);
     const onVis = () => { if (document.visibilityState !== 'visible') setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'hidden' }]); };
     const onFs = () => { if (!document.fullscreenElement) setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'exit-fullscreen' }]); };
+    const onCopy = () => setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'copy' }]);
+    const onPaste = () => setCheatEvents((e)=>[...e, { at: new Date().toISOString(), type: 'paste' }]);
     window.addEventListener('blur', onBlur);
     document.addEventListener('visibilitychange', onVis);
     document.addEventListener('fullscreenchange', onFs);
-    return () => { window.removeEventListener('blur', onBlur); document.removeEventListener('visibilitychange', onVis); document.removeEventListener('fullscreenchange', onFs); };
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onVis);
+      document.removeEventListener('fullscreenchange', onFs);
+      document.removeEventListener('copy', onCopy);
+      document.removeEventListener('paste', onPaste);
+    };
   }, []);
 
   const addSection = () => setSections(prev => [...prev, { name: `Section ${String.fromCharCode(65+prev.length)}`, count: 5, difficulty: 'medium' }]);
@@ -186,7 +196,8 @@ export default function ExamsPage() {
           {!running && questions.length>0 && !reviewMode && (
             <button className="h-8 px-3 border rounded-md text-sm" onClick={()=> setRunning(true)}>Resume</button>
           )}
-          <button className="h-8 px-3 border rounded-md text-sm" onClick={async ()=>{ try { await document.documentElement.requestFullscreen?.(); } catch {} }}>Go full-screen</button>
+          <button className="h-8 px-3 border rounded-md text-sm" onClick={async ()=>{ try { await document.documentElement.requestFullscreen?.(); } catch {} }}>Enter full-screen</button>
+          <button className="h-8 px-3 border rounded-md text-sm" onClick={async ()=>{ try { await document.exitFullscreen?.(); } catch {} }}>Exit full-screen</button>
         </div>
         {proctor && (<video ref={videoRef} className="w-full max-h-48 bg-black rounded" muted playsInline />)}
       </div>
