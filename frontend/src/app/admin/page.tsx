@@ -18,19 +18,25 @@ export default function AdminPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [irt, setIrt] = useState<{ aDiscrimination: number; bDifficulty: number } | null>(null);
   const [attempts, setAttempts] = useState<Array<{ correct: boolean; userAbility: number; createdAt: string }>>([]);
+  const [irtMap, setIrtMap] = useState<Array<{ id: string; subject?: string; topic: string; irt?: { aDiscrimination: number; bDifficulty: number } }>>([]);
+  const [jobs, setJobs] = useState<Array<{ id?: string; name: string; createdAt?: string; props?: any }>>([]);
 
   const loadAll = async () => {
     try {
-      const [f, m, mm, ib] = await Promise.all([
+      const [f, m, mm, ib, irts, jb] = await Promise.all([
         fetch(`${base}/api/admin/flags`).then(r=>r.json()),
         fetch(`${base}/api/admin/mod/messages`).then(r=>r.json()),
         fetch(`${base}/api/admin/metrics`).then(r=>r.json()),
         fetch(`${base}/api/items`).then(r=>r.json()).catch(()=>({ items: [] })),
+        fetch(`${base}/api/items/irt`).then(r=>r.json()).catch(()=>({ items: [] })),
+        fetch(`${base}/api/items/jobs`).then(r=>r.json()).catch(()=>({ jobs: [] })),
       ]);
       setFlags(f.flags || {});
       setMessages((m.messages || []).map((x: { id?: string; userId: string; content: string; createdAt?: string }) => ({ id: x.id || crypto.randomUUID(), userId: x.userId, content: x.content, createdAt: x.createdAt })));
       setMetrics(mm || {} as Record<string, unknown>);
       setItems((ib.items || []).map((x: any)=>({ id: x.id, topic: x.topic, subject: x.subject, difficulty: x.difficulty, question: x.question, tags: x.tags || [], skills: x.skills || [], standards: x.standards || [], graphNodes: x.graphNodes || [] })));
+      setIrtMap((irts.items || []).map((x: any)=>({ id: x.id, subject: x.subject, topic: x.topic, irt: x.irt })));
+      setJobs((jb.jobs || []).map((j: any)=>({ id: j.id, name: j.name, createdAt: j.createdAt, props: j.props })));
     } catch {}
   };
 
@@ -192,6 +198,38 @@ export default function AdminPage() {
           <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
             const r = await fetch(`${base}/api/admin/audit`); const d = await r.json(); alert(`Recent audits: ${d.logs?.length||0}`);
           }}>Audit Logs</button>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="border rounded-md p-3 space-y-2">
+          <div className="text-sm font-medium">IRT Dashboards</div>
+          <div className="text-xs">Item map (difficulty vs discrimination)</div>
+          <svg viewBox="0 0 240 180" className="w-full border rounded bg-white">
+            {/* axes */}
+            <line x1="30" y1="150" x2="230" y2="150" stroke="#94a3b8" />
+            <line x1="30" y1="20" x2="30" y2="150" stroke="#94a3b8" />
+            {irtMap.map((it,i)=>{
+              if (!it.irt) return null; const a = it.irt.aDiscrimination/1000; const b = it.irt.bDifficulty; // theta scale 500..2500
+              const x = 30 + ((b - 500) / 2000) * 200;
+              const y = 150 - ((Math.max(0.1, Math.min(3, a)) - 0.1) / (3 - 0.1)) * 130;
+              return <circle key={it.id} cx={x} cy={y} r={3} fill="#0ea5e9"><title>{`${it.topic}  a=${a.toFixed(2)}  b=${b}`}</title></circle>;
+            })}
+          </svg>
+          <div className="text-[10px] text-muted-foreground">x: b (difficulty 500→2500), y: a (0.1→3.0)</div>
+        </div>
+        <div className="border rounded-md p-3 space-y-2">
+          <div className="text-sm font-medium">Jobs</div>
+          <div className="flex items-center gap-2 text-xs">
+            <button className="h-8 px-2 border rounded-md" onClick={()=>void loadAll()}>Refresh</button>
+          </div>
+          <ul className="text-xs max-h-[220px] overflow-auto grid gap-1">
+            {jobs.map((j)=> (
+              <li key={j.id || Math.random().toString(36)} className="flex items-center justify-between">
+                <span>{j.name}</span>
+                <span className="text-muted-foreground">{j.createdAt ? new Date(j.createdAt).toLocaleTimeString() : ''}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
