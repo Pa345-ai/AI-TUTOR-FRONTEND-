@@ -675,6 +675,29 @@ export async function listLessonSessions(userId: string) {
   return res.json() as Promise<{ sessions: LessonSession[] }>;
 }
 
+// Assignments (teacher workflows)
+export async function listAssignments(params: { teacherId?: string; studentId?: string }) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/assignments`);
+  if (params.teacherId) url.searchParams.set('teacherId', params.teacherId);
+  if (params.studentId) url.searchParams.set('studentId', params.studentId);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`List assignments error ${res.status}`);
+  return res.json() as Promise<{ assignments: Array<{ id: string; title: string; description: string; subject: string; dueDate: string }> }>;
+}
+export async function listSubmissions(assignmentId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/assignments/${encodeURIComponent(assignmentId)}/submissions`);
+  if (!res.ok) throw new Error(`List submissions error ${res.status}`);
+  return res.json() as Promise<{ submissions: Array<{ id: string; studentId: string; content?: string; attachments?: string[]; submittedAt: string; grade?: number; feedback?: string }> }>;
+}
+export async function gradeSubmission(submissionId: string, grade: number, feedback: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/assignments/submissions/${encodeURIComponent(submissionId)}/grade`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grade, feedback }) });
+  if (!res.ok) throw new Error(`Grade submission error ${res.status}`);
+  return res.json() as Promise<{ submission: any }>;
+}
+
 export async function translate(text: string, target: 'en'|'si'|'ta'|'hi'|'zh') {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/translate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, target }) });
