@@ -38,6 +38,14 @@ export default function QuizzesPage() {
     const dc = window.localStorage.getItem("defaultCurriculum");
     if (dc === "lk" || dc === "international") setCurriculum(dc);
   }, []);
+  // Persona presets
+  const [mode, setMode] = useState<"socratic"|"exam"|"friendly"|"motivational">(()=> (typeof window!=='undefined' ? (window.localStorage.getItem('mode') as any) || 'friendly' : 'friendly'));
+  const [level, setLevel] = useState<"eli5"|"normal"|"expert">(()=> (typeof window!=='undefined' ? (window.localStorage.getItem('level') as any) || 'normal' : 'normal'));
+  const [personaSocratic, setPersonaSocratic] = useState<number>(()=> (typeof window!=='undefined' ? parseInt(window.localStorage.getItem('personaSocratic')||'50') : 50));
+  const [personaStrictness, setPersonaStrictness] = useState<number>(()=> (typeof window!=='undefined' ? parseInt(window.localStorage.getItem('personaStrictness')||'20') : 20));
+  const [personaEncouragement, setPersonaEncouragement] = useState<number>(()=> (typeof window!=='undefined' ? parseInt(window.localStorage.getItem('personaEncouragement')||'70') : 70));
+  const [presetList, setPresetList] = useState<string[]>([]);
+  useEffect(()=>{ try { const raw = window.localStorage.getItem('personaPresets'); if (raw) setPresetList(Object.keys(JSON.parse(raw))); } catch {}; }, []);
 
   const generate = async () => {
     if (!topic.trim()) return;
@@ -83,6 +91,22 @@ export default function QuizzesPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Quiz Generator</h1>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span>Persona</span>
+        <select className="h-8 px-2 border rounded-md" value={mode} onChange={(e)=>{ setMode(e.target.value as any); try { window.localStorage.setItem('mode', e.target.value); } catch {} }}>
+          {(['socratic','exam','friendly','motivational'] as const).map(m => (<option key={m} value={m}>{m}</option>))}
+        </select>
+        <select className="h-8 px-2 border rounded-md" value={level} onChange={(e)=>{ setLevel(e.target.value as any); try { window.localStorage.setItem('level', e.target.value); } catch {} }}>
+          {(['eli5','normal','expert'] as const).map(l => (<option key={l} value={l}>{l}</option>))}
+        </select>
+        <label className="flex items-center gap-1">Socratic <input type="range" min={0} max={100} value={personaSocratic} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaSocratic(v); try { window.localStorage.setItem('personaSocratic', String(v)); } catch {} }} /></label>
+        <label className="flex items-center gap-1">Strict <input type="range" min={0} max={100} value={personaStrictness} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaStrictness(v); try { window.localStorage.setItem('personaStrictness', String(v)); } catch {} }} /></label>
+        <label className="flex items-center gap-1">Encourage <input type="range" min={0} max={100} value={personaEncouragement} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaEncouragement(v); try { window.localStorage.setItem('personaEncouragement', String(v)); } catch {} }} /></label>
+        <select className="h-8 px-2 border rounded-md" value={''} onChange={(e)=>{ const key=e.target.value; if (!key) return; try { const obj = JSON.parse(window.localStorage.getItem('personaPresets')||'{}'); const p = obj[key]; if (p) { setMode(p.mode); setLevel(p.level); setPersonaSocratic(p.personaSocratic); setPersonaStrictness(p.personaStrictness); setPersonaEncouragement(p.personaEncouragement); } } catch {}; e.currentTarget.value=''; }}>
+          <option value="">Load preset…</option>
+          {presetList.map(n => (<option key={n} value={n}>{n}</option>))}
+        </select>
+      </div>
       <div className="text-xs text-muted-foreground">Need analytics? <button className="underline" onClick={async ()=>{
         setShowAnalytics(true);
         try {

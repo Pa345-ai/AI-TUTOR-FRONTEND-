@@ -42,6 +42,9 @@ export default function ChatPage() {
   const [personaSocratic, setPersonaSocratic] = useState<number>(50);
   const [personaStrictness, setPersonaStrictness] = useState<number>(20);
   const [personaEncouragement, setPersonaEncouragement] = useState<number>(70);
+  // Preset manager
+  const [presetName, setPresetName] = useState<string>("");
+  const [presetList, setPresetList] = useState<string[]>([]);
   const personaBySubjectRef = useRef<Record<string, { mode: typeof mode; level: typeof level; personaSocratic: number; personaStrictness: number; personaEncouragement: number }>>({});
   const [subject, setSubject] = useState<string>("");
   const [grade, setGrade] = useState<string>("");
@@ -190,6 +193,8 @@ export default function ChatPage() {
           loadVoices();
         }
       } catch {}
+      // Load persona presets list
+      try { const raw = window.localStorage.getItem('personaPresets'); if (raw) setPresetList(Object.keys(JSON.parse(raw))); } catch {}
       // Load devices list
       if (navigator.mediaDevices?.enumerateDevices) {
         navigator.mediaDevices.enumerateDevices().then(setDevices).catch(() => {});
@@ -942,6 +947,24 @@ export default function ChatPage() {
             <label className="flex items-center gap-1">Socratic <input type="range" min={0} max={100} value={personaSocratic} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaSocratic(v); try { window.localStorage.setItem('personaSocratic', String(v)); } catch {} }} /></label>
             <label className="flex items-center gap-1">Strict <input type="range" min={0} max={100} value={personaStrictness} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaStrictness(v); try { window.localStorage.setItem('personaStrictness', String(v)); } catch {} }} /></label>
             <label className="flex items-center gap-1">Encourage <input type="range" min={0} max={100} value={personaEncouragement} onChange={(e)=>{ const v=parseInt(e.target.value); setPersonaEncouragement(v); try { window.localStorage.setItem('personaEncouragement', String(v)); } catch {} }} /></label>
+            <input className="h-7 px-2 border rounded-md text-xs" placeholder="Preset name" value={presetName} onChange={(e)=>setPresetName(e.target.value)} />
+            <Button size="sm" variant="outline" onClick={()=>{
+              if (!presetName.trim()) return;
+              const map = { mode, level, personaSocratic, personaStrictness, personaEncouragement };
+              try {
+                const raw = window.localStorage.getItem('personaPresets');
+                const obj = raw ? JSON.parse(raw) : {};
+                obj[presetName.trim()] = map; window.localStorage.setItem('personaPresets', JSON.stringify(obj));
+                setPresetList(Object.keys(obj));
+              } catch {}
+            }}>Save preset</Button>
+            <select className="h-7 px-2 border rounded-md text-xs" value={''} onChange={(e)=>{
+              const key = e.target.value; if (!key) return; try { const raw = window.localStorage.getItem('personaPresets'); const obj = raw ? JSON.parse(raw) : {}; const p = obj[key]; if (p) { setMode(p.mode); setLevel(p.level); setPersonaSocratic(p.personaSocratic); setPersonaStrictness(p.personaStrictness); setPersonaEncouragement(p.personaEncouragement); } } catch {}
+              e.currentTarget.value='';
+            }}>
+              <option value="">Load preset…</option>
+              {presetList.map(n => (<option key={n} value={n}>{n}</option>))}
+            </select>
           </div>
           <div className="flex items-center gap-2 mr-2">
             <label className="text-xs text-muted-foreground flex items-center gap-1"><Radio className="h-3 w-3" /> Voice tutor</label>
