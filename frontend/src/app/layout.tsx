@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
@@ -22,6 +23,25 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  // Lightweight guarded wrapper component
+  function Guarded({ children }: { children: React.ReactNode }) {
+    // Only guard known protected sections
+    if (typeof window === 'undefined') return <>{children}</>;
+    const role = window.localStorage.getItem('role') || '';
+    const path = window.location.pathname;
+    const needsTeacher = path.startsWith('/teacher');
+    const needsParent = path.startsWith('/parent');
+    const needsAdmin = path.startsWith('/admin');
+    if ((needsTeacher && role !== 'teacher') || (needsParent && role !== 'parent') || (needsAdmin && role !== 'admin')) {
+      // redirect client-side to home
+      if (typeof window !== 'undefined') {
+        window.location.replace('/');
+        return null;
+      }
+    }
+    return <>{children}</>;
+  }
   const [offline, setOffline] = useState(false);
   const [unread, setUnread] = useState<number>(0);
   const [queued, setQueued] = useState<number | null>(null);
@@ -143,6 +163,7 @@ export default function RootLayout({
                 <Link href="/leaderboard" className="hover:underline">Leaderboard</Link>
                 <Link href="/history" className="hover:underline">History</Link>
                 <Link href="/achievements" className="hover:underline">Achievements</Link>
+                {/* Client route guard: only show role links if permitted */}
                 {typeof window !== 'undefined' && window.localStorage.getItem('role') === 'teacher' && (
                   <Link href="/teacher-dashboard" className="hover:underline">Teacher</Link>
                 )}
@@ -213,7 +234,8 @@ export default function RootLayout({
             </div>
           )}
           <main className="flex-1">
-            {children}
+            {/* Client-side redirect guard for protected sections */}
+            <Guarded>{children}</Guarded>
           </main>
         </div>
       </body>

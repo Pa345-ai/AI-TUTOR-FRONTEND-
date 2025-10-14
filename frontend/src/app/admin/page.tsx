@@ -22,10 +22,12 @@ export default function AdminPage() {
   const [jobs, setJobs] = useState<Array<{ id?: string; name: string; createdAt?: string; props?: any }>>([]);
   const [audits, setAudits] = useState<Array<{ id?: string; userId?: string; action?: string; target?: string; createdAt?: string }>>([]);
   const [auditFilter, setAuditFilter] = useState<{ action: string; q: string }>({ action: '', q: '' });
+  const [deletions, setDeletions] = useState<Array<{ id: string; userId: string; reason?: string; status?: string; createdAt?: string }>>([]);
+  const [delFilter, setDelFilter] = useState<{ status: string; q: string }>({ status: '', q: '' });
 
   const loadAll = async () => {
     try {
-      const [f, m, mm, ib, irts, jb, au] = await Promise.all([
+      const [f, m, mm, ib, irts, jb, au, del] = await Promise.all([
         fetch(`${base}/api/admin/flags`).then(r=>r.json()),
         fetch(`${base}/api/admin/mod/messages`).then(r=>r.json()),
         fetch(`${base}/api/admin/metrics`).then(r=>r.json()),
@@ -33,6 +35,7 @@ export default function AdminPage() {
         fetch(`${base}/api/items/irt`).then(r=>r.json()).catch(()=>({ items: [] })),
         fetch(`${base}/api/items/jobs`).then(r=>r.json()).catch(()=>({ jobs: [] })),
         fetch(`${base}/api/admin/audit`).then(r=>r.json()).catch(()=>({ logs: [] })),
+        fetch(`${base}/api/admin/deletions`).then(r=>r.json()).catch(()=>({ deletions: [] })),
       ]);
       setFlags(f.flags || {});
       setMessages((m.messages || []).map((x: { id?: string; userId: string; content: string; createdAt?: string }) => ({ id: x.id || crypto.randomUUID(), userId: x.userId, content: x.content, createdAt: x.createdAt })));
@@ -41,6 +44,7 @@ export default function AdminPage() {
       setIrtMap((irts.items || []).map((x: any)=>({ id: x.id, subject: x.subject, topic: x.topic, irt: x.irt })));
       setJobs((jb.jobs || []).map((j: any)=>({ id: j.id, name: j.name, createdAt: j.createdAt, props: j.props })));
       setAudits((au.logs || []).map((x: any)=>({ id: x.id, userId: x.userId, action: x.action, target: x.target, createdAt: x.createdAt })));
+      setDeletions((del.deletions || []).map((d: any)=>({ id: d.id, userId: d.userId, reason: d.reason, status: d.status, createdAt: d.createdAt })));
     } catch {}
   };
 
@@ -75,6 +79,41 @@ export default function AdminPage() {
           <div className="text-sm font-medium">Metrics</div>
           <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(metrics, null, 2)}</pre>
           <button className="h-9 px-3 border rounded-md text-sm" onClick={()=>void loadAll()}>Refresh</button>
+        </div>
+      </div>
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="text-sm font-medium">GDPR Deletion Requests</div>
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <select className="h-8 px-2 border rounded-md" value={delFilter.status} onChange={(e)=>setDelFilter({...delFilter, status: e.target.value})}>
+            <option value="">All</option>
+            <option value="pending">pending</option>
+            <option value="approved">approved</option>
+            <option value="denied">denied</option>
+          </select>
+          <input className="h-8 px-2 border rounded-md" placeholder="User/reason contains" value={delFilter.q} onChange={(e)=>setDelFilter({...delFilter, q: e.target.value})} />
+          <button className="h-8 px-2 border rounded-md" onClick={()=>void loadAll()}>Refresh</button>
+        </div>
+        <div className="max-h-[260px] overflow-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-left text-[11px] text-muted-foreground"><th className="px-1 py-1">Time</th><th className="px-1 py-1">User</th><th className="px-1 py-1">Reason</th><th className="px-1 py-1">Status</th><th className="px-1 py-1">Action</th></tr></thead>
+            <tbody>
+              {deletions
+                .filter(d => !delFilter.status || (d.status||'')===delFilter.status)
+                .filter(d => !delFilter.q || (d.userId||'').includes(delFilter.q) || (d.reason||'').includes(delFilter.q))
+                .map((d,i)=> (
+                  <tr key={d.id || i} className="border-t">
+                    <td className="px-1 py-1">{d.createdAt ? new Date(d.createdAt).toLocaleString() : ''}</td>
+                    <td className="px-1 py-1">{d.userId}</td>
+                    <td className="px-1 py-1">{d.reason}</td>
+                    <td className="px-1 py-1">{d.status || 'pending'}</td>
+                    <td className="px-1 py-1 space-x-1">
+                      <button className="h-7 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/admin/deletions/${encodeURIComponent(d.id)}/decide`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved: true, adminId: (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : '') || 'admin' }) }); await loadAll(); }}>Approve</button>
+                      <button className="h-7 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/admin/deletions/${encodeURIComponent(d.id)}/decide`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved: false, adminId: (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : '') || 'admin' }) }); await loadAll(); }}>Deny</button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </div>
       <div className="border rounded-md p-3">
