@@ -20,16 +20,19 @@ export default function AdminPage() {
   const [attempts, setAttempts] = useState<Array<{ correct: boolean; userAbility: number; createdAt: string }>>([]);
   const [irtMap, setIrtMap] = useState<Array<{ id: string; subject?: string; topic: string; irt?: { aDiscrimination: number; bDifficulty: number } }>>([]);
   const [jobs, setJobs] = useState<Array<{ id?: string; name: string; createdAt?: string; props?: any }>>([]);
+  const [audits, setAudits] = useState<Array<{ id?: string; userId?: string; action?: string; target?: string; createdAt?: string }>>([]);
+  const [auditFilter, setAuditFilter] = useState<{ action: string; q: string }>({ action: '', q: '' });
 
   const loadAll = async () => {
     try {
-      const [f, m, mm, ib, irts, jb] = await Promise.all([
+      const [f, m, mm, ib, irts, jb, au] = await Promise.all([
         fetch(`${base}/api/admin/flags`).then(r=>r.json()),
         fetch(`${base}/api/admin/mod/messages`).then(r=>r.json()),
         fetch(`${base}/api/admin/metrics`).then(r=>r.json()),
         fetch(`${base}/api/items`).then(r=>r.json()).catch(()=>({ items: [] })),
         fetch(`${base}/api/items/irt`).then(r=>r.json()).catch(()=>({ items: [] })),
         fetch(`${base}/api/items/jobs`).then(r=>r.json()).catch(()=>({ jobs: [] })),
+        fetch(`${base}/api/admin/audit`).then(r=>r.json()).catch(()=>({ logs: [] })),
       ]);
       setFlags(f.flags || {});
       setMessages((m.messages || []).map((x: { id?: string; userId: string; content: string; createdAt?: string }) => ({ id: x.id || crypto.randomUUID(), userId: x.userId, content: x.content, createdAt: x.createdAt })));
@@ -37,6 +40,7 @@ export default function AdminPage() {
       setItems((ib.items || []).map((x: any)=>({ id: x.id, topic: x.topic, subject: x.subject, difficulty: x.difficulty, question: x.question, tags: x.tags || [], skills: x.skills || [], standards: x.standards || [], graphNodes: x.graphNodes || [] })));
       setIrtMap((irts.items || []).map((x: any)=>({ id: x.id, subject: x.subject, topic: x.topic, irt: x.irt })));
       setJobs((jb.jobs || []).map((j: any)=>({ id: j.id, name: j.name, createdAt: j.createdAt, props: j.props })));
+      setAudits((au.logs || []).map((x: any)=>({ id: x.id, userId: x.userId, action: x.action, target: x.target, createdAt: x.createdAt })));
     } catch {}
   };
 
@@ -179,6 +183,27 @@ export default function AdminPage() {
                       return i===0? null : <path key={i} d={`M ${(i-1)*2} ${110 - (c + (1-c)*(1/(1+Math.exp(-a*((500+((i-1)/99)*2000)-b)))))*100} L ${x} ${y}`} stroke="#2563eb" strokeWidth="2" fill="none" />
                     })}
                   </svg>
+                  <div className="text-xs font-medium mt-2">Person map (ability vs correctness)</div>
+                  <svg viewBox="0 0 240 120" className="w-full border rounded bg-white">
+                    <line x1="30" y1="100" x2="230" y2="100" stroke="#94a3b8" />
+                    <line x1="30" y1="20" x2="30" y2="100" stroke="#94a3b8" />
+                    {(attempts||[]).slice(0,300).map((a,i)=>{
+                      const theta = Math.max(500, Math.min(2500, a.userAbility || 1500));
+                      const x = 30 + ((theta - 500)/2000)*200;
+                      const yBase = a.correct ? 30 : 90;
+                      const y = yBase + ((i%5)-2)*1.2; // slight jitter
+                      return <circle key={i} cx={x} cy={y} r={2} fill={a.correct? '#16a34a':'#ef4444'} />
+                    })}
+                    {/* optional ICC overlay at y-scale 20-100 */}
+                    {irt && Array.from({ length: 100 }).map((_,i)=>{
+                      const theta = 500 + (i/99)*2000; const a = irt.aDiscrimination/1000; const b = irt.bDifficulty; const c = 0.2;
+                      const z = a*(theta-b); const L = 1/(1+Math.exp(-z)); const p = c + (1-c)*L;
+                      const x = 30 + (i/99)*200; const y = 100 - (p*70+10);
+                      if (i===0) return null;
+                      const prevTheta = 500 + ((i-1)/99)*2000; const prevZ = a*(prevTheta-b); const prevL = 1/(1+Math.exp(-prevZ)); const prevP = c + (1-c)*prevL; const prevX = 30 + ((i-1)/99)*200; const prevY = 100 - (prevP*70+10);
+                      return <path key={i} d={`M ${prevX} ${prevY} L ${x} ${y}`} stroke="#2563eb" strokeWidth="1" fill="none" />
+                    })}
+                  </svg>
                 </div>
               )}
             </div>
@@ -223,13 +248,49 @@ export default function AdminPage() {
             <button className="h-8 px-2 border rounded-md" onClick={()=>void loadAll()}>Refresh</button>
           </div>
           <ul className="text-xs max-h-[220px] overflow-auto grid gap-1">
-            {jobs.map((j)=> (
-              <li key={j.id || Math.random().toString(36)} className="flex items-center justify-between">
-                <span>{j.name}</span>
-                <span className="text-muted-foreground">{j.createdAt ? new Date(j.createdAt).toLocaleTimeString() : ''}</span>
-              </li>
-            ))}
+            {(() => {
+              // Pair start/end by name; show running if no end
+              const pairs: Array<{ name: string; startedAt?: string; endedAt?: string; durationMs?: number; status: 'running'|'done' }>=[];
+              const byName: Record<string, { start?: any; end?: any }>={};
+              for (const j of jobs) {
+                if (j.name.endsWith('.start')) { byName[j.name.replace('.start','')] = { ...(byName[j.name.replace('.start','')]||{}), start: j }; }
+                else if (j.name.endsWith('.end')) { byName[j.name.replace('.end','')] = { ...(byName[j.name.replace('.end','')]||{}), end: j }; }
+              }
+              for (const key of Object.keys(byName)) {
+                const it = byName[key];
+                const startedAt = it.start?.createdAt; const endedAt = it.end?.createdAt;
+                const durationMs = (startedAt && endedAt) ? (new Date(endedAt).getTime() - new Date(startedAt).getTime()) : undefined;
+                pairs.push({ name: key, startedAt, endedAt, durationMs, status: endedAt? 'done':'running' });
+              }
+              return pairs.sort((a,b)=> (new Date(b.startedAt||0).getTime()) - (new Date(a.startedAt||0).getTime())).map((p,i)=> (
+                <li key={i} className="flex items-center justify-between">
+                  <span>{p.name}</span>
+                  <span className="text-muted-foreground">{p.status==='running' ? 'running' : `${Math.max(0, p.durationMs||0)}ms`}</span>
+                </li>
+              ));
+            })()}
           </ul>
+        </div>
+      </div>
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="text-sm font-medium">Audit Logs</div>
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <input className="h-8 px-2 border rounded-md" placeholder="Action contains" value={auditFilter.action} onChange={(e)=>setAuditFilter({...auditFilter, action: e.target.value})} />
+          <input className="h-8 px-2 border rounded-md" placeholder="User/Target contains" value={auditFilter.q} onChange={(e)=>setAuditFilter({...auditFilter, q: e.target.value})} />
+          <button className="h-8 px-2 border rounded-md" onClick={()=>void loadAll()}>Refresh</button>
+        </div>
+        <div className="max-h-[260px] overflow-auto">
+          <table className="w-full text-xs">
+            <thead><tr className="text-left text-[11px] text-muted-foreground"><th className="px-1 py-1">Time</th><th className="px-1 py-1">User</th><th className="px-1 py-1">Action</th><th className="px-1 py-1">Target</th></tr></thead>
+            <tbody>
+              {audits
+                .filter(a => !auditFilter.action || (a.action||'').includes(auditFilter.action))
+                .filter(a => !auditFilter.q || (a.userId||'').includes(auditFilter.q) || (a.target||'').includes(auditFilter.q))
+                .map((a,i)=> (
+                  <tr key={a.id || i} className="border-t"><td className="px-1 py-1">{a.createdAt ? new Date(a.createdAt).toLocaleString() : ''}</td><td className="px-1 py-1">{a.userId}</td><td className="px-1 py-1">{a.action}</td><td className="px-1 py-1">{a.target}</td></tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
