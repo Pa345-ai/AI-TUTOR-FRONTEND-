@@ -15,14 +15,13 @@ export default function IntegrationsPage() {
   const [driveFiles, setDriveFiles] = useState<Array<{ id: string; name: string }>>([]);
   const [oneFiles, setOneFiles] = useState<Array<{ id: string; name: string }>>([]);
 
-  useEffect(() => { if (typeof window !== undefined) { const uid = window.localStorage.getItem(userId); if (uid) setUserId(uid); } }, []);
+  useEffect(() => { if (typeof window !== 'undefined') { const uid = window.localStorage.getItem('userId'); if (uid) setUserId(uid); } }, []);
 
-  const saveToken = async (provider: google|quizlet|microsoft, accessToken: string) => {
+  const saveToken = async (provider: 'google'|'quizlet'|'microsoft', accessToken: string) => {
     try {
-      const res = await fetch(`${base}/api/integrations/tokens`, { method: POST, headers: { Content-Type: application/json }, body: JSON.stringify({ userId, provider: provider===microsoft ? google : provider, accessToken }) });
+      const res = await fetch(`${base}/api/integrations/tokens`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, provider, accessToken }) });
       if (!res.ok) throw new Error(await res.text());
-      setStatus(Saved
-token);
+      setStatus('Saved token');
     } catch (e: any) { setStatus(e.message); }
   };
 
@@ -33,9 +32,7 @@ token);
     try { const r = await fetch(`${base}/api/integrations/gclass/courses/${encodeURIComponent(courseId)}/students?userId=${encodeURIComponent(userId)}`); const d = await r.json(); setStudents(d.students || []); } catch (e: any) { setStatus(e.message); }
   };
   const syncGclass = async (courseId: string) => {
-    try { const r = await fetch(`${base}/api/integrations/gclass/sync`, { method: POST, headers: { Content-Type:application/json }, body: JSON.stringify({ userId, courseId }) }); if (!r.ok) throw new Error(await r.text()); setStatus(Synced
-Google
-Classroom); } catch (e: any) { setStatus(e.message); }
+    try { const r = await fetch(`${base}/api/integrations/gclass/sync`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ userId, courseId }) }); if (!r.ok) throw new Error(await r.text()); setStatus('Synced Google Classroom'); } catch (e: any) { setStatus(e.message); }
   };
 
   const listTeams = async () => {
@@ -45,9 +42,7 @@ Classroom); } catch (e: any) { setStatus(e.message); }
     try { const r = await fetch(`${base}/api/integrations/teams/${encodeURIComponent(teamId)}/members?userId=${encodeURIComponent(userId)}`); const d = await r.json(); setMembers(d.members || []); } catch (e: any) { setStatus(e.message); }
   };
   const syncTeams = async (teamId: string) => {
-    try { const r = await fetch(`${base}/api/integrations/teams/sync`, { method: POST, headers: { Content-Type:application/json }, body: JSON.stringify({ userId, teamId }) }); if (!r.ok) throw new Error(await r.text()); setStatus(Synced
-Microsoft
-Teams); } catch (e: any) { setStatus(e.message); }
+    try { const r = await fetch(`${base}/api/integrations/teams/sync`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ userId, teamId }) }); if (!r.ok) throw new Error(await r.text()); setStatus('Synced Microsoft Teams'); } catch (e: any) { setStatus(e.message); }
   };
 
   return (

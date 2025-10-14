@@ -1521,16 +1521,18 @@ function MessageBubble({ role, content, images, onPractice, onVisualize, onSpeak
         {isUser ? (
           content
         ) : (
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>{content}</ReactMarkdown>
-          {/* Inline runnable cell trigger: gated by global mm_code */}
-          {(() => {
-            try { if (typeof window !== 'undefined' && window.localStorage.getItem('mm_code') === 'false') return false; } catch {}
-            return /^```(js|javascript|python)/m.test(content);
-          })() && (
-            <div className="mt-2">
-              <CodeRunner />
-            </div>
-          )}
+          <>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>{content}</ReactMarkdown>
+            {/* Inline runnable cell trigger: gated by global mm_code */}
+            {(() => {
+              try { if (typeof window !== 'undefined' && window.localStorage.getItem('mm_code') === 'false') return false; } catch {}
+              return /^```(js|javascript|python)/m.test(content);
+            })() && (
+              <div className="mt-2">
+                <CodeRunner />
+              </div>
+            )}
+          </>
         )}
         {images && images.length > 0 && (
           <div className="mt-2 grid grid-cols-2 gap-2">
