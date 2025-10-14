@@ -332,6 +332,50 @@ export async function exportICS(userId: string, range?: { from?: string; to?: st
   return res.text();
 }
 
+// Knowledge graph
+export async function fetchKnowledgeGraph() {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/knowledge/graph`);
+  if (!res.ok) throw new Error(`Knowledge graph error ${res.status}`);
+  return res.json();
+}
+
+// Memory controls
+export async function listMemoryPins(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/pins/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Pins fetch error ${res.status}`);
+  return res.json() as Promise<{ pins: Array<{ id: string; text: string; createdAt: string }> }>;
+}
+export async function addMemoryPin(userId: string, text: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/pins`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, text }) });
+  if (!res.ok) throw new Error(`Add pin error ${res.status}`);
+  return res.json();
+}
+export async function deleteMemoryPin(id: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Delete pin error ${res.status}`);
+}
+export async function listMemoryRedactions(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/redactions/${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error(`Redactions fetch error ${res.status}`);
+  return res.json() as Promise<{ redactions: Array<{ id: string; term: string; createdAt: string }> }>;
+}
+export async function addMemoryRedaction(userId: string, term: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/redactions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, term }) });
+  if (!res.ok) throw new Error(`Add redaction error ${res.status}`);
+  return res.json();
+}
+export async function deleteMemoryRedaction(id: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/redactions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Delete redaction error ${res.status}`);
+}
+
 export async function logLearningEvent(params: { userId: string; subject?: string; topic: string; correct: boolean; difficulty?: 'easy'|'medium'|'hard' }) {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/learning/log`, {

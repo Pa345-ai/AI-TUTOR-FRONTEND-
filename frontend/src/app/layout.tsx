@@ -117,6 +117,7 @@ export default function RootLayout({
                 <Link href="/summarizer" className="hover:underline">Summarizer</Link>
                 <Link href="/offline-models" className="hover:underline">Offline</Link>
                 <Link href="/mastery" className="hover:underline">Mastery</Link>
+                <Link href="/knowledge-graph" className="hover:underline">Graph</Link>
                 <Link href="/heatmap" className="hover:underline">Heatmap</Link>
                 <Link href="/study-room" className="hover:underline">Study Room</Link>
                 <Link href="/leaderboard" className="hover:underline">Leaderboard</Link>
@@ -134,6 +135,7 @@ export default function RootLayout({
                 <span className="text-xs text-muted-foreground">🔥 {streak}</span>
                 <Link href="/onboarding" className="hover:underline">Onboarding</Link>
                 <Link href="/notifications" className="hover:underline relative">Notifications{unread>0 && (<span className="ml-1 inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white align-middle">{unread}</span>)}</Link>
+                <Link href="/memory" className="hover:underline">Memory</Link>
                 <button
                   className="text-xs border rounded px-2 py-1 hover:bg-accent"
                   onClick={() => {

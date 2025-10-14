@@ -1,149 +1,106 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { fetchMastery, fetchPrereqs, fetchNextTopics } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { fetchKnowledgeGraph, fetchMastery } from "@/lib/api";
 
 export default function KnowledgeGraphPage() {
-  const [userId, setUserId] = useState<string>("123");
-  const [subject, setSubject] = useState<string>("math");
-  const [topic, setTopic] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState("123");
+  const [graph, setGraph] = useState<any | null>(null);
   const [mastery, setMastery] = useState<Record<string, { correct: number; attempts: number }>>({});
-  const [prereqs, setPrereqs] = useState<string[]>([]);
-  const [nextTopics, setNextTopics] = useState<string[]>([]);
+  const [subject, setSubject] = useState("math");
+  const [topic, setTopic] = useState<string>("");
+  const [status, setStatus] = useState<string>("");
+
+  useEffect(() => { if (typeof window !== 'undefined') { const uid = window.localStorage.getItem('userId'); if (uid) setUserId(uid); } }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem("userId");
-      if (stored) setUserId(stored);
+    (async () => {
+      try {
+        const g = await fetchKnowledgeGraph();
+        setGraph(g);
+        const m = await fetchMastery(userId);
+        setMastery(m);
+      } catch (e) {
+        setStatus(e instanceof Error ? e.message : String(e));
+      }
+    })();
+  }, [userId]);
+
+  const nodes = useMemo(() => {
+    const list: Array<{ id: string; prereqs: string[]; next: string[]; acc: number }> = [];
+    if (!graph) return list;
+    const subj = graph?.[subject] || {};
+    const topics: string[] = Object.keys(subj?.prereqs || {});
+    for (const t of topics) {
+      const s = mastery[t];
+      const acc = s ? (s.correct || 0) / Math.max(1, s.attempts || 0) : 0;
+      const prereqs: string[] = subj.prereqs[t] || [];
+      const next: string[] = subj.next?.[t] || [];
+      list.push({ id: t, prereqs, next, acc });
     }
-  }, []);
+    return list.sort((a,b)=> a.id.localeCompare(b.id));
+  }, [graph, mastery, subject]);
 
-  const load = async (t: string) => {
-    if (!t.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [m, p, n] = await Promise.all([
-        fetchMastery(userId),
-        fetchPrereqs({ userId, subject, topic: t }),
-        fetchNextTopics({ userId, subject, topic: t }),
-      ]);
-      setMastery(m);
-      setPrereqs(p.prereqs || []);
-      setNextTopics(n.next || []);
-      setTopic(t);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const accuracyOf = useCallback((t: string) => {
-    const s = mastery[t];
-    const a = s ? (s.correct || 0) / Math.max(1, s.attempts || 0) : 0;
-    return a;
-  }, [mastery]);
-
-  const colorFor = (acc: number) => {
-    if (acc >= 0.85) return "bg-green-600 text-white";
-    if (acc >= 0.6) return "bg-yellow-500 text-black";
-    if (acc > 0) return "bg-red-500 text-white";
-    return "bg-gray-300 text-black";
-  };
-
-  const weakList = useMemo(() => {
-    const entries = Object.entries(mastery).map(([t, s]) => ({
-      t,
-      acc: (s.correct || 0) / Math.max(1, s.attempts || 0),
-    }));
-    return entries.sort((a, b) => a.acc - b.acc).slice(0, 15);
-  }, [mastery]);
-
-  const remediationPlan = useMemo(() => {
-    const weakPrereqs = prereqs.filter((p) => accuracyOf(p) < 0.6);
-    const okPrereqs = prereqs.filter((p) => accuracyOf(p) >= 0.6);
-    return [...weakPrereqs, ...okPrereqs, topic].filter(Boolean);
-  }, [prereqs, topic, accuracyOf]);
+  const readyToAdvance = useMemo(() => {
+    if (!topic) return { ready: false, weak: [] as string[] };
+    const node = nodes.find(n => n.id === topic);
+    if (!node) return { ready: false, weak: [] as string[] };
+    const weak = node.prereqs.filter(p => {
+      const s = mastery[p]; const acc = s ? (s.correct || 0) / Math.max(1, s.attempts || 0) : 0; return acc < 0.7;
+    });
+    return { ready: weak.length === 0, weak };
+  }, [nodes, topic, mastery]);
 
   return (
-    <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
+    <div className="mx-auto max-w-5xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Knowledge Graph</h1>
-      <div className="grid gap-2">
-        <div className="flex items-center gap-2">
-          <Input className="w-40" value={subject} onChange={(e)=>setSubject(e.target.value)} placeholder="Subject (e.g., math)" />
-          <Input className="flex-1" value={topic} onChange={(e)=>setTopic(e.target.value)} placeholder="Topic (e.g., Algebra)" />
-          <Button onClick={() => void load(topic)} disabled={!topic.trim() || loading}>{loading ? "Loading…" : "Load"}</Button>
-        </div>
-        {error && <div className="text-sm text-red-600">{error}</div>}
+      <div className="flex items-center gap-2 text-sm">
+        <select className="h-9 px-2 border rounded-md" value={subject} onChange={(e)=>setSubject(e.target.value)}>
+          {['math','science','cs','history'].map(s => (<option key={s} value={s}>{s}</option>))}
+        </select>
+        {status && <span className="text-xs text-muted-foreground">{status}</span>}
       </div>
-
+      <div className="border rounded-md p-3">
+        <div className="text-sm font-medium mb-2">Topics</div>
+        <div className="grid md:grid-cols-3 gap-2">
+          {nodes.map(n => (
+            <button key={n.id} className={`text-left border rounded-md p-2 ${topic===n.id?'ring-1 ring-blue-500':''}`} onClick={()=>setTopic(n.id)}>
+              <div className="flex items-center justify-between">
+                <div className="font-medium">{n.id}</div>
+                <div className={`text-[11px] ${n.acc>=0.85?'text-green-600':n.acc>=0.6?'text-yellow-600':'text-red-600'}`}>{Math.round(n.acc*100)}%</div>
+              </div>
+              <div className="text-xs text-muted-foreground">Prereqs: {n.prereqs.join(', ') || 'none'}</div>
+              <div className="text-xs text-muted-foreground">Next: {n.next.join(', ') || '—'}</div>
+            </button>
+          ))}
+        </div>
+      </div>
       {topic && (
-        <div className="grid gap-3">
-          <div>
-            <div className="text-sm font-medium mb-1">Current Topic</div>
-            <TopicChip name={topic} acc={accuracyOf(topic)} onClick={() => void load(topic)} />
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="border rounded-md p-3">
+            <div className="text-sm font-medium mb-1">Ready to advance?</div>
+            <div className="text-sm">{readyToAdvance.ready ? 'Yes' : 'Not yet'}</div>
+            {!readyToAdvance.ready && (
+              <ul className="mt-2 text-sm list-disc pl-5">
+                {readyToAdvance.weak.map(w => (<li key={w}>{w} — {Math.round(((mastery[w]?.correct||0)/Math.max(1, mastery[w]?.attempts||0))*100)}%</li>))}
+              </ul>
+            )}
           </div>
-          <div>
-            <div className="text-sm font-medium mb-1">Prerequisites</div>
-            <div className="flex flex-wrap gap-2">
-              {prereqs.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
-              {prereqs.map((p) => (
-                <TopicChip key={p} name={p} acc={accuracyOf(p)} onClick={() => void load(p)} />
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-sm font-medium mb-1">Next Topics</div>
-            <div className="flex flex-wrap gap-2">
-              {nextTopics.length === 0 && <span className="text-xs text-muted-foreground">None</span>}
-              {nextTopics.map((n) => (
-                <TopicChip key={n} name={n} acc={accuracyOf(n)} onClick={() => void load(n)} />
-              ))}
-            </div>
+          <div className="border rounded-md p-3">
+            <div className="text-sm font-medium mb-1">Gap propagation & remediation</div>
+            {readyToAdvance.weak.length===0 ? (
+              <div className="text-xs text-muted-foreground">No remediation needed.</div>
+            ) : (
+              <ul className="text-sm list-disc pl-5">
+                {readyToAdvance.weak.map(w => (
+                  <li key={w}>Review prerequisite "{w}" first. Suggested steps: practice 3 questions on {w}, then retake a quick check on {topic}.
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
-
-      <div className="grid gap-2">
-        <div className="text-sm font-medium">Remediation Plan</div>
-        {remediationPlan.length === 0 ? (
-          <div className="text-xs text-muted-foreground">Load a topic to generate a plan.</div>
-        ) : (
-          <ol className="list-decimal pl-5 text-sm space-y-1">
-            {remediationPlan.map((t, i) => (
-              <li key={`${t}-${i}`}>
-                <span className={`inline-block rounded px-2 py-0.5 ${colorFor(accuracyOf(t))}`}>{t}</span>
-                <a href={`/adaptive?topic=${encodeURIComponent(t)}`} className="ml-2 underline">Practice</a>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
-
-      <div className="grid gap-2">
-        <div className="text-sm font-medium">Mastery Heatmap (lowest first)</div>
-        <div className="flex flex-wrap gap-2">
-          {weakList.map(({ t, acc }) => (
-            <TopicChip key={t} name={t} acc={acc} onClick={() => void load(t)} />
-          ))}
-          {weakList.length === 0 && <span className="text-xs text-muted-foreground">No mastery data yet.</span>}
-        </div>
-      </div>
-
-      <div className="text-xs text-muted-foreground">
-        Legend: <span className="inline-block rounded px-2 py-0.5 bg-red-500 text-white">weak</span> <span className="inline-block rounded px-2 py-0.5 bg-yellow-500">ok</span> <span className="inline-block rounded px-2 py-0.5 bg-green-600 text-white">strong</span> <span className="inline-block rounded px-2 py-0.5 bg-gray-300">no data</span>
-      </div>
     </div>
   );
-
-  function TopicChip({ name, acc, onClick }: { name: string; acc: number; onClick?: () => void }) {
-    return (
-      <button onClick={onClick} className={`text-xs rounded px-2 py-1 border ${colorFor(acc)} hover:opacity-90`}>{name} {(acc>0 ? `• ${(acc*100).toFixed(0)}%` : '')}</button>
-    );
-  }
 }
