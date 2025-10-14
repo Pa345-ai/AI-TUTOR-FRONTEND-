@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function AdminPage() {
   const [flags, setFlags] = useState<Record<string, boolean>>({});
@@ -10,6 +10,10 @@ export default function AdminPage() {
   const [metrics, setMetrics] = useState<Record<string, unknown>>({});
   const base = process.env.NEXT_PUBLIC_BASE_URL!;
   const [items, setItems] = useState<Array<{ id: string; topic: string; subject?: string; difficulty?: string; question: string; tags?: string[]; skills?: string[]; standards?: string[]; graphNodes?: string[] }>>([]);
+  const [filter, setFilter] = useState<{ q: string; subject: string; difficulty: string }>({ q: "", subject: "", difficulty: "" });
+  const [sortBy, setSortBy] = useState<'created'|'difficulty'|'topic'>('created');
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const selectedIds = useMemo(()=> Object.keys(selected).filter(k=>selected[k]), [selected]);
   const [itemCsv, setItemCsv] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [irt, setIrt] = useState<{ aDiscrimination: number; bDifficulty: number } | null>(null);
@@ -77,8 +81,21 @@ export default function AdminPage() {
       </div>
       <div className="border rounded-md p-3 space-y-2">
         <div className="text-sm font-medium">Item Bank</div>
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs flex-wrap">
           <button className="h-8 px-2 border rounded-md" onClick={loadAll}>Refresh</button>
+          <input className="h-8 px-2 border rounded-md" placeholder="Search question/topic" value={filter.q} onChange={(e)=>setFilter({...filter, q: e.target.value})} />
+          <input className="h-8 px-2 border rounded-md" placeholder="Subject" value={filter.subject} onChange={(e)=>setFilter({...filter, subject: e.target.value})} />
+          <select className="h-8 px-2 border rounded-md" value={filter.difficulty} onChange={(e)=>setFilter({...filter, difficulty: e.target.value})}>
+            <option value="">All</option>
+            <option value="easy">easy</option>
+            <option value="medium">medium</option>
+            <option value="hard">hard</option>
+          </select>
+          <select className="h-8 px-2 border rounded-md" value={sortBy} onChange={(e)=>setSortBy(e.target.value as any)}>
+            <option value="created">Newest</option>
+            <option value="difficulty">Difficulty</option>
+            <option value="topic">Topic</option>
+          </select>
           <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
             const r = await fetch(`${base}/api/items/export`); const d = await r.json(); const rows = [ ['id','subject','topic','difficulty','question'].join(',') ] as string[]; for (const it of (d.items||[])) rows.push([it.id,it.subject||'',it.topic||'',it.difficulty||'',(it.question||'').replace(/\n|\r|,/g,' ')].join(',')); setItemCsv(rows.join('\n'));
           }}>Export CSV</button>
@@ -87,10 +104,31 @@ export default function AdminPage() {
             await fetch(`${base}/api/items/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
             await loadAll();
           }}>Import CSV</button>
+          {selectedIds.length>0 && (
+            <>
+              <span className="text-[11px] text-muted-foreground">{selectedIds.length} selected</span>
+              <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
+                const newDiff = prompt('Set difficulty for selected (easy|medium|hard):','medium');
+                if (!newDiff || !['easy','medium','hard'].includes(newDiff)) return;
+                for (const id of selectedIds) { await fetch(`${base}/api/items/${encodeURIComponent(id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ difficulty: newDiff }) }); }
+                setSelected({}); await loadAll();
+              }}>Set Difficulty</button>
+              <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
+                const tagStr = prompt('Add tags (space-separated):','review'); if (!tagStr) return; const tags = tagStr.trim().split(/\s+/);
+                for (const id of selectedIds) { await fetch(`${base}/api/items/${encodeURIComponent(id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ tags }) }); }
+                setSelected({}); await loadAll();
+              }}>Set Tags</button>
+            </>
+          )}
         </div>
         <textarea className="w-full min-h-[120px] border rounded-md p-2 text-xs" placeholder="CSV here" value={itemCsv} onChange={(e)=>setItemCsv(e.target.value)} />
         <div className="grid gap-2 text-xs max-h-[260px] overflow-auto">
-          {items.map((it)=> (
+          {items
+            .filter(it => !filter.q || it.question.toLowerCase().includes(filter.q.toLowerCase()) || it.topic.toLowerCase().includes(filter.q.toLowerCase()))
+            .filter(it => !filter.subject || (it.subject||'').toLowerCase().includes(filter.subject.toLowerCase()))
+            .filter(it => !filter.difficulty || (it.difficulty||'')===filter.difficulty)
+            .sort((a,b)=> sortBy==='topic' ? a.topic.localeCompare(b.topic) : sortBy==='difficulty' ? (a.difficulty||'').localeCompare(b.difficulty||'') : 0)
+            .map((it)=> (
             <div key={it.id} className={`border rounded-md p-2 ${selectedItemId===it.id?'ring-1 ring-blue-500':''}`} onClick={async ()=>{
               setSelectedItemId(it.id); setIrt(null); setAttempts([]);
               try {
@@ -99,7 +137,10 @@ export default function AdminPage() {
               } catch {}
             }}>
               <div className="flex items-center justify-between">
-                <div className="font-medium">{it.topic} — {it.difficulty}</div>
+                <div className="font-medium flex items-center gap-2">
+                  <input type="checkbox" checked={!!selected[it.id]} onChange={(e)=>{ e.stopPropagation(); setSelected(s=>({ ...s, [it.id]: e.target.checked })); }} />
+                  <span>{it.topic} — {it.difficulty}</span>
+                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <input className="w-36 border rounded px-1" defaultValue={(it.tags||[]).join(' ')} placeholder="tags" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ tags: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
                   <input className="w-36 border rounded px-1" defaultValue={(it.skills||[]).join(' ')} placeholder="skills" onBlur={async (e)=>{ await fetch(`${base}/api/items/${encodeURIComponent(it.id)}`, { method:'PATCH', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ skills: e.target.value.trim()? e.target.value.trim().split(/\s+/) : [] }) }); await loadAll(); }} />
@@ -114,12 +155,26 @@ export default function AdminPage() {
         </div>
         {selectedItemId && (
           <div className="mt-3 grid md:grid-cols-2 gap-3 text-xs">
-            <div className="border rounded-md p-2">
+            <div className="border rounded-md p-2 space-y-2">
               <div className="font-medium mb-1">IRT Estimation</div>
               <div className="flex items-center gap-2">
                 <button className="h-7 px-2 border rounded-md" onClick={async ()=>{ const r = await fetch(`${base}/api/items/${encodeURIComponent(selectedItemId)}/irt/estimate`, { method: 'POST' }); const d = await r.json(); setIrt(d.irt || null); }}>Estimate IRT</button>
-                {irt && (<div className="text-[11px]">a={irt.aDiscrimination/1000} b={irt.bDifficulty}</div>)}
+                {irt && (<div className="text-[11px]">a={Math.round((irt.aDiscrimination/1000)*100)/100} b={irt.bDifficulty}</div>)}
               </div>
+              {irt && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium">Item Characteristic Curve (ICC)</div>
+                  <svg viewBox="0 0 200 120" className="w-full border rounded">
+                    {Array.from({ length: 100 }).map((_,i)=>{
+                      const theta = 500 + (i/99)*2000; // 500..2500
+                      const a = irt.aDiscrimination/1000; const b = irt.bDifficulty; const c = 0.2;
+                      const z = a * (theta - b); const L = 1/(1+Math.exp(-z)); const p = c + (1-c)*L;
+                      const x = i * 2; const y = 110 - p*100;
+                      return i===0? null : <path key={i} d={`M ${(i-1)*2} ${110 - (c + (1-c)*(1/(1+Math.exp(-a*((500+((i-1)/99)*2000)-b)))))*100} L ${x} ${y}`} stroke="#2563eb" strokeWidth="2" fill="none" />
+                    })}
+                  </svg>
+                </div>
+              )}
             </div>
             <div className="border rounded-md p-2">
               <div className="font-medium mb-1">Recent Attempts</div>
@@ -134,6 +189,9 @@ export default function AdminPage() {
         <div className="flex items-center gap-2 text-xs">
           <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/recalibrate`, { method: 'POST' }); await loadAll(); }}>Recalibrate (difficulty)</button>
           <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ await fetch(`${base}/api/items/irt/reestimate-all`, { method: 'POST' }); await loadAll(); }}>Re-estimate IRT (all)</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{
+            const r = await fetch(`${base}/api/admin/audit`); const d = await r.json(); alert(`Recent audits: ${d.logs?.length||0}`);
+          }}>Audit Logs</button>
         </div>
       </div>
     </div>
