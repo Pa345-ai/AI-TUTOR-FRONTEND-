@@ -277,6 +277,26 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     };
     step();
   };
+  // Advanced scrubber: play/pause and manual position
+  const [scrubPos, setScrubPos] = useState<number>(0);
+  const [playing, setPlaying] = useState<boolean>(false);
+  const playFrom = (idx: number) => {
+    const c = canvasRef.current; if (!c) return; const ctx = c.getContext('2d'); if (!ctx) return;
+    ctx.clearRect(0,0,c.width,c.height);
+    const events = [...timelineRef.current];
+    const lastByUser: Record<string, { x: number; y: number; color: string; stroke: number } | undefined> = {} as any;
+    let i = Math.max(0, Math.min(idx, events.length-1));
+    const step = () => {
+      if (!playing) return; if (i >= events.length) { setPlaying(false); return; }
+      const e = events[i++]; setScrubPos(i);
+      if (e.type === 'wb' && e.userId && e.payload && e.payload.points && e.payload.points[0]) {
+        const { x, y } = e.payload.points[0]; const color = e.payload.color || '#111827'; const stroke = e.payload.stroke || 2; const last = lastByUser[e.userId];
+        ctx.strokeStyle = color; ctx.lineWidth = stroke; ctx.beginPath(); if (last) { ctx.moveTo(last.x, last.y); ctx.lineTo(x,y); } else { ctx.moveTo(x,y); ctx.lineTo(x+0.01,y+0.01); } ctx.stroke(); lastByUser[e.userId] = { x, y, color, stroke };
+      }
+      replayTimer.current = window.setTimeout(step, 8);
+    };
+    step();
+  };
   const stopReplay = () => { if (replayTimer.current) { clearTimeout(replayTimer.current); replayTimer.current = null; } };
 
   const setRole = (targetUserId: string, role: 'moderator'|'member') => {
@@ -361,8 +381,9 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
             </ul>
             <div className="flex items-center gap-2">
               <button className="h-7 px-2 border rounded-md" onClick={()=>wsRef.current?.send(JSON.stringify({ type: 'room:timeline:request', roomId }))}>Refresh Timeline</button>
-              <button className="h-7 px-2 border rounded-md" onClick={replayTimeline}>Replay</button>
-              <button className="h-7 px-2 border rounded-md" onClick={stopReplay}>Stop</button>
+              <button className="h-7 px-2 border rounded-md" onClick={()=>{ setPlaying(true); playFrom(scrubPos||0); }}>Play</button>
+              <button className="h-7 px-2 border rounded-md" onClick={()=>{ setPlaying(false); stopReplay(); }}>Pause</button>
+              <input type="range" min={0} max={Math.max(0, timelineRef.current.length-1)} value={scrubPos} onChange={(e)=>{ const v = parseInt(e.target.value||'0'); setScrubPos(v); }} className="flex-1" />
             </div>
           </div>
         </div>

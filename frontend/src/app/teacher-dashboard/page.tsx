@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchTeacherDashboard } from "@/lib/api";
+import { fetchTeacherDashboard, fetchStudentTrends, fetchStudentSummary, fetchClassGaps } from "@/lib/api";
 
 export default function TeacherDashboardPage() {
   const [teacherId, setTeacherId] = useState<string>("t-1");
@@ -10,6 +10,10 @@ export default function TeacherDashboardPage() {
   const [data, setData] = useState<{ students: Array<{ userId: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> } | null>(null);
   const [authorized, setAuthorized] = useState(true);
   const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [studentTrend, setStudentTrend] = useState<Array<{ date: string; attempts: number; correct: number }>>([]);
+  const [classId, setClassId] = useState<string>("");
+  const [gaps, setGaps] = useState<Array<{ topic: string; accuracy: number; attempts: number }>>([]);
 
   const addToast = useCallback((text: string) => {
     const id = crypto.randomUUID();
@@ -36,6 +40,21 @@ export default function TeacherDashboardPage() {
       setLoading(false);
     }
   }, [teacherId, addToast]);
+
+  const loadStudent = useCallback(async (uid: string) => {
+    try {
+      const t = await fetchStudentTrends(uid, 30);
+      setStudentTrend(t.trends || []);
+    } catch {}
+  }, []);
+
+  const loadGaps = useCallback(async () => {
+    if (!classId.trim()) return;
+    try {
+      const r = await fetchClassGaps(classId.trim());
+      setGaps(r.gaps || []);
+    } catch {}
+  }, [classId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -78,6 +97,8 @@ export default function TeacherDashboardPage() {
       <div className="flex items-center gap-2">
         <input className="h-9 px-2 border rounded-md text-sm" value={teacherId} onChange={(e)=>setTeacherId(e.target.value)} placeholder="Teacher ID" />
         <button className="h-9 px-3 border rounded-md text-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Load'}</button>
+        <input className="h-9 px-2 border rounded-md text-sm" value={classId} onChange={(e)=>setClassId(e.target.value)} placeholder="Class ID (optional)" />
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={loadGaps}>Load class gaps</button>
       </div>
       {error && <div className="text-sm text-red-600">{error}</div>}
       {data && (
@@ -88,6 +109,7 @@ export default function TeacherDashboardPage() {
                 <div className="font-medium">Student: {s.userId}</div>
                 <div className="text-xs text-muted-foreground">XP {s.progress?.xp ?? 0} • Lv {s.progress?.level ?? 1} • Streak {s.progress?.streak ?? 0}</div>
               </div>
+              <div className="mt-1 text-xs"><button className="h-6 px-2 border rounded" onClick={()=>{ setSelectedStudent(s.userId); void loadStudent(s.userId); }}>Open drill‑down</button></div>
               <div className="grid sm:grid-cols-2 gap-3 mt-2">
                 <div>
                   <div className="text-sm font-medium">Weak topics</div>
@@ -108,8 +130,34 @@ export default function TeacherDashboardPage() {
                   </ul>
                 </div>
               </div>
+              {selectedStudent===s.userId && (
+                <div className="mt-3 border rounded p-2">
+                  <div className="text-sm font-medium">Trend — {s.userId}</div>
+                  {studentTrend.length===0 ? (<div className="text-xs text-muted-foreground">No data</div>) : (
+                    <svg viewBox="0 0 320 120" className="w-full border rounded bg-white">
+                      <line x1="30" y1="100" x2="310" y2="100" stroke="#94a3b8" />
+                      <line x1="30" y1="20" x2="30" y2="100" stroke="#94a3b8" />
+                      {studentTrend.map((p,i)=>{
+                        const acc = Math.round((p.correct/Math.max(1,p.attempts))*100);
+                        if (i===0) return null; const x = 30 + (i/(studentTrend.length-1))*280; const y = 100 - (Math.min(100, Math.max(0, acc))*0.8);
+                        const prev = Math.round((studentTrend[i-1].correct/Math.max(1,studentTrend[i-1].attempts))*100);
+                        const x0 = 30 + ((i-1)/(studentTrend.length-1))*280; const y0 = 100 - (Math.min(100, Math.max(0, prev))*0.8);
+                        return <path key={i} d={`M ${x0} ${y0} L ${x} ${y}`} stroke="#2563eb" strokeWidth="2" fill="none" />
+                      })}
+                    </svg>
+                  )}
+                </div>
+              )}
             </div>
           ))}
+        </div>
+      )}
+      {gaps.length>0 && (
+        <div className="border rounded-md p-3">
+          <div className="text-sm font-medium">Class-level gap analysis</div>
+          <ul className="text-xs grid gap-1">
+            {gaps.map((g,i)=> (<li key={i} className="flex items-center justify-between"><span>{g.topic}</span><span>{Math.round(g.accuracy*100)}% ({g.attempts})</span></li>))}
+          </ul>
         </div>
       )}
       {toasts.length > 0 && (
