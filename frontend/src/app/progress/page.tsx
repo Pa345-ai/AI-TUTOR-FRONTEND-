@@ -77,6 +77,19 @@ export default function ProgressPage() {
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-6">
       <h1 className="text-xl font-semibold">Progress</h1>
+      <div className="flex items-center gap-2 text-xs">
+        <button className="h-7 px-2 border rounded-md" onClick={()=>{
+          try {
+            const rows = [ ['metric','value'].join(',') ] as string[];
+            rows.push(['xp', String(progress?.xp||0)].join(','));
+            rows.push(['level', String(progress?.level||0)].join(','));
+            rows.push(['streak', String(progress?.streak||0)].join(','));
+            for (const w of weakTopics) rows.push([`weak:${w.topic}`, String(Math.round(w.accuracy*100))+'%'].join(','));
+            const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`progress-${new Date().toISOString()}.csv`; a.click(); URL.revokeObjectURL(url);
+          } catch {}
+        }}>Export CSV</button>
+      </div>
       {loading && (
         <div className="grid sm:grid-cols-3 gap-4">
           <Skeleton className="h-16" />

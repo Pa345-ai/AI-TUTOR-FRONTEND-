@@ -24,6 +24,8 @@ export default function FlashcardsPage() {
   const [showBack, setShowBack] = useState(false);
   const [ankiText, setAnkiText] = useState("");
   const [apkgFile, setApkgFile] = useState<File | null>(null);
+  const [renamingDeckId, setRenamingDeckId] = useState<string | null>(null);
+  const [renameTo, setRenameTo] = useState<string>("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -109,8 +111,25 @@ export default function FlashcardsPage() {
         <div className="flex items-center gap-2 text-sm">
           <input className="h-9 px-2 border rounded-md" placeholder="New deck name" value={newDeck} onChange={(e)=>setNewDeck(e.target.value)} />
           <button className="h-9 px-3 border rounded-md" onClick={addDeck}>Add Deck</button>
-          {decks.length>0 && <span className="text-xs text-muted-foreground">Decks: {decks.map(d=>d.name).join(', ')}</span>}
+          {decks.length>0 && (
+            <div className="text-xs text-muted-foreground flex flex-wrap gap-2 items-center">
+              {decks.map(d => (
+                <span key={d.id} className="inline-flex items-center gap-2 border rounded px-2 py-1">
+                  <a href={`/flashcards/decks/${encodeURIComponent(d.id)}`} className="underline">{d.name}</a>
+                  <button className="h-6 px-2 border rounded" onClick={()=>{ setRenamingDeckId(d.id); setRenameTo(d.name); }}>Rename</button>
+                  <button className="h-6 px-2 border rounded" onClick={async ()=>{ try { await (await import("@/lib/api")).deleteDeck(userId, d.name); const dks = await listDecks(userId); setDecks(dks); } catch {} }}>Delete</button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
+        {renamingDeckId && (
+          <div className="flex items-center gap-2 text-xs">
+            <input className="h-8 px-2 border rounded" placeholder="New name" value={renameTo} onChange={(e)=>setRenameTo(e.target.value)} />
+            <button className="h-8 px-3 border rounded" onClick={async ()=>{ try { const d = decks.find(x=>x.id===renamingDeckId); if (d && renameTo.trim()) { await (await import("@/lib/api")).renameDeck(userId, d.name, renameTo.trim()); const dks = await listDecks(userId); setDecks(dks); } } catch {} finally { setRenamingDeckId(null); setRenameTo(""); } }}>Save</button>
+            <button className="h-8 px-3 border rounded" onClick={()=>{ setRenamingDeckId(null); setRenameTo(""); }}>Cancel</button>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-xs">
           <input className="h-8 px-2 border rounded-md" placeholder="Quizlet access token (optional)" value={quizletToken} onChange={(e)=>setQuizletToken(e.target.value)} />
           <button className="inline-flex items-center gap-1 rounded-md border px-2 py-1" onClick={saveToken}>Save Token</button>
