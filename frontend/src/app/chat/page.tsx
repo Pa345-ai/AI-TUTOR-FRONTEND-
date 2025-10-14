@@ -522,6 +522,8 @@ export default function ChatPage() {
 
   const speak = useCallback(async (text: string) => {
     if (typeof window === 'undefined') return;
+    // Respect global voice toggle
+    try { if (window.localStorage.getItem('mm_voice') === 'false') return; } catch {}
     if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance === 'undefined') return;
     speakingRef.current = true;
     return new Promise<void>((resolve) => {
@@ -642,6 +644,8 @@ export default function ChatPage() {
 
   const visualizeMessage = useCallback(async (id: string, content: string) => {
     try {
+      // Respect global diagram toggle
+      try { if (window.localStorage.getItem('mm_diagram') === 'false') return; } catch {}
       const url = await generateDiagramFromText(content);
       if (url) attachToMessage(id, url);
     } catch {}
@@ -1483,8 +1487,11 @@ function MessageBubble({ role, content, images, onPractice, onVisualize, onSpeak
           content
         ) : (
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex, rehypeRaw]}>{content}</ReactMarkdown>
-          {/* Inline runnable cell trigger: if block contains ```js or ```python we can show a run button */}
-          {/^```(js|javascript|python)/m.test(content) && (
+          {/* Inline runnable cell trigger: gated by global mm_code */}
+          {(() => {
+            try { if (typeof window !== 'undefined' && window.localStorage.getItem('mm_code') === 'false') return false; } catch {}
+            return /^```(js|javascript|python)/m.test(content);
+          })() && (
             <div className="mt-2">
               <CodeRunner />
             </div>

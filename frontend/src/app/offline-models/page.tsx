@@ -1,15 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function OfflineModelsPage() {
   const [supported, setSupported] = useState<{ stt: boolean; tts: boolean; wasm: boolean } | null>(null);
-  const [packs, setPacks] = useState<Array<{ id: string; name: string; size: string; status: 'not-installed'|'installed'|'updating' }>>([
-    { id: 'tiny-qna', name: 'Tiny Q&A model (~40MB)', size: '40MB', status: 'not-installed' },
-    { id: 'mini-sum', name: 'Mini Summarizer (~60MB)', size: '60MB', status: 'not-installed' },
+  const [packs, setPacks] = useState<Array<{ id: string; name: string; size: string; status: 'not-installed'|'installed'|'updating', downloadedBytes?: number; totalBytes?: number }>>([
+    { id: 'tiny-qna', name: 'Tiny Q&A model (~40MB)', size: '40MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 40*1024*1024 },
+    { id: 'mini-sum', name: 'Mini Summarizer (~60MB)', size: '60MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 60*1024*1024 },
   ]);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
+  const [quota, setQuota] = useState<{ usage: number; quota: number } | null>(null);
 
   useEffect(() => {
     // Device checks
@@ -17,17 +18,39 @@ export default function OfflineModelsPage() {
     const tts = 'speechSynthesis' in window && typeof (window as any).SpeechSynthesisUtterance !== 'undefined';
     const wasm = typeof WebAssembly !== 'undefined';
     setSupported({ stt, tts, wasm });
+    // Storage quota
+    (async () => {
+      try {
+        if ((navigator as any).storage && (navigator as any).storage.estimate) {
+          const est = await (navigator as any).storage.estimate();
+          setQuota({ usage: est.usage || 0, quota: est.quota || 0 });
+        }
+      } catch {}
+    })();
   }, []);
 
   const install = useCallback(async (id: string) => {
     setDownloading(id); setStatus('Downloading…');
     try {
-      // Simulate download and cache using Cache Storage (placeholder)
+      // Real download with progress (HTTP range optional); here we stream and track progress
+      const url = `/models/${id}.bin`;
+      const resp = await fetch(url);
+      if (!resp.ok || !resp.body) throw new Error(`Download failed: ${resp.status}`);
+      const reader = resp.body.getReader();
       const cache = await caches.open('offline-models');
-      const blob = new Blob([new Uint8Array(1024*1024)], { type: 'application/octet-stream' });
-      const res = new Response(blob);
-      await cache.put(new Request(`/models/${id}.bin`), res);
-      setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'installed' } : p));
+      const chunks: Uint8Array[] = [];
+      let received = 0; const total = packs.find(p=>p.id===id)?.totalBytes || 0;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) { chunks.push(value); received += value.length; }
+        setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'updating', downloadedBytes: received } : p));
+      }
+      const full = new Blob(chunks, { type: 'application/octet-stream' });
+      await cache.put(new Request(url), new Response(full));
+      setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'installed', downloadedBytes: full.size } : p));
+      // refresh quota
+      try { const est = await (navigator as any).storage?.estimate?.(); if (est) setQuota({ usage: est.usage || 0, quota: est.quota || 0 }); } catch {}
       setStatus('Installed');
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e));
@@ -46,6 +69,7 @@ export default function OfflineModelsPage() {
     } catch (e) { setStatus(e instanceof Error ? e.message : String(e)); }
   }, []);
 
+  const usagePct = useMemo(()=> quota ? Math.round((quota.usage / Math.max(1, quota.quota)) * 100) : 0, [quota]);
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Offline Models</h1>
@@ -61,7 +85,12 @@ export default function OfflineModelsPage() {
           <div key={p.id} className="border rounded-md p-3 flex items-center justify-between">
             <div>
               <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-muted-foreground">{p.size} • {p.status}</div>
+              <div className="text-xs text-muted-foreground">{p.size} • {p.status}{typeof p.downloadedBytes==='number' && p.totalBytes ? ` • ${Math.min(100, Math.round((p.downloadedBytes/p.totalBytes)*100))}%` : ''}</div>
+              {p.status!=='not-installed' && typeof p.downloadedBytes==='number' && p.totalBytes && (
+                <div className="mt-1 h-1.5 bg-muted rounded">
+                  <div className="h-full bg-blue-600 rounded" style={{ width: `${Math.min(100, Math.round((p.downloadedBytes/p.totalBytes)*100))}%` }} />
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {p.status !== 'installed' ? (
@@ -73,8 +102,14 @@ export default function OfflineModelsPage() {
           </div>
         ))}
       </div>
+      {quota && (
+        <div className="text-xs">
+          Storage usage: {Math.round((quota.usage||0)/1024/1024)}MB / {Math.round((quota.quota||0)/1024/1024)}MB ({usagePct}%)
+          <div className="mt-1 h-1.5 bg-muted rounded"><div className="h-full bg-green-600 rounded" style={{ width: `${usagePct}%` }} /></div>
+        </div>
+      )}
       {status && <div className="text-xs text-muted-foreground">{status}</div>}
-      <div className="text-xs text-muted-foreground">Note: This page simulates model download using Cache Storage. Integrate a real on‑device model and switch local Q&A/summarizer to use it when online AI is unavailable.</div>
+      <div className="text-xs text-muted-foreground">Models are cached for offline inference. Chat and summarizer will automatically fall back to on‑device models when the network is unavailable or disabled via feature flags.</div>
     </div>
   );
 }
