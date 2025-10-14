@@ -115,6 +115,7 @@ export default function RootLayout({
                 <Link href="/learning-paths" className="hover:underline">Learning Paths</Link>
                 <Link href="/adaptive" className="hover:underline">Adaptive</Link>
                 <Link href="/summarizer" className="hover:underline">Summarizer</Link>
+                <Link href="/offline-models" className="hover:underline">Offline</Link>
                 <Link href="/mastery" className="hover:underline">Mastery</Link>
                 <Link href="/heatmap" className="hover:underline">Heatmap</Link>
                 <Link href="/study-room" className="hover:underline">Study Room</Link>
