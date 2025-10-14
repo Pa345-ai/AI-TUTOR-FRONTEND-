@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade } from "@/lib/api";
+import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade, addMemoryPin, addMemoryRedaction, fetchDueReviews, fetchMemory, summarizeMemory } from "@/lib/api";
 import { localTutorReply } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -114,6 +114,10 @@ export default function ChatPage() {
   };
   const faceMeshRef = useRef<FaceMeshLike | null>(null);
   const meshTimerRef = useRef<number | null>(null);
+  // Memory refresher
+  const [dueReviews, setDueReviews] = useState<Array<{ topic: string; subject?: string|null; nextReviewDate?: string|null }>>([]);
+  const [memorySummary, setMemorySummary] = useState<string>("");
+  const [showRefresher, setShowRefresher] = useState<boolean>(true);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -165,6 +169,9 @@ export default function ChatPage() {
           }).catch(() => {});
         }
       } catch {}
+      // Load memory refresher
+      try { const due = await fetchDueReviews(storedUserId || '123', 10); setDueReviews(due || []); } catch {}
+      try { const m = await fetchMemory(storedUserId || '123', 'daily'); setMemorySummary(m?.memory?.summary || ""); } catch {}
       // Detect Web Speech STT support
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1176,6 +1183,25 @@ export default function ChatPage() {
       <div className="flex-1 min-h-0 rounded-md border">
         <ScrollArea className="h-full w-full p-3">
           <div ref={viewportRef} className="flex flex-col gap-3">
+            {showRefresher && (dueReviews.length > 0 || memorySummary) && (
+              <div className="border rounded-md p-2 bg-accent/30 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium">Spaced refresher</div>
+                  <button className="text-[11px] text-muted-foreground" onClick={()=>setShowRefresher(false)}>Dismiss</button>
+                </div>
+                {memorySummary && <div className="mt-1 text-xs">{memorySummary}</div>}
+                {dueReviews.length>0 && (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {dueReviews.slice(0,6).map((d,i)=> (
+                      <button key={i} className="h-6 px-2 border rounded" onClick={() => { const prompt = `Quick refresher: 2 practice questions on ${d.topic}.`; setInput(prompt); }}>Review {d.topic}</button>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-1 flex items-center gap-2">
+                  <button className="h-6 px-2 border rounded" onClick={async ()=>{ try { const r = await summarizeMemory(userId, 'weekly'); setMemorySummary(r?.memory?.summary || memorySummary); } catch {} }}>Summarize week</button>
+                </div>
+              </div>
+            )}
             {messages.length === 0 ? (
               <div className="text-sm text-muted-foreground">Say hello to your AI Tutor.</div>
             ) : (
@@ -1188,6 +1214,20 @@ export default function ChatPage() {
                   onVisualize={m.role === 'assistant' ? () => void visualizeMessage(m.id, m.content) : undefined}
                   onSpeak={m.role === 'assistant' ? () => void speak(m.content) : undefined}
                   onWhiteboard={m.role === 'assistant' ? async () => { try { await whiteboardRef.current?.autoDraw(m.content); } catch {} } : undefined}
+                  onPin={async () => {
+                    try {
+                      const sel = (typeof window !== 'undefined' ? window.getSelection()?.toString() : '')?.trim();
+                      const text = (sel && sel.length >= 3 ? sel : m.content).slice(0, 500);
+                      if (!text) return;
+                      await addMemoryPin(userId, text);
+                      addToast('Pinned to memory');
+                    } catch {}
+                  }}
+                  onForget={async () => {
+                    const term = (typeof window !== 'undefined' ? window.getSelection()?.toString() : '')?.trim() || prompt('Term to forget/redact?') || '';
+                    if (!term || term.length < 2) return;
+                    try { await addMemoryRedaction(userId, term); addToast('Will redact this term from context'); } catch {}
+                  }}
                   onPractice={(topic) => {
                     const short = topic.replace(/\s+/g, ' ').slice(0, 120);
                     const prompt = `Give me 3 practice problems in ${subject || 'subject'} for grade ${grade || 'level'} (${curriculum === 'lk' ? 'Sri Lanka' : 'International'}). Focus on: ${short}`;
@@ -1429,7 +1469,7 @@ const Whiteboard = React.forwardRef<WhiteboardHandle, { onSend?: (dataUrl: strin
   );
 });
 
-function MessageBubble({ role, content, images, onPractice, onVisualize, onSpeak, onWhiteboard }: { role: Role; content: string; images?: string[]; onPractice?: (topic: string) => void; onVisualize?: () => void; onSpeak?: () => void; onWhiteboard?: () => void }) {
+function MessageBubble({ role, content, images, onPractice, onVisualize, onSpeak, onWhiteboard, onPin, onForget }: { role: Role; content: string; images?: string[]; onPractice?: (topic: string) => void; onVisualize?: () => void; onSpeak?: () => void; onWhiteboard?: () => void; onPin?: () => void; onForget?: () => void }) {
   const isUser = role === "user";
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
@@ -1472,6 +1512,12 @@ function MessageBubble({ role, content, images, onPractice, onVisualize, onSpeak
             )}
             {onWhiteboard && (
               <Button variant="outline" size="sm" onClick={onWhiteboard}>Draw</Button>
+            )}
+            {onPin && (
+              <Button variant="outline" size="sm" onClick={onPin}>Pin</Button>
+            )}
+            {onForget && (
+              <Button variant="outline" size="sm" onClick={onForget}>Forget</Button>
             )}
             {onPractice && (
               <Button variant="outline" size="sm" onClick={() => onPractice(content)}>
