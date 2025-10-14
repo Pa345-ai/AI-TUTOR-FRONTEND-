@@ -156,6 +156,7 @@ export default function RootLayout({
                 <Link href="/onboarding" className="hover:underline">Onboarding</Link>
                 <Link href="/notifications" className="hover:underline relative">Notifications{unread>0 && (<span className="ml-1 inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white align-middle">{unread}</span>)}</Link>
                 <Link href="/memory" className="hover:underline">Memory</Link>
+                <Link href="/integrations" className="hover:underline">Integrations</Link>
                 {/* One-tap multi-modal toggles */}
                 <div className="flex items-center gap-1">
                   <button
