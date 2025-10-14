@@ -90,7 +90,7 @@ export default function QuizzesPage() {
 
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
-      <h1 className="text-xl font-semibold">Quiz Generator</h1>
+      <h1 className="text-xl font-semibold flex items-center gap-2">Quiz Generator {(() => { try { const v = typeof window !== 'undefined' ? window.localStorage.getItem('ab:adaptive-strategy') : null; if (v === 'A' || v === 'B') return (<span className={`text-[10px] px-1.5 py-0.5 rounded border ${v==='A'?'bg-green-50 border-green-200 text-green-700':'bg-purple-50 border-purple-200 text-purple-700'}`}>Variant {v}</span>); } catch {} })()}</h1>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span>Persona</span>
         <select className="h-8 px-2 border rounded-md" value={mode} onChange={(e)=>{ setMode(e.target.value as any); try { window.localStorage.setItem('mode', e.target.value); } catch {} }}>
@@ -118,6 +118,12 @@ export default function QuizzesPage() {
           setRationale(d.rationale?.top || "");
         } catch {}
       }}>Open analytics</button></div>
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-xs text-muted-foreground">A/B</span>
+        {(['A','B'] as const).map((b) => (
+          <button key={b} className={`h-7 px-2 border rounded ${typeof window!=='undefined' && window.localStorage.getItem('ab:adaptive-strategy')===b ? 'bg-accent' : ''}`} onClick={()=>{ try { if (typeof window !== 'undefined') window.localStorage.setItem('ab:adaptive-strategy', b); } catch {} }}>{b}</button>
+        ))}
+      </div>
       <div className="grid sm:grid-cols-3 gap-2">
         <select className="h-9 px-2 border rounded-md text-sm" value={subject} onChange={(e) => setSubject(e.target.value)}>
           <option value="">Subject</option>

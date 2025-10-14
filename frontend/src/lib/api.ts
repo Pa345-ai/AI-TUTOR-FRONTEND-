@@ -845,3 +845,33 @@ export async function fetchStudentSuggestions(userId: string) {
   if (!res.ok) throw new Error(`Suggestions error ${res.status}`);
   return res.json() as Promise<{ suggestions: Array<{ topic: string; pCorrect: number; difficulty: 'easy'|'medium'|'hard' }> }>;
 }
+
+// A/B testing helpers
+export type AbAssignment = { userId: string; testName: string; bucket: 'A'|'B'; createdAt?: string };
+export async function abAssign(userId: string): Promise<{ bucket: 'A'|'B' }> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/ab/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+  if (!res.ok) throw new Error(`AB assign error ${res.status}`);
+  return res.json() as Promise<{ bucket: 'A'|'B' }>;
+}
+export async function abSet(userId: string, bucket: 'A'|'B', testName = 'adaptive-strategy'): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/ab/set`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, testName, bucket }) });
+  if (!res.ok) throw new Error(`AB set error ${res.status}`);
+}
+export async function listAbAssignments(): Promise<AbAssignment[]> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/ab/assignments`);
+  if (!res.ok) throw new Error(`AB assignments error ${res.status}`);
+  const data = await res.json() as { assignments?: AbAssignment[] };
+  return data.assignments || [];
+}
+export async function adminListEvents(namePrefix?: string): Promise<Array<{ name: string; userId?: string; createdAt?: string; props?: any }>> {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/admin/events`);
+  if (namePrefix) url.searchParams.set('name', namePrefix);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Admin events error ${res.status}`);
+  const data = await res.json() as { events?: Array<{ name: string; userId?: string; createdAt?: string; props?: any }> };
+  return data.events || [];
+}

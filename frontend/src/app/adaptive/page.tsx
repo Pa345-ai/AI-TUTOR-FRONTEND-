@@ -136,7 +136,7 @@ function AdaptiveInner() {
 
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
-      <h1 className="text-xl font-semibold">Adaptive Practice</h1>
+      <h1 className="text-xl font-semibold flex items-center gap-2">Adaptive Practice {(() => { try { const v = typeof window !== 'undefined' ? window.localStorage.getItem('ab:adaptive-strategy') : null; if (v === 'A' || v === 'B') return (<span className={`text-[10px] px-1.5 py-0.5 rounded border ${v==='A'?'bg-green-50 border-green-200 text-green-700':'bg-purple-50 border-purple-200 text-purple-700'}`}>Variant {v}</span>); } catch {} })()}</h1>
       <div className="space-y-2">
         <label className="text-sm font-medium">Topic</label>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Algebra" />
@@ -144,6 +144,12 @@ function AdaptiveInner() {
       <div className="text-xs text-muted-foreground">Difficulty: {difficulty.toUpperCase()}</div>
       <div className="flex items-center gap-2">
         <Button onClick={nextQuestion} disabled={!topic.trim() || loading}>{loading ? "Loading..." : (question ? "Next" : "Start")}</Button>
+        <div className="flex items-center gap-1 ml-1">
+          <span className="text-xs text-muted-foreground">A/B</span>
+          {(['A','B'] as const).map((b) => (
+            <button key={b} className={`h-8 px-2 border rounded-md text-xs ${typeof window!=='undefined' && window.localStorage.getItem('ab:adaptive-strategy')===b ? 'bg-accent' : ''}`} onClick={()=>{ try { if (typeof window !== 'undefined') window.localStorage.setItem('ab:adaptive-strategy', b); } catch {} }}>{b}</button>
+          ))}
+        </div>
         <Button variant="outline" onClick={startCalibration} disabled={!topic.trim() || calibrating}>Calibrate (5)</Button>
         {question && <Button variant="outline" onClick={submit} disabled={selected == null}>Submit</Button>}
       </div>

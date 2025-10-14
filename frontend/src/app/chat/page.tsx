@@ -15,7 +15,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import { CodeRunner } from "@/components/CodeRunner";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
-import { Mic, Volume2, PencilLine, Eraser, Download, Radio } from "lucide-react";
+import { Mic, Volume2, PencilLine, Eraser, Download, Radio, FlaskConical } from "lucide-react";
 import { grades, getSubjects } from "@/lib/syllabus";
 
 type Role = "user" | "assistant";
@@ -862,7 +862,10 @@ export default function ChatPage() {
 
   return (
     <div className="mx-auto max-w-3xl w-full flex flex-col h-[calc(100svh-4rem)] gap-2 py-4 px-3 sm:px-4">
-      <h1 className="text-xl font-semibold">AI Tutor Chat</h1>
+      <h1 className="text-xl font-semibold flex items-center gap-2">AI Tutor Chat {(() => {
+        // Show visible A/B variant badge if present in localStorage
+        try { const v = typeof window !== 'undefined' ? window.localStorage.getItem('ab:adaptive-strategy') : null; if (v === 'A' || v === 'B') return (<span className={`text-[10px] px-1.5 py-0.5 rounded border ${v==='A'?'bg-green-50 border-green-200 text-green-700':'bg-purple-50 border-purple-200 text-purple-700'}`}>Variant {v}</span>); } catch {}
+      })()}</h1>
       <div className="flex flex-col gap-2">
         <div className="text-xs text-muted-foreground">Mode: <span className="capitalize">{mode}</span> • Level: <span className="uppercase">{level}</span> • Lang: <span className="uppercase">{language}</span></div>
         <div className="flex flex-wrap items-center gap-3">
@@ -993,6 +996,15 @@ export default function ChatPage() {
           {cameraError && (
             <span className="text-[11px] text-red-600">{cameraError}</span>
           )}
+          </div>
+          {/* A/B quick toggle (client-side override) */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">A/B</span>
+            {(['A','B'] as const).map((b) => (
+              <Button key={b} variant={(typeof window !== 'undefined' && window.localStorage.getItem('ab:adaptive-strategy')===b)?'default':'outline'} size="sm" onClick={()=>{ try { if (typeof window !== 'undefined') { window.localStorage.setItem('ab:adaptive-strategy', b); } } catch {} }}>
+                <FlaskConical className="h-3 w-3 mr-1"/> {b}
+              </Button>
+            ))}
           </div>
         </div>
         {/* Quick Practice */}
