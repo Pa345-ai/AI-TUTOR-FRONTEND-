@@ -270,6 +270,8 @@ export default function AdminPage() {
               ));
             })()}
           </ul>
+          <div className="text-xs text-muted-foreground">Live progress</div>
+          <JobProgressStream base={base} />
         </div>
       </div>
       <div className="border rounded-md p-3 space-y-2">
@@ -293,6 +295,36 @@ export default function AdminPage() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function JobProgressStream({ base }: { base: string }) {
+  const [events, setEvents] = useState<Array<{ name: string; createdAt?: string; props?: any }>>([]);
+  useEffect(() => {
+    let timer: number | null = null;
+    const poll = async () => {
+      try {
+        const r = await fetch(`${base}/api/admin/events?name=items.`);
+        if (!r.ok) return;
+        const d = await r.json();
+        const list = (d.events || []).filter((e: any) => /items\.(recalibrate|irt\.reestimate)\.(start|progress|end)/.test(e.name));
+        setEvents(list);
+      } catch {}
+      timer = window.setTimeout(poll, 2000);
+    };
+    poll();
+    return () => { if (timer) window.clearTimeout(timer); };
+  }, [base]);
+  return (
+    <div className="max-h-[180px] overflow-auto border rounded p-2 text-[11px]">
+      {events.slice(0, 80).map((e, i) => (
+        <div key={i} className="flex items-center justify-between">
+          <span>{e.name}</span>
+          <span className="text-muted-foreground">{e.createdAt ? new Date(e.createdAt).toLocaleTimeString() : ''}</span>
+        </div>
+      ))}
+      {events.length === 0 && <div className="text-muted-foreground">No recent job activity.</div>}
     </div>
   );
 }
