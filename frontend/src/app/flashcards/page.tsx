@@ -23,6 +23,7 @@ export default function FlashcardsPage() {
   const [idx, setIdx] = useState(0);
   const [showBack, setShowBack] = useState(false);
   const [ankiText, setAnkiText] = useState("");
+  const [apkgFile, setApkgFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -122,6 +123,7 @@ export default function FlashcardsPage() {
               <div className="text-xs text-muted-foreground">{due.length} cards</div>
             </div>
             <div className="mt-2 text-xs text-muted-foreground">Cards due now for review. Click start to begin a focused session.</div>
+            <DueBreakdown due={due} />
             <div className="mt-2"><button className="h-8 px-3 border rounded-md text-sm" disabled={due.length===0} onClick={()=>{ setReviewing(true); setIdx(0); setShowBack(false); }}>Start review</button></div>
           </div>
           <div className="border rounded-md p-2">
@@ -143,9 +145,36 @@ export default function FlashcardsPage() {
                 const rows = items.map(c => `${(c.front||'').replace(/\n|\r|,/g,' ')},${(c.back||'').replace(/\n|\r|,/g,' ')}`).join('\n');
                 setAnkiText(rows);
               }}>Export CSV</button>
+              <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>{
+                // Export simple APKG JSON (not native .apkg)
+                const decksMap = new Map<string,string>(); decks.forEach(d=>decksMap.set(d.id, d.name));
+                const payload = { deck: subject || 'My Deck', cards: items.map(c => ({ front: c.front, back: c.back, deck: c.deckId ? (decksMap.get(c.deckId) || '') : '' })) };
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `deck-${(subject||'cards')}.apkg.json`; a.click(); URL.revokeObjectURL(url);
+              }}>Export APKG (JSON)</button>
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">Import APKG (JSON)</div>
+            <input type="file" accept=".json,.apkg,.apkg.json,application/json" onChange={(e)=>setApkgFile(e.target.files?.[0] || null)} />
+            <div className="mt-2 flex items-center gap-2">
+              <button className="h-8 px-3 border rounded-md text-sm" disabled={!apkgFile} onClick={async ()=>{
+                if (!apkgFile) return;
+                try {
+                  const text = await apkgFile.text();
+                  const data = JSON.parse(text || '{}');
+                  const arr = Array.isArray(data.cards) ? data.cards : [];
+                  const base = process.env.NEXT_PUBLIC_BASE_URL!;
+                  for (const k of arr) {
+                    const front = String(k.front || '').trim(); const back = String(k.back || '').trim();
+                    if (!front || !back) continue;
+                    await fetch(`${base}/api/flashcards`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, front, back, subject: subject || 'General' }) });
+                  }
+                  const dataCards = await fetchFlashcards(userId); setItems(dataCards);
+                } catch {}
+              }}>Import APKG (JSON)</button>
             </div>
           </div>
         </div>
+        <DeckStats items={items} decks={decks} due={due} />
       </div>
       {!reviewing && (
       <div className="grid sm:grid-cols-2 gap-3">
@@ -207,6 +236,38 @@ export default function FlashcardsPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function DueBreakdown({ due }: { due: FlashcardItem[] }) {
+  // Very simple heuristic: mark overdue if createdAt older than 2 days (placeholder without progress dates)
+  const now = Date.now();
+  const today = due.filter((c:any) => !c.progress || !c.progress.nextReviewDate || new Date(c.progress.nextReviewDate).getTime() <= now);
+  const overdue = due.filter((c:any) => c.progress && c.progress.nextReviewDate && new Date(c.progress.nextReviewDate).getTime() < (now - 24*60*60*1000));
+  return (
+    <div className="mt-2 text-xs">
+      <div>Today: {today.length}</div>
+      <div>Overdue: {overdue.length}</div>
+    </div>
+  );
+}
+
+function DeckStats({ items, decks, due }: { items: FlashcardItem[]; decks: Array<{ id: string; name: string }>; due: FlashcardItem[] }) {
+  const map: Record<string, number> = {};
+  for (const d of decks) map[d.name] = 0;
+  for (const c of items) {
+    const name = decks.find(d => d.id === (c as any).deckId)?.name || 'None';
+    map[name] = (map[name] || 0) + 1;
+  }
+  return (
+    <div className="border rounded-md p-2">
+      <div className="text-sm font-medium">Deck stats</div>
+      <ul className="text-xs mt-1">
+        {Object.entries(map).map(([k,v]) => (
+          <li key={k}>{k}: {v} cards</li>
+        ))}
+      </ul>
     </div>
   );
 }
