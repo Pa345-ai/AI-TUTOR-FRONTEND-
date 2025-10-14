@@ -111,8 +111,8 @@ export default function SignUpPage() {
               <input type="checkbox" className="mt-0.5 appearance-none h-4 w-4 rounded-sm border border-white/30 bg-white/5 checked:bg-cyan-400 checked:border-cyan-400 transition shadow-[0_0_12px_rgba(34,211,238,0.35)]" checked={agree} onChange={(e)=>setAgree(e.target.checked)} />
               <span>
                 I agree to the {""}
-                <a href="/terms" target="_blank" rel="noreferrer" className="underline decoration-white/40 hover:decoration-white">Terms of Service</a> and {""}
-                <a href="/privacy" target="_blank" rel="noreferrer" className="underline decoration-white/40 hover:decoration-white">Privacy Policy</a>.
+                <a href="/terms" target="_blank" rel="noreferrer" className="underline decoration-white/40 hover:decoration-white">Terms of Service</a>.
+                <span className="ml-1 text-white/60">(Optional: review our <a href="/privacy" target="_blank" rel="noreferrer" className="underline decoration-white/30 hover:decoration-white/60">Privacy Policy</a>)</span>
               </span>
             </label>
 
