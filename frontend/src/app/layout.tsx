@@ -27,6 +27,10 @@ export default function RootLayout({
   const [queued, setQueued] = useState<number | null>(null);
   const [streak, setStreak] = useState<number>(0);
   const [theme, setTheme] = useState<'light'|'dark'|'system'>('system');
+  // Global multi-modal toggles
+  const [mmVoice, setMmVoice] = useState<boolean>(true);
+  const [mmDiagram, setMmDiagram] = useState<boolean>(true);
+  const [mmCode, setMmCode] = useState<boolean>(true);
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
     (async () => {
@@ -101,6 +105,22 @@ export default function RootLayout({
     mq.addEventListener?.('change', listener);
     return () => mq.removeEventListener?.('change', listener);
   }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const v = window.localStorage.getItem('mm_voice');
+    const d = window.localStorage.getItem('mm_diagram');
+    const c = window.localStorage.getItem('mm_code');
+    setMmVoice(v === null ? true : v === 'true');
+    setMmDiagram(d === null ? true : d === 'true');
+    setMmCode(c === null ? true : c === 'true');
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'mm_voice' && e.newValue != null) setMmVoice(e.newValue === 'true');
+      if (e.key === 'mm_diagram' && e.newValue != null) setMmDiagram(e.newValue === 'true');
+      if (e.key === 'mm_code' && e.newValue != null) setMmCode(e.newValue === 'true');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -136,6 +156,33 @@ export default function RootLayout({
                 <Link href="/onboarding" className="hover:underline">Onboarding</Link>
                 <Link href="/notifications" className="hover:underline relative">Notifications{unread>0 && (<span className="ml-1 inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white align-middle">{unread}</span>)}</Link>
                 <Link href="/memory" className="hover:underline">Memory</Link>
+                {/* One-tap multi-modal toggles */}
+                <div className="flex items-center gap-1">
+                  <button
+                    className={`text-xs border rounded px-2 py-1 ${mmVoice? 'bg-accent' : ''}`}
+                    title="Voice on/off"
+                    onClick={() => {
+                      const next = !mmVoice; setMmVoice(next);
+                      if (typeof window !== 'undefined') window.localStorage.setItem('mm_voice', String(next));
+                    }}
+                  >🔊</button>
+                  <button
+                    className={`text-xs border rounded px-2 py-1 ${mmDiagram? 'bg-accent' : ''}`}
+                    title="Diagram auto-draw on/off"
+                    onClick={() => {
+                      const next = !mmDiagram; setMmDiagram(next);
+                      if (typeof window !== 'undefined') window.localStorage.setItem('mm_diagram', String(next));
+                    }}
+                  >🖊️</button>
+                  <button
+                    className={`text-xs border rounded px-2 py-1 ${mmCode? 'bg-accent' : ''}`}
+                    title="Runnable code cells on/off"
+                    onClick={() => {
+                      const next = !mmCode; setMmCode(next);
+                      if (typeof window !== 'undefined') window.localStorage.setItem('mm_code', String(next));
+                    }}
+                  >&lt;/&gt;</button>
+                </div>
                 <button
                   className="text-xs border rounded px-2 py-1 hover:bg-accent"
                   onClick={() => {
