@@ -51,6 +51,7 @@ export default function IntegrationsPage() {
       <div className="grid md:grid-cols-2 gap-3">
         <div className="border rounded-md p-3 space-y-2">
           <div className="text-sm font-medium">Google Classroom</div>
+          <div className="text-xs">OAuth: <a className="underline" href={`${base}/api/integrations/gclass/oauth/start?userId=${encodeURIComponent(userId)}`}>Connect Google</a></div>
           <div className="text-xs flex items-center gap-2">
             <input className="h-8 px-2 border rounded-md flex-1" placeholder="Paste Google OAuth token" value={gToken} onChange={(e)=>setGToken(e.target.value)} />
             <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>void saveToken(google, gToken)}>Save token</button>
@@ -85,6 +86,7 @@ export default function IntegrationsPage() {
         </div>
         <div className="border rounded-md p-3 space-y-2">
           <div className="text-sm font-medium">Microsoft Teams</div>
+          <div className="text-xs">OAuth: <a className="underline" href={`${base}/api/integrations/teams/oauth/start?userId=${encodeURIComponent(userId)}`}>Connect Microsoft</a></div>
           <div className="text-xs flex items-center gap-2">
             <input className="h-8 px-2 border rounded-md flex-1" placeholder="Paste Microsoft OAuth token" value={mToken} onChange={(e)=>setMToken(e.target.value)} />
             <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>void saveToken(microsoft, mToken)}>Save token</button>

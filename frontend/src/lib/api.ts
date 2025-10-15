@@ -474,6 +474,40 @@ export async function fetchMastery(userId: string): Promise<Record<string, { cor
   return data.mastery ?? {};
 }
 
+export async function fetchMasteryTimeSeries(params: { userId?: string; classId?: string; days?: number }): Promise<Array<{ date: string; accuracy: number; attempts: number }>> {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/analytics/mastery/timeseries`);
+  if (params.userId) url.searchParams.set('userId', params.userId);
+  if (params.classId) url.searchParams.set('classId', params.classId);
+  if (params.days) url.searchParams.set('days', String(params.days));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Mastery timeseries error ${res.status}`);
+  const data = await res.json() as { points?: Array<{ date: string; accuracy: number; attempts: number }> };
+  return data.points || [];
+}
+
+export async function fetchCohortComparisons(params: { classId: string; days?: number }): Promise<Array<{ userId: string; accuracy: number; attempts: number }>> {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/analytics/cohort/comparisons`);
+  url.searchParams.set('classId', params.classId);
+  if (params.days) url.searchParams.set('days', String(params.days));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Cohort compare error ${res.status}`);
+  const data = await res.json() as { cohort?: Array<{ userId: string; accuracy: number; attempts: number }> };
+  return data.cohort || [];
+}
+
+export async function fetchReviewAdherence(params: { userId?: string; classId?: string; days?: number }): Promise<{ adherence: number; missed: number; completed: number }>{
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/analytics/reviews/adherence`);
+  if (params.userId) url.searchParams.set('userId', params.userId);
+  if (params.classId) url.searchParams.set('classId', params.classId);
+  if (params.days) url.searchParams.set('days', String(params.days));
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Review adherence error ${res.status}`);
+  return res.json();
+}
+
 export async function fetchDueTopics(userId: string, limit = 20): Promise<Array<{ topic: string; subject: string | null; nextReviewDate: string | null }>> {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/learning/review/${encodeURIComponent(userId)}?limit=${limit}`);

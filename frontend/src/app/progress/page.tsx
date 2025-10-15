@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchProgress, fetchAchievements, fetchMastery, listLessonSessions, fetchDueReviews, type AchievementItem } from "@/lib/api";
+import { fetchProgress, fetchAchievements, fetchMastery, listLessonSessions, fetchDueReviews, type AchievementItem, fetchMasteryTimeSeries, fetchCohortComparisons, fetchReviewAdherence } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getWeakTopics } from "@/lib/mastery";
 import Link from "next/link";
@@ -25,6 +25,9 @@ export default function ProgressPage() {
   const [lastLesson, setLastLesson] = useState<{ title: string; when: string } | null>(null);
   const [completedCount, setCompletedCount] = useState<number>(0);
   const [continueUrl, setContinueUrl] = useState<string | null>(null);
+  const [ts, setTs] = useState<Array<{ date: string; accuracy: number; attempts: number }>>([]);
+  const [cohort, setCohort] = useState<Array<{ userId: string; accuracy: number; attempts: number }>>([]);
+  const [adherence, setAdherence] = useState<{ adherence: number; missed: number; completed: number } | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -55,6 +58,12 @@ export default function ProgressPage() {
         if (completed[0]) setLastLesson({ title: completed[0].lesson?.title || completed[0].topic, when: new Date(completed[0].completedAt || '').toLocaleString() });
         const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
         setWeakTopics(weak);
+        try { const pts = await fetchMasteryTimeSeries({ userId, days: 30 }); setTs(pts); } catch {}
+        try {
+          const classId = (typeof window !== 'undefined' ? window.localStorage.getItem('classId') : '') || '';
+          if (classId) { const cmp = await fetchCohortComparisons({ classId, days: 30 }); setCohort(cmp); }
+        } catch {}
+        try { const adh = await fetchReviewAdherence({ userId, days: 30 }); setAdherence(adh); } catch {}
         // Continue CTA
         if (Array.isArray(due) && due[0]?.topic) {
           setContinueUrl(`/adaptive?topic=${encodeURIComponent(due[0].topic)}`);
@@ -139,6 +148,9 @@ export default function ProgressPage() {
         </div>
       )}
       <TodayQueue masteryMap={masteryMap} />
+      <MasteryTrend points={ts} />
+      <AdherenceCard data={adherence} />
+      <CohortCompare data={cohort} />
       <div>
         <h2 className="text-lg font-medium mb-2">Weak topics</h2>
         {weakTopics.length === 0 ? (
@@ -186,6 +198,54 @@ function TodayQueue({ masteryMap }: { masteryMap: Record<string, { correct: numb
               Practice now
             </Link>
           </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MasteryTrend({ points }: { points: Array<{ date: string; accuracy: number; attempts: number }> }) {
+  if (!points || points.length === 0) return null;
+  const w = 260, h = 120, pad = 20;
+  const xs = (i: number) => pad + (i/(Math.max(1, points.length-1))) * (w - pad*2);
+  const ys = (acc: number) => h - pad - (acc * (h - pad*2));
+  return (
+    <div className="border rounded-md p-3">
+      <div className="text-sm font-medium mb-1">Mastery progression (30d)</div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full">
+        <line x1={pad} y1={h-pad} x2={w-pad} y2={h-pad} stroke="#cbd5e1" />
+        <line x1={pad} y1={pad} x2={pad} y2={h-pad} stroke="#cbd5e1" />
+        {points.map((p,i)=>{
+          if (i===0) return null;
+          const prev = points[i-1];
+          return <path key={i} d={`M ${xs(i-1)} ${ys(prev.accuracy)} L ${xs(i)} ${ys(p.accuracy)}`} stroke="#2563eb" strokeWidth="2" fill="none" />
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function AdherenceCard({ data }: { data: { adherence: number; missed: number; completed: number } | null }) {
+  if (!data) return null;
+  const pct = Math.round((data.adherence || 0) * 100);
+  return (
+    <div className="border rounded-md p-3">
+      <div className="text-sm font-medium mb-1">Review adherence (30d)</div>
+      <div className="text-xs text-muted-foreground">Completed {data.completed}, missed {data.missed}</div>
+      <div className="mt-1 h-2 bg-muted rounded"><div className="h-full bg-green-600 rounded" style={{ width: `${pct}%` }} /></div>
+    </div>
+  );
+}
+
+function CohortCompare({ data }: { data: Array<{ userId: string; accuracy: number; attempts: number }> }) {
+  if (!data || data.length === 0) return null;
+  const sorted = [...data].sort((a,b)=> b.accuracy - a.accuracy).slice(0, 10);
+  return (
+    <div className="border rounded-md p-3">
+      <div className="text-sm font-medium mb-1">Cohort/section comparison (top 10)</div>
+      <ul className="text-xs grid gap-1">
+        {sorted.map((s,i)=> (
+          <li key={s.userId} className="flex items-center justify-between"><span>{i+1}. {s.userId}</span><span>{Math.round(s.accuracy*100)}%</span></li>
         ))}
       </ul>
     </div>
