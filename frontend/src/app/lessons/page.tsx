@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { preferLocalInference, preferLocalSummarizer, tryLocalSummarize } from "@/lib/local-inference";
 import { retrieveMemory } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ export default function LessonsPage() {
   const [curriculum, setCurriculum] = useState<"lk" | "international">("lk");
   const [plan, setPlan] = useState("");
   const [loading, setLoading] = useState(false);
+  const recRef = useRef<any>(null);
+  const [recording, setRecording] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -60,9 +62,32 @@ export default function LessonsPage() {
     }
   };
 
+  const startVoice = () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w: any = window;
+      const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+      if (!SR) return;
+      const rec = new SR();
+      rec.lang = ((typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) || 'en') === 'si' ? 'si-LK' : ((typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) || 'en') === 'ta' ? 'ta-IN' : 'en-US';
+      rec.interimResults = true; rec.maxAlternatives = 1;
+      rec.onresult = (e: any) => {
+        const results = e.results; const idx = results.length - 1; const res: any = results[idx];
+        const transcript = (res && res[0] && res[0].transcript) ? String(res[0].transcript) : '';
+        if (!transcript) return; setTopic(transcript);
+        if (res.isFinal || transcript.endsWith('.')) { void generate(); }
+      };
+      rec.onend = () => { if (recording) { try { rec.start(); } catch {} } else { recRef.current = null; } };
+      rec.onerror = () => { try { rec.start(); } catch {} };
+      recRef.current = rec; setRecording(true); rec.start();
+    } catch {}
+  };
+  const stopVoice = () => { try { recRef.current?.stop?.(); } catch {}; recRef.current = null; setRecording(false); };
+
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Lesson Planner</h1>
+      <div className="text-xs text-muted-foreground">Voice: <button className="underline" onClick={()=> recording ? stopVoice() : startVoice()}>{recording ? 'Stop' : 'Push‑to‑talk'}</button></div>
       <div className="grid sm:grid-cols-3 gap-2">
         <select className="h-9 px-2 border rounded-md text-sm" value={subject} onChange={(e) => setSubject(e.target.value)}>
           <option value="">Subject</option>
@@ -89,7 +114,10 @@ export default function LessonsPage() {
         <label className="text-sm font-medium">Topic</label>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Introduction to Calculus" />
       </div>
-      <Button onClick={generate} disabled={!topic.trim() || loading}>{loading ? "Generating..." : "Generate Plan"}</Button>
+      <div className="flex items-center gap-2">
+        <Button onClick={generate} disabled={!topic.trim() || loading}>{loading ? "Generating..." : "Generate Plan"}</Button>
+        <Button variant="outline" onClick={() => recording ? stopVoice() : startVoice()}>{recording ? 'Stop voice' : 'Push‑to‑talk'}</Button>
+      </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Plan</label>
         <Textarea value={plan} readOnly className="min-h-[240px]" />

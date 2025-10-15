@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ttsStream } from "@/lib/api";
 import { fetchRoomMessages, joinRoom } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -154,6 +155,16 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
       };
       media.start();
       setTimeout(()=> media.stop(), 3000);
+    } catch {}
+  };
+
+  // Server neural TTS for room announcements (example usage)
+  const say = async (text: string) => {
+    try {
+      const stream = await ttsStream(text);
+      const reader = (stream as any).getReader(); const chunks: Uint8Array[] = [];
+      while (true) { const { value, done } = await reader.read(); if (done) break; if (value) chunks.push(value); }
+      const blob = new Blob(chunks, { type: 'audio/mpeg' }); const url = URL.createObjectURL(blob); await new Audio(url).play().catch(()=>{}); URL.revokeObjectURL(url);
     } catch {}
   };
 

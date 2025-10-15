@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState<'light'|'dark'|'system'>('system');
   const [quietStart, setQuietStart] = useState<string>('21:00');
   const [quietEnd, setQuietEnd] = useState<string>('07:00');
+  const [tone, setTone] = useState<'neutral'|'calm'|'energetic'|'soothing'>('neutral');
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -49,6 +50,7 @@ export default function SettingsPage() {
     const qe = window.localStorage.getItem('quietEnd');
     if (qs) setQuietStart(qs);
     if (qe) setQuietEnd(qe);
+    const t = window.localStorage.getItem('engagementTone') as any; if (t) setTone(t);
   }, []);
 
   const save = () => {
@@ -65,6 +67,7 @@ export default function SettingsPage() {
     window.localStorage.setItem('theme', theme);
     window.localStorage.setItem('quietStart', quietStart);
     window.localStorage.setItem('quietEnd', quietEnd);
+    window.localStorage.setItem('engagementTone', tone);
   };
 
   const applyRole = async () => {
@@ -106,6 +109,18 @@ export default function SettingsPage() {
           <input type="time" value={quietEnd} onChange={(e)=>setQuietEnd(e.target.value)} className="h-9 px-2 border rounded-md" />
         </div>
         <p className="text-xs text-muted-foreground">Suppresses reminders during quiet hours.</p>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Voice Tone</label>
+        <div className="flex gap-3 text-sm">
+          {(['neutral','calm','energetic','soothing'] as const).map((t) => (
+            <label key={t} className="flex items-center gap-2">
+              <input type="radio" name="tone" checked={tone===t} onChange={()=>setTone(t)} />
+              <span className="capitalize">{t}</span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">Affects tutor pace and pitch.</p>
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">User ID</label>

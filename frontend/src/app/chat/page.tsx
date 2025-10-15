@@ -18,6 +18,7 @@ import rehypeRaw from "rehype-raw";
 import { CodeRunner } from "@/components/CodeRunner";
 import { saveConversation, loadConversation, deleteConversation, getActiveConversationId, setActiveConversationId } from "@/lib/storage";
 import { Mic, Volume2, PencilLine, Eraser, Download, Radio, FlaskConical } from "lucide-react";
+import { ttsStream } from "@/lib/api";
 import { grades, getSubjects } from "@/lib/syllabus";
 
 type Role = "user" | "assistant";
@@ -183,6 +184,8 @@ export default function ChatPage() {
         const w = window as any;
         setSttSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
       } catch {}
+      // Emotion/affect consent log bootstrap
+      try { const consent = window.localStorage.getItem('cameraConsent'); if (consent === 'true') { await fetch(`${process.env.NEXT_PUBLIC_BASE_URL!}/api/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: storedUserId || '123', feature: 'emotion', granted: true }) }); } } catch {}
       // Load TTS voices
       try {
         if ('speechSynthesis' in window) {
@@ -531,19 +534,42 @@ export default function ChatPage() {
     if (typeof window === 'undefined') return;
     // Respect global voice toggle
     try { if (window.localStorage.getItem('mm_voice') === 'false') return; } catch {}
-    if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance === 'undefined') return;
     speakingRef.current = true;
-    return new Promise<void>((resolve) => {
-      const utter = new SpeechSynthesisUtterance(text);
-      if (voiceName && voices.length > 0) {
-        const pick = voices.find(v => v.name === voiceName);
-        if (pick) utter.voice = pick;
+    // Prefer server neural TTS; fallback to Web Speech
+    try {
+      const stream = await ttsStream(text, voiceName || undefined);
+      const reader = (stream as any).getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { value, done } = await reader.read(); if (done) break; if (value) chunks.push(value);
       }
-      utter.onend = () => { speakingRef.current = false; resolve(); };
-      utter.onerror = () => { speakingRef.current = false; resolve(); };
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
-    });
+      const blob = new Blob(chunks, { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      await new Audio(url).play().catch(()=>{});
+      URL.revokeObjectURL(url);
+    } catch {
+      if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance === 'undefined') { speakingRef.current = false; return; }
+      await new Promise<void>((resolve) => {
+        const utter = new SpeechSynthesisUtterance(text);
+        // Tone/pace adaptation based on engagement state
+        try {
+          const tone = (typeof window !== 'undefined' ? window.localStorage.getItem('engagementTone') : null) || 'neutral';
+          if (tone === 'calm') { utter.rate = 0.9; utter.pitch = 1.0; }
+          else if (tone === 'energetic') { utter.rate = 1.15; utter.pitch = 1.05; }
+          else if (tone === 'soothing') { utter.rate = 0.85; utter.pitch = 0.95; }
+        } catch {}
+        if (voiceName && voices.length > 0) {
+          const pick = voices.find(v => v.name === voiceName);
+          if (pick) utter.voice = pick;
+        }
+        utter.onend = () => { resolve(); };
+        utter.onerror = () => { resolve(); };
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+      });
+    } finally {
+      speakingRef.current = false;
+    }
   }, [voiceName, voices]);
 
   const stopRecognition = useCallback(() => {

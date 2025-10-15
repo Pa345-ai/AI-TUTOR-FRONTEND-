@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,8 @@ export default function QuizzesPage() {
   const [clusters, setClusters] = useState<Array<{ key: string; count: number; examples: Array<{ text: string }> }>>([]);
   const [rationale, setRationale] = useState<string>("");
   const [retest, setRetest] = useState<Array<{ question: string; options: string[]; correctAnswer: string }>>([]);
+  const recRef = useRef<any>(null);
+  const [recording, setRecording] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -89,6 +91,28 @@ export default function QuizzesPage() {
     }
   };
 
+  const startVoice = () => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w: any = window;
+      const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+      if (!SR) return;
+      const rec = new SR();
+      rec.lang = ((typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) || 'en') === 'si' ? 'si-LK' : ((typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) || 'en') === 'ta' ? 'ta-IN' : 'en-US';
+      rec.interimResults = true; rec.maxAlternatives = 1;
+      rec.onresult = (e: any) => {
+        const results = e.results; const idx = results.length - 1; const res: any = results[idx];
+        const transcript = (res && res[0] && res[0].transcript) ? String(res[0].transcript) : '';
+        if (!transcript) return; setTopic(transcript);
+        if (res.isFinal || transcript.endsWith('.')) { void generate(); }
+      };
+      rec.onend = () => { if (recording) { try { rec.start(); } catch {} } else { recRef.current = null; } };
+      rec.onerror = () => { try { rec.start(); } catch {} };
+      recRef.current = rec; setRecording(true); rec.start();
+    } catch {}
+  };
+  const stopVoice = () => { try { recRef.current?.stop?.(); } catch {}; recRef.current = null; setRecording(false); };
+
   const submit = async () => {
     const correct = questions.reduce((acc, q, idx) => {
       const pickedIndex = selected[idx];
@@ -112,6 +136,7 @@ export default function QuizzesPage() {
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold flex items-center gap-2">Quiz Generator {(() => { try { const v = typeof window !== 'undefined' ? window.localStorage.getItem('ab:adaptive-strategy') : null; if (v === 'A' || v === 'B') return (<span className={`text-[10px] px-1.5 py-0.5 rounded border ${v==='A'?'bg-green-50 border-green-200 text-green-700':'bg-purple-50 border-purple-200 text-purple-700'}`}>Variant {v}</span>); } catch {} })()}</h1>
+      <div className="text-xs text-muted-foreground">Voice: <button className="underline" onClick={()=> recording ? stopVoice() : startVoice()}>{recording ? 'Stop' : 'Push‑to‑talk'}</button></div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span>Persona</span>
         <select className="h-8 px-2 border rounded-md" value={mode} onChange={(e)=>{ setMode(e.target.value as any); try { window.localStorage.setItem('mode', e.target.value); } catch {} }}>
@@ -171,7 +196,10 @@ export default function QuizzesPage() {
         <label className="text-sm font-medium">Topic</label>
         <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Photosynthesis" />
       </div>
-      <Button onClick={generate} disabled={!topic.trim() || loading}>{loading ? "Generating..." : "Generate Quiz"}</Button>
+      <div className="flex items-center gap-2">
+        <Button onClick={generate} disabled={!topic.trim() || loading}>{loading ? "Generating..." : "Generate Quiz"}</Button>
+        <Button variant="outline" onClick={() => recording ? stopVoice() : startVoice()}>{recording ? 'Stop voice' : 'Push‑to‑talk'}</Button>
+      </div>
       {questions.length > 0 && (
         <div className="space-y-4">
           {questions.map((q, i) => (
