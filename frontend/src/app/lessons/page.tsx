@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { preferLocalInference, preferLocalSummarizer, tryLocalSummarize } from "@/lib/local-inference";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -28,14 +29,21 @@ export default function LessonsPage() {
     if (!topic.trim()) return;
     setLoading(true);
     try {
-      const base = process.env.NEXT_PUBLIC_BASE_URL!;
-      const res = await fetch(`${base}/api/lessons/plan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: `${subject ? subject + ": " : ""}${topic}`, grade, language: (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en" }),
-      });
-      const data = await res.json();
-      setPlan(typeof data.plan === "string" ? data.plan : JSON.stringify(data, null, 2));
+      const forceLocal = preferLocalSummarizer() || preferLocalInference() || (typeof navigator !== 'undefined' && !navigator.onLine);
+      const prompt = `Create a concise lesson outline with sections and bullet points for: ${subject ? subject + ': ' : ''}${topic}. Target grade ${grade || 'level'}.`;
+      if (forceLocal) {
+        const r = await tryLocalSummarize(prompt);
+        setPlan(r.text);
+      } else {
+        const base = process.env.NEXT_PUBLIC_BASE_URL!;
+        const res = await fetch(`${base}/api/lessons/plan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: `${subject ? subject + ": " : ""}${topic}`, grade, language: (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en" }),
+        });
+        const data = await res.json();
+        setPlan(typeof data.plan === "string" ? data.plan : JSON.stringify(data, null, 2));
+      }
     } catch (e) {
       setPlan(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

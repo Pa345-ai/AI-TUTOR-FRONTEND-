@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { logLearningEvent } from "@/lib/api";
+import { preferLocalInference, preferLocalQA, tryLocalQA } from "@/lib/local-inference";
+import { queryLocalQa } from "@/lib/offline-qa";
 import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 import { grades, getSubjects } from "@/lib/syllabus";
 
@@ -51,16 +53,32 @@ export default function QuizzesPage() {
     if (!topic.trim()) return;
     setLoading(true);
     try {
-      const base = process.env.NEXT_PUBLIC_BASE_URL!;
-      const res = await fetch(`${base}/api/quizzes/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: `${subject ? subject + ": " : ""}${topic}`, difficulty: "medium", count: 5, language: (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en" }),
-      });
-      const data = await res.json();
-      // Expect shape: { questions: [...] } where each has question, options, correctAnswer
-      const items = (data.questions?.questions ?? data.questions ?? []) as QuizQuestion[];
-      setQuestions(items);
+      const forceLocal = preferLocalQA() || preferLocalInference() || (typeof navigator !== 'undefined' && !navigator.onLine);
+      if (forceLocal) {
+        // Build questions from local context best-effort
+        const hits = await queryLocalQa(`${subject ? subject + ': ' : ''}${topic}`, 5);
+        const ctx = hits.map(h => h.text).join('\n\n');
+        const baseQ = `Create one multiple-choice question with 4 options and indicate the correct option for topic: ${subject ? subject + ': ' : ''}${topic}.`;
+        // Use local QA as a heuristic to pick the most relevant sentence as the correct answer context
+        const picked = await tryLocalQA(baseQ, ctx);
+        const question: QuizQuestion = {
+          question: `Which of the following best relates to: ${topic}?`,
+          options: [picked.answer, 'Option B', 'Option C', 'Option D'].sort(() => Math.random() - 0.5),
+          correctAnswer: picked.answer,
+        };
+        setQuestions([question]);
+      } else {
+        const base = process.env.NEXT_PUBLIC_BASE_URL!;
+        const res = await fetch(`${base}/api/quizzes/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: `${subject ? subject + ": " : ""}${topic}`, difficulty: "medium", count: 5, language: (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en" }),
+        });
+        const data = await res.json();
+        // Expect shape: { questions: [...] } where each has question, options, correctAnswer
+        const items = (data.questions?.questions ?? data.questions ?? []) as QuizQuestion[];
+        setQuestions(items);
+      }
     } catch (e) {
       setResult(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
