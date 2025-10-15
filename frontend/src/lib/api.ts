@@ -584,6 +584,19 @@ export async function summarizeMemory(userId: string, period: 'daily'|'weekly' =
   return res.json() as Promise<{ memory?: { summary: string } }>;
 }
 
+// Vector store retrieval for long-term context per surface
+export async function retrieveMemory(params: { userId: string; surface: 'chat'|'lessons'|'quizzes'; query: string; k?: number }): Promise<{ items: Array<{ text: string; score?: number }> }> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/memory/retrieve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(`Memory retrieve error ${res.status}`);
+  const data = await res.json() as { items?: Array<{ text: string; score?: number }> };
+  return { items: data.items || [] };
+}
+
 export type HomeworkRubricCategory = { name: string; score: number; outOf: number; comment: string };
 export type HomeworkRubric = { categories: HomeworkRubricCategory[] };
 export interface HomeworkReview {

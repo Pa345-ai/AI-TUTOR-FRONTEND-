@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { logLearningEvent } from "@/lib/api";
 import { preferLocalInference, preferLocalQA, tryLocalQA } from "@/lib/local-inference";
 import { queryLocalQa } from "@/lib/offline-qa";
+import { retrieveMemory } from "@/lib/api";
 import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
 import { grades, getSubjects } from "@/lib/syllabus";
 
@@ -56,8 +57,10 @@ export default function QuizzesPage() {
       const forceLocal = preferLocalQA() || preferLocalInference() || (typeof navigator !== 'undefined' && !navigator.onLine);
       if (forceLocal) {
         // Build questions from local context best-effort
+        const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+        const mem = await retrieveMemory({ userId: uid, surface: 'quizzes', query: `${subject ? subject + ': ' : ''}${topic}`, k: 5 }).catch(()=>({ items: [] }));
         const hits = await queryLocalQa(`${subject ? subject + ': ' : ''}${topic}`, 5);
-        const ctx = hits.map(h => h.text).join('\n\n');
+        const ctx = [...(mem.items||[]).map(i=>i.text), ...hits.map(h => h.text)].join('\n\n');
         const baseQ = `Create one multiple-choice question with 4 options and indicate the correct option for topic: ${subject ? subject + ': ' : ''}${topic}.`;
         // Use local QA as a heuristic to pick the most relevant sentence as the correct answer context
         const picked = await tryLocalQA(baseQ, ctx);

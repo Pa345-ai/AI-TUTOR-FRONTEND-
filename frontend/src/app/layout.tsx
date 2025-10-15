@@ -234,6 +234,8 @@ export default function RootLayout({
               </div>
             </div>
           )}
+          {/* Unified refreshers surfacing: show due topics across app */}
+          <RefreshersBar />
           <main className="flex-1">
             {/* Client-side redirect guard for protected sections */}
             <Guarded>{children}</Guarded>
@@ -241,5 +243,35 @@ export default function RootLayout({
         </div>
       </body>
     </html>
+  );
+}
+
+function RefreshersBar() {
+  const [due, setDue] = useState<Array<{ topic: string; subject?: string|null }>>([]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+        const base = process.env.NEXT_PUBLIC_BASE_URL!;
+        const res = await fetch(`${base}/api/learning/review/${encodeURIComponent(uid)}?limit=6`);
+        if (!res.ok) return; const d = await res.json();
+        const items = (d.due || []).map((x: any) => ({ topic: x.topic || x, subject: x.subject || null }));
+        setDue(items);
+      } catch {}
+    };
+    load();
+    const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, []);
+  if (due.length === 0) return null;
+  return (
+    <div className="border-b bg-accent/20">
+      <div className="mx-auto max-w-5xl w-full px-4 py-1 text-xs flex items-center gap-2 overflow-x-auto">
+        <span className="text-muted-foreground">Refreshers:</span>
+        {due.map((d,i)=> (
+          <a key={i} href={`/adaptive?topic=${encodeURIComponent(d.topic)}`} className="px-2 py-0.5 border rounded hover:bg-accent/40 whitespace-nowrap">{d.topic}</a>
+        ))}
+      </div>
+    </div>
   );
 }

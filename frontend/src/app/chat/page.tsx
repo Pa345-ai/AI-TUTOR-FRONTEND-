@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade, addMemoryPin, addMemoryRedaction, fetchDueReviews, fetchMemory, summarizeMemory } from "@/lib/api";
+import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade, addMemoryPin, addMemoryRedaction, fetchDueReviews, fetchMemory, summarizeMemory, retrieveMemory } from "@/lib/api";
 import { preferLocalInference, preferLocalQA as preferLocalQAFlag, tryLocalQA } from "@/lib/local-inference";
 import { queryLocalQa } from "@/lib/offline-qa";
 import { localTutorReply } from "@/lib/offline";
@@ -672,7 +672,14 @@ export default function ChatPage() {
       if (forceLocal || offline) {
         // Local QA over offline corpus (best-effort)
         let context = '';
-        try { const hits = await queryLocalQa(trimmed, 5); context = hits.map(h => h.text).join('\n\n'); } catch {}
+        try {
+          // augment with server vector store if reachable
+          const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+          const mem = await retrieveMemory({ userId: uid, surface: 'chat', query: trimmed, k: 5 }).catch(()=>({ items: [] }));
+          const localHits = await queryLocalQa(trimmed, 5).catch(()=>[]);
+          const all = [...(mem.items||[]).map(i=>i.text), ...localHits.map(h=>h.text)];
+          context = all.slice(0,8).join('\n\n');
+        } catch {}
         const r = await tryLocalQA(trimmed, context);
         const assistantMessage: Message = { id: crypto.randomUUID(), role: 'assistant', content: r.answer };
         setMessages(prev => [...prev, assistantMessage]);
@@ -775,7 +782,13 @@ export default function ChatPage() {
       if (forceLocal || offline) {
         // Local QA path
         let context = '';
-        try { const hits = await queryLocalQa(trimmed, 5); context = hits.map(h => h.text).join('\n\n'); } catch {}
+        try {
+          const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+          const mem = await retrieveMemory({ userId: uid, surface: 'chat', query: trimmed, k: 5 }).catch(()=>({ items: [] }));
+          const localHits = await queryLocalQa(trimmed, 5).catch(()=>[]);
+          const all = [...(mem.items||[]).map(i=>i.text), ...localHits.map(h=>h.text)];
+          context = all.slice(0,8).join('\n\n');
+        } catch {}
         const r = await tryLocalQA(trimmed, context);
         const assistantMessage: Message = { id: crypto.randomUUID(), role: 'assistant', content: r.answer };
         setMessages((prev) => [...prev, assistantMessage]);

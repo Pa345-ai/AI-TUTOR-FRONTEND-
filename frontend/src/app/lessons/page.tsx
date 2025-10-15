@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { preferLocalInference, preferLocalSummarizer, tryLocalSummarize } from "@/lib/local-inference";
+import { retrieveMemory } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,15 @@ export default function LessonsPage() {
     setLoading(true);
     try {
       const forceLocal = preferLocalSummarizer() || preferLocalInference() || (typeof navigator !== 'undefined' && !navigator.onLine);
-      const prompt = `Create a concise lesson outline with sections and bullet points for: ${subject ? subject + ': ' : ''}${topic}. Target grade ${grade || 'level'}.`;
+      let prompt = `Create a concise lesson outline with sections and bullet points for: ${subject ? subject + ': ' : ''}${topic}. Target grade ${grade || 'level'}.`;
+      try {
+        const uid = (typeof window !== 'undefined' ? window.localStorage.getItem('userId') : null) || '123';
+        const mem = await retrieveMemory({ userId: uid, surface: 'lessons', query: topic, k: 5 });
+        if (mem.items?.length) {
+          const ctx = mem.items.map(i=>i.text).join('\n');
+          prompt += `\n\nContext (prior work):\n${ctx}`;
+        }
+      } catch {}
       if (forceLocal) {
         const r = await tryLocalSummarize(prompt);
         setPlan(r.text);
