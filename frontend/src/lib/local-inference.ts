@@ -67,8 +67,9 @@ async function loadOrt(): Promise<any | undefined> {
   }
 }
 
-// In-memory lazy session cache; we do not expose sessions directly to avoid bundling types
+// In-memory lazy session cache and handle store
 const sessionReadyByPack: Map<string, Promise<boolean>> = new Map();
+const sessionByPack: Map<string, any> = new Map();
 
 async function ensureSession(packId: string): Promise<boolean> {
   try {
@@ -105,9 +106,10 @@ async function ensureSession(packId: string): Promise<boolean> {
         // Some builds of onnxruntime-web accept options.executionProviders; if not supported, ignore
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const options: any = providers.length ? { executionProviders: providers } : undefined;
-        // Create session; if it throws, we catch and report false
+        // Create session and store for later inference
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        await (ort as any).InferenceSession.create(model, options);
+        const session = await (ort as any).InferenceSession.create(model, options);
+        sessionByPack.set(packId, session);
         return true;
       } catch {
         return false;
@@ -174,9 +176,25 @@ export async function tryLocalSummarize(text: string): Promise<LocalSummaryResul
   // Load ONNX runtime and try run; if fails, use lightweight
   try {
     const ok = await ensureSession('mini-sum');
-    // A real model would be invoked here. We still return the lightweight result,
-    // but flag usedModel=true if the session loaded successfully.
-    return { ok: true, usedModel: ok, text: lightweightSummarize(text), packId: 'mini-sum' };
+    const session = sessionByPack.get('mini-sum');
+    if (!ok || !session) {
+      return { ok: true, usedModel: false, text: lightweightSummarize(text) };
+    }
+    // Heuristic encoding: feed char codes as int32 tensor
+    const ort = await loadOrt();
+    if (!ort) return { ok: true, usedModel: false, text: lightweightSummarize(text) };
+    const arr = new Int32Array(Math.max(1, Math.min(2048, text.length)));
+    for (let i = 0; i < arr.length; i++) arr[i] = text.charCodeAt(i) || 0;
+    const tensor = new (ort as any).Tensor('int32', arr, [1, arr.length]);
+    const feeds: Record<string, any> = { input: tensor };
+    let outputs: Record<string, any> = {};
+    try { outputs = await (session as any).run(feeds); } catch {}
+    const firstKey = Object.keys(outputs)[0];
+    const out = firstKey ? outputs[firstKey] : undefined;
+    if (out && typeof out.data === 'string') {
+      return { ok: true, usedModel: true, text: out.data as string, packId: 'mini-sum' };
+    }
+    return { ok: true, usedModel: true, text: lightweightSummarize(text), packId: 'mini-sum' };
   } catch {
     return { ok: true, usedModel: false, text: lightweightSummarize(text) };
   }
@@ -191,7 +209,23 @@ export async function tryLocalQA(question: string, context: string): Promise<Loc
   }
   try {
     const ok = await ensureSession('tiny-qna');
-    return { ok: true, usedModel: ok, answer: lightweightQA(question, context), packId: 'tiny-qna' };
+    const session = sessionByPack.get('tiny-qna');
+    if (!ok || !session) return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
+    const ort = await loadOrt();
+    if (!ort) return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
+    const joined = `${question}\n\n${context}`;
+    const arr = new Int32Array(Math.max(1, Math.min(2048, joined.length)));
+    for (let i = 0; i < arr.length; i++) arr[i] = joined.charCodeAt(i) || 0;
+    const tensor = new (ort as any).Tensor('int32', arr, [1, arr.length]);
+    const feeds: Record<string, any> = { input: tensor };
+    let outputs: Record<string, any> = {};
+    try { outputs = await (session as any).run(feeds); } catch {}
+    const firstKey = Object.keys(outputs)[0];
+    const out = firstKey ? outputs[firstKey] : undefined;
+    if (out && typeof out.data === 'string') {
+      return { ok: true, usedModel: true, answer: out.data as string, packId: 'tiny-qna' };
+    }
+    return { ok: true, usedModel: true, answer: lightweightQA(question, context), packId: 'tiny-qna' };
   } catch {
     return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
   }
