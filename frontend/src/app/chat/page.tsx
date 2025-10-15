@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade, addMemoryPin, addMemoryRedaction, fetchDueReviews, fetchMemory, summarizeMemory } from "@/lib/api";
 import { preferLocalInference, preferLocalQA as preferLocalQAFlag, tryLocalQA } from "@/lib/local-inference";
 import { queryLocalQa } from "@/lib/offline-qa";
