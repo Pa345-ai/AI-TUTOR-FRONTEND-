@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchFlashcards, generateFlashcards, exportQuizletSet, saveIntegrationToken, type FlashcardItem, listDecks, createDeck, moveCardToDeck, getDueFlashcards, reviewFlashcard } from "@/lib/api";
+import { fetchFlashcards, generateFlashcards, exportQuizletSet, saveIntegrationToken, type FlashcardItem, listDecks, createDeck, moveCardToDeck, getDueFlashcards, reviewFlashcard, exportApkg, importApkg } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -164,31 +164,23 @@ export default function FlashcardsPage() {
                 const rows = items.map(c => `${(c.front||'').replace(/\n|\r|,/g,' ')},${(c.back||'').replace(/\n|\r|,/g,' ')}`).join('\n');
                 setAnkiText(rows);
               }}>Export CSV</button>
-              <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>{
-                // Export simple APKG JSON (not native .apkg)
-                const decksMap = new Map<string,string>(); decks.forEach(d=>decksMap.set(d.id, d.name));
-                const payload = { deck: subject || 'My Deck', cards: items.map(c => ({ front: c.front, back: c.back, deck: c.deckId ? (decksMap.get(c.deckId) || '') : '' })) };
-                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `deck-${(subject||'cards')}.apkg.json`; a.click(); URL.revokeObjectURL(url);
-              }}>Export APKG (JSON)</button>
+              <button className="h-8 px-3 border rounded-md text-sm" onClick={async ()=>{
+                try {
+                  const blob = await exportApkg({ userId, includeMedia: true });
+                  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `deck-${(subject||'cards')}.apkg`; a.click(); URL.revokeObjectURL(url);
+                } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+              }}>Export .apkg</button>
             </div>
             <div className="mt-2 text-xs text-muted-foreground">Import APKG (JSON)</div>
-            <input type="file" accept=".json,.apkg,.apkg.json,application/json" onChange={(e)=>setApkgFile(e.target.files?.[0] || null)} />
+            <input type="file" accept=".apkg,.json,.apkg.json,application/json" onChange={(e)=>setApkgFile(e.target.files?.[0] || null)} />
             <div className="mt-2 flex items-center gap-2">
               <button className="h-8 px-3 border rounded-md text-sm" disabled={!apkgFile} onClick={async ()=>{
                 if (!apkgFile) return;
                 try {
-                  const text = await apkgFile.text();
-                  const data = JSON.parse(text || '{}');
-                  const arr = Array.isArray(data.cards) ? data.cards : [];
-                  const base = process.env.NEXT_PUBLIC_BASE_URL!;
-                  for (const k of arr) {
-                    const front = String(k.front || '').trim(); const back = String(k.back || '').trim();
-                    if (!front || !back) continue;
-                    await fetch(`${base}/api/flashcards`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, front, back, subject: subject || 'General' }) });
-                  }
+                  const res = await importApkg({ userId, file: apkgFile });
                   const dataCards = await fetchFlashcards(userId); setItems(dataCards);
-                } catch {}
+                  if (res.decks?.length) setDecks(res.decks);
+                } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
               }}>Import APKG (JSON)</button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { retrieveMemory } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { generateLessonVideo, publishYouTube } from "@/lib/api";
 import { grades, getSubjects } from "@/lib/syllabus";
 
 export default function LessonsPage() {
@@ -17,6 +18,8 @@ export default function LessonsPage() {
   const [loading, setLoading] = useState(false);
   const recRef = useRef<any>(null);
   const [recording, setRecording] = useState(false);
+  const [thumb, setThumb] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string>("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -84,6 +87,21 @@ export default function LessonsPage() {
   };
   const stopVoice = () => { try { recRef.current?.stop?.(); } catch {}; recRef.current = null; setRecording(false); };
 
+  const generateVideo = async () => {
+    if (!plan.trim()) return;
+    try {
+      const res = await generateLessonVideo({ title: `Lesson: ${topic}`, description: `Auto-generated lesson on ${topic}`, script: plan, srt: '', thumbnail: thumb || undefined });
+      if (res.videoUrl) setVideoUrl(res.videoUrl);
+      alert('Video generation started. This may take a minute.');
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+  };
+  const publishVideo = async () => {
+    try {
+      const pub = await publishYouTube({ title: `Lesson: ${topic}`, description: plan.slice(0, 4000), videoUrl: videoUrl || undefined, chapters: '', captionsSrt: '' });
+      if (pub.url) window.open(pub.url, '_blank');
+    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
+  };
+
   return (
     <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Lesson Planner</h1>
@@ -120,7 +138,17 @@ export default function LessonsPage() {
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Plan</label>
-        <Textarea value={plan} readOnly className="min-h-[240px]" />
+        <Textarea value={plan} onChange={(e)=>setPlan(e.target.value)} className="min-h-[240px]" />
+      </div>
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="text-sm font-medium">YouTube lesson generation</div>
+        <div className="grid sm:grid-cols-2 gap-2 text-sm">
+          <input type="file" accept="image/*" className="h-9 px-2 border rounded-md" onChange={(e)=>setThumb(e.target.files?.[0] || null)} />
+          <Button size="sm" variant="outline" onClick={generateVideo}>Generate MP4 (script → video)</Button>
+          <input className="h-9 px-2 border rounded-md col-span-full" placeholder="Video URL (optional if generated)" value={videoUrl} onChange={(e)=>setVideoUrl(e.target.value)} />
+          <Button size="sm" onClick={publishVideo}>Publish to YouTube</Button>
+        </div>
+        <div className="text-xs text-muted-foreground">Chapters and captions are auto-derived from the plan; edit the plan to adjust.</div>
       </div>
     </div>
   );

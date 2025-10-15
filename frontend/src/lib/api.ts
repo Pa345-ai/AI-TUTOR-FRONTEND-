@@ -699,6 +699,35 @@ export async function generateInteractiveLesson(params: { topic: string; grade?:
   return res.json() as Promise<{ lesson: { title: string; overview: string; steps: Array<{ title: string; content: string; check?: { question: string; answer: string } }>; summary?: string; script?: string; srt?: string } }>;
 }
 
+// YouTube generation and publish
+export async function generateLessonVideo(params: { title: string; description?: string; script?: string; srt?: string; thumbnail?: File }) {
+  const baseUrl = getBaseUrl();
+  const form = new FormData();
+  form.append('title', params.title);
+  if (params.description) form.append('description', params.description);
+  if (params.script) form.append('script', params.script);
+  if (params.srt) form.append('srt', params.srt);
+  if (params.thumbnail) form.append('thumbnail', params.thumbnail);
+  const res = await fetch(`${baseUrl}/api/youtube/generate`, { method: 'POST', body: form });
+  if (!res.ok) throw new Error(`Video generate error ${res.status}`);
+  return res.json() as Promise<{ videoUrl?: string; jobId?: string; status?: string }>;
+}
+export async function publishYouTube(params: { title: string; description?: string; tags?: string[]; videoUrl?: string; videoFile?: File; thumbnail?: File; chapters?: string; captionsSrt?: string }) {
+  const baseUrl = getBaseUrl();
+  const form = new FormData();
+  form.append('title', params.title);
+  if (params.description) form.append('description', params.description);
+  if (params.tags) form.append('tags', JSON.stringify(params.tags));
+  if (params.videoFile) form.append('video', params.videoFile);
+  if (params.videoUrl) form.append('videoUrl', params.videoUrl);
+  if (params.thumbnail) form.append('thumbnail', params.thumbnail);
+  if (params.chapters) form.append('chapters', params.chapters);
+  if (params.captionsSrt) form.append('captions', params.captionsSrt);
+  const res = await fetch(`${baseUrl}/api/youtube/publish`, { method: 'POST', body: form });
+  if (!res.ok) throw new Error(`YouTube publish error ${res.status}`);
+  return res.json() as Promise<{ url?: string; videoId?: string }>;
+}
+
 export type CareerPath = { name: string; why: string; requiredSkills: string[]; sampleUniversities: string[] };
 export type CareerAdvice = { summary: string; recommendedSubjects: string[]; careerPaths: CareerPath[]; roadmap: { next3Months: string[]; nextYear: string[]; resources: string[] } };
 export async function getCareerAdvice(params: { userId: string; interests?: string[]; strengths?: string[]; region?: string; language?: 'en'|'si'|'ta' }) {
@@ -774,6 +803,28 @@ export async function exportQuizletSet(params: { userId: string; title?: string;
   const res = await fetch(`${baseUrl}/api/quizlet/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
   if (!res.ok) throw new Error(`Quizlet export error ${res.status}`);
   return res.json() as Promise<{ ok: boolean; setId?: string; url?: string }>;
+}
+
+// Native Anki .apkg import/export
+export async function exportApkg(params: { userId: string; deckId?: string; includeMedia?: boolean }) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/flashcards/apkg/export`);
+  url.searchParams.set('userId', params.userId);
+  if (params.deckId) url.searchParams.set('deckId', params.deckId);
+  if (params.includeMedia) url.searchParams.set('includeMedia', 'true');
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`APKG export error ${res.status}`);
+  const blob = await res.blob();
+  return blob;
+}
+export async function importApkg(params: { userId: string; file: File }) {
+  const baseUrl = getBaseUrl();
+  const form = new FormData();
+  form.append('userId', params.userId);
+  form.append('file', params.file);
+  const res = await fetch(`${baseUrl}/api/flashcards/apkg/import`, { method: 'POST', body: form });
+  if (!res.ok) throw new Error(`APKG import error ${res.status}`);
+  return res.json() as Promise<{ imported: number; decks?: Array<{ id: string; name: string }> }>;
 }
 
 export async function generateQuiz(params: { topic: string; difficulty: 'easy'|'medium'|'hard'; count?: number; language?: 'en'|'si'|'ta' }) {
