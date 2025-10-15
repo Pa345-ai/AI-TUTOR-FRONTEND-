@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getExposureConfig, setExposureConfig, getExposureHotlist, enforceExposureNow, scanItemDrift, recalibrateItemBank, reestimateIRTAll, recalibrateAbilitiesNow } from "@/lib/api";
 
 export default function AdminPage() {
   const [flags, setFlags] = useState<Record<string, boolean>>({});
@@ -20,6 +21,8 @@ export default function AdminPage() {
   const [attempts, setAttempts] = useState<Array<{ correct: boolean; userAbility: number; createdAt: string }>>([]);
   const [irtMap, setIrtMap] = useState<Array<{ id: string; subject?: string; topic: string; irt?: { aDiscrimination: number; bDifficulty: number } }>>([]);
   const [jobs, setJobs] = useState<Array<{ id?: string; name: string; createdAt?: string; props?: any }>>([]);
+  const [exposureCfg, setExposureCfg] = useState<{ capPerItemPerUser?: number; windowDays?: number; perTopicDailyCap?: number }>({ capPerItemPerUser: 3, windowDays: 7 });
+  const [hotlist, setHotlist] = useState<Array<{ id: string; topic?: string; subject?: string; exposures: number }>>([]);
   const [examEvents, setExamEvents] = useState<Array<{ createdAt?: string; userId?: string; sessionId?: string; score?: number; total?: number; cheat?: any }>>([]);
   const [audits, setAudits] = useState<Array<{ id?: string; userId?: string; action?: string; target?: string; createdAt?: string }>>([]);
   const [auditFilter, setAuditFilter] = useState<{ action: string; q: string }>({ action: '', q: '' });
@@ -51,7 +54,7 @@ export default function AdminPage() {
     } catch {}
   };
 
-  useEffect(() => { void loadAll(); }, []);
+  useEffect(() => { void loadAll(); (async()=>{ try { const c = await getExposureConfig(); if (c?.config) setExposureCfg(c.config); const h = await getExposureHotlist(); setHotlist(h.items||[]); } catch {} })(); }, []);
 
   const updateFlag = async () => {
     if (!newKey.trim()) return;
@@ -148,6 +151,39 @@ export default function AdminPage() {
               <div className="text-[11px] text-muted-foreground">{m.createdAt ? new Date(m.createdAt).toLocaleString() : ''}</div>
             </div>
           ))}
+        </div>
+      </div>
+      <div className="border rounded-md p-3 space-y-2">
+        <div className="text-sm font-medium">Item Exposure Controls</div>
+        <div className="grid sm:grid-cols-2 gap-2 text-xs">
+          <label className="flex items-center justify-between gap-2">Cap per item/user
+            <input type="number" className="h-8 px-2 border rounded-md w-24" value={exposureCfg.capPerItemPerUser ?? 3} onChange={(e)=>setExposureCfg({...exposureCfg, capPerItemPerUser: parseInt(e.target.value||'0')||0})} />
+          </label>
+          <label className="flex items-center justify-between gap-2">Window (days)
+            <input type="number" className="h-8 px-2 border rounded-md w-24" value={exposureCfg.windowDays ?? 7} onChange={(e)=>setExposureCfg({...exposureCfg, windowDays: parseInt(e.target.value||'0')||0})} />
+          </label>
+          <label className="flex items-center justify-between gap-2">Per-topic daily cap
+            <input type="number" className="h-8 px-2 border rounded-md w-24" value={exposureCfg.perTopicDailyCap ?? 0} onChange={(e)=>setExposureCfg({...exposureCfg, perTopicDailyCap: parseInt(e.target.value||'0')||0})} />
+          </label>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ try { await setExposureConfig(exposureCfg); alert('Saved exposure config'); } catch (e) { alert(String(e)); } }}>Save Config</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ try { await enforceExposureNow(); const h = await getExposureHotlist(); setHotlist(h.items||[]); } catch {} }}>Enforce now</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ try { const d = await scanItemDrift({ aRelThreshold: 0.25, bAbsThreshold: 150, minAttempts: 100 }); alert(`Drifted: ${d.drifted?.length||0}`); } catch (e) { alert(String(e)); } }}>Scan drift</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ try { await recalibrateItemBank(); await reestimateIRTAll(); alert('Recalibration jobs started'); } catch (e) { alert(String(e)); } }}>Start recalibration</button>
+          <button className="h-8 px-2 border rounded-md" onClick={async ()=>{ try { await recalibrateAbilitiesNow(); alert('Person ability recalibration queued'); } catch (e) { alert(String(e)); } }}>Recalibrate abilities</button>
+        </div>
+        <div>
+          <div className="text-xs font-medium mb-1">Exposure hotlist</div>
+          <div className="max-h-[160px] overflow-auto grid gap-1 text-xs">
+            {hotlist.map((h,i)=> (
+              <div key={h.id||i} className="flex items-center justify-between border rounded p-1">
+                <span className="truncate mr-2">{h.subject? h.subject+': ' : ''}{h.topic||h.id}</span>
+                <span className="text-muted-foreground">{h.exposures}</span>
+              </div>
+            ))}
+            {hotlist.length===0 && <div className="text-muted-foreground">No recent exposure spikes.</div>}
+          </div>
         </div>
       </div>
       <div className="border rounded-md p-3 space-y-2">

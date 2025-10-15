@@ -409,6 +409,63 @@ export async function adaptiveGrade(params: { userId: string; topic: string; cor
   return res.json();
 }
 
+// Item bank ops: exposure caps, drift scan, recalibration
+export type ExposureConfig = {
+  capPerItemPerUser?: number;          // e.g., 3
+  windowDays?: number;                 // e.g., 7
+  perTopicDailyCap?: number;           // optional per-topic cap
+};
+export async function setExposureConfig(cfg: ExposureConfig): Promise<{ ok: boolean }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/items/exposure/config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+  if (!res.ok) throw new Error(`Exposure config error ${res.status}`);
+  return res.json();
+}
+export async function getExposureConfig(): Promise<{ config?: ExposureConfig }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/items/exposure/config`);
+  if (!res.ok) throw new Error(`Exposure get error ${res.status}`);
+  return res.json();
+}
+export async function getExposureHotlist(): Promise<{ items: Array<{ id: string; topic?: string; subject?: string; exposures: number }> }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/items/exposure`);
+  if (!res.ok) throw new Error(`Exposure list error ${res.status}`);
+  return res.json();
+}
+export async function enforceExposureNow(): Promise<{ ok: boolean; updated?: number }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/items/exposure/enforce`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Exposure enforce error ${res.status}`);
+  return res.json();
+}
+export async function scanItemDrift(params: { aRelThreshold?: number; bAbsThreshold?: number; minAttempts?: number }): Promise<{ drifted: Array<{ id: string; topic?: string; subject?: string; aPrev?: number; aNow?: number; bPrev?: number; bNow?: number; attempts?: number }> }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/items/drift/scan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  if (!res.ok) throw new Error(`Drift scan error ${res.status}`);
+  return res.json();
+}
+export async function recalibrateItemBank(input?: { itemIds?: string[] }): Promise<{ ok: boolean; count?: number }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/items/recalibrate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input || {}) });
+  if (!res.ok) throw new Error(`Recalibrate error ${res.status}`);
+  return res.json();
+}
+export async function reestimateIRTAll(): Promise<{ ok: boolean }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/items/irt/reestimate-all`, { method: 'POST' });
+  if (!res.ok) throw new Error(`IRT reestimate error ${res.status}`);
+  return res.json();
+}
+export async function recalibrateAbilitiesNow(): Promise<{ ok: boolean; users?: number }>{
+  const baseUrl = getBaseUrl();
+  // Support either endpoint if backend varies
+  let res = await fetch(`${baseUrl}/api/calibration/recalibrate-abilities`, { method: 'POST' });
+  if (!res.ok) res = await fetch(`${baseUrl}/api/calibration/recalibrate`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Ability recalibration error ${res.status}`);
+  return res.json();
+}
+
 export async function fetchMastery(userId: string): Promise<Record<string, { correct: number; attempts: number }>> {
   const baseUrl = getBaseUrl();
   const res = await fetch(`${baseUrl}/api/learning/mastery/${encodeURIComponent(userId)}`);
