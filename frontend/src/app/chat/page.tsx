@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade, addMemoryPin, addMemoryRedaction, fetchDueReviews, fetchMemory, summarizeMemory } from "@/lib/api";
+import { preferLocalInference, tryLocalQA } from "@/lib/local-inference";
+import { queryLocalQa } from "@/lib/offline-qa";
 import { localTutorReply } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -665,6 +667,18 @@ export default function ChatPage() {
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: trimmed };
     setMessages(prev => [...prev, userMessage]);
     try {
+      const forceLocal = preferLocalInference();
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (forceLocal || offline) {
+        // Local QA over offline corpus (best-effort)
+        let context = '';
+        try { const hits = await queryLocalQa(trimmed, 5); context = hits.map(h => h.text).join('\n\n'); } catch {}
+        const r = await tryLocalQA(trimmed, context);
+        const assistantMessage: Message = { id: crypto.randomUUID(), role: 'assistant', content: r.answer };
+        setMessages(prev => [...prev, assistantMessage]);
+        await speak(r.answer);
+        return;
+      }
       let assembled = "";
       for await (const chunk of streamChat({ userId, message: trimmed, language, mode, level })) {
         assembled += chunk;
@@ -756,6 +770,17 @@ export default function ChatPage() {
     if (typeof window !== 'undefined') try { window.localStorage.removeItem('chatDraft'); } catch {}
     setIsSending(true);
     try {
+      const forceLocal = preferLocalInference();
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (forceLocal || offline) {
+        // Local QA path
+        let context = '';
+        try { const hits = await queryLocalQa(trimmed, 5); context = hits.map(h => h.text).join('\n\n'); } catch {}
+        const r = await tryLocalQA(trimmed, context);
+        const assistantMessage: Message = { id: crypto.randomUUID(), role: 'assistant', content: r.answer };
+        setMessages((prev) => [...prev, assistantMessage]);
+        return;
+      }
       // streaming path
       let assembled = "";
       const spokenUpToRef = { current: 0 } as { current: number };
