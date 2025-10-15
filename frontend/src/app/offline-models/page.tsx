@@ -16,6 +16,11 @@ export default function OfflineModelsPage() {
   const [status, setStatus] = useState<string>("");
   const [quota, setQuota] = useState<{ usage: number; quota: number } | null>(null);
   const [health, setHealth] = useState<{ caps: any; packs: Array<{ id: string; version: string }> } | null>(null);
+  const [routes, setRoutes] = useState<Array<{ path: string; enabled: boolean }>>([
+    { path: '/lessons', enabled: true },
+    { path: '/quizzes', enabled: true },
+    { path: '/flashcards', enabled: true },
+  ]);
 
   useEffect(() => {
     // Device checks
@@ -117,6 +122,22 @@ export default function OfflineModelsPage() {
             </div>
           </div>
         </div>
+      </div>
+      <div className="border rounded-md p-3 text-xs space-y-2">
+        <div className="text-sm font-medium">Offline pack mode</div>
+        <div className="text-xs text-muted-foreground">Enable offline routing for key pages and resolve sync automatically when back online.</div>
+        <div className="grid sm:grid-cols-3 gap-2">
+          {routes.map((r,i)=> (
+            <label key={r.path} className="flex items-center justify-between gap-2 border rounded p-2">
+              <span>{r.path}</span>
+              <input type="checkbox" checked={r.enabled} onChange={(e)=>{
+                const next = routes.slice(); next[i] = { ...r, enabled: e.target.checked }; setRoutes(next);
+                try { const map: Record<string,boolean> = JSON.parse(localStorage.getItem('offline_routes')||'{}'); map[r.path] = e.target.checked; localStorage.setItem('offline_routes', JSON.stringify(map)); } catch {}
+              }} />
+            </label>
+          ))}
+        </div>
+        <div className="text-xs text-muted-foreground">Service worker should cache these routes. When offline, the app will route locally and queue mutations for sync.</div>
       </div>
       {health && (
         <div className="border rounded-md p-3 text-xs">

@@ -30,6 +30,7 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
   const [myColor, setMyColor] = useState<string>("#1d4ed8");
   const timelineRef = useRef<Array<{ ts: number; type: string; userId?: string|null; content?: string; payload?: any }>>([]);
   const [timelineView, setTimelineView] = useState<Array<{ ts: number; type: string; userId?: string|null; content?: string }>>([]);
+  const [bookmarks, setBookmarks] = useState<Array<{ ts: number; label: string }>>([]);
   const [cursors, setCursors] = useState<Record<string, { x: number; y: number; name?: string; color?: string }>>({});
   const vectorRef = useRef<Array<{ color: string; stroke: number; points: Array<{ x: number; y: number }> }>>([]);
 
@@ -98,6 +99,8 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
             const img = new Image(); img.onload = () => { ctx?.clearRect(0,0,canvasRef.current!.width, canvasRef.current!.height); ctx?.drawImage(img, 0, 0); }; img.src = data.payload.image;
             timelineRef.current.push({ ts: Date.now(), type: 'wb:snapshot', userId: data.userId });
             setTimelineView([...timelineRef.current].slice(-200));
+          } else if (data?.type === 'room:bookmark' && data.roomId === roomId) {
+            setBookmarks(prev => [...prev, { ts: data.ts || Date.now(), label: data.label || 'Bookmark' }]);
           } else if (data?.type === 'room:cursor' && data.roomId === roomId && data.payload) {
             setCursors(prev => ({ ...prev, [data.userId]: { x: data.payload.x, y: data.payload.y, name: data.payload.name, color: data.payload.color } }));
           }
@@ -229,6 +232,27 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
     const a = document.createElement('a'); a.href = url; a.download = `whiteboard-${roomId}.html`; a.click();
     URL.revokeObjectURL(url);
   };
+  const summarizeBoard = async () => {
+    try {
+      const c = canvasRef.current; if (!c) return;
+      const dataUrl = c.toDataURL('image/png');
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const r = await fetch(`${base}/api/rooms/${encodeURIComponent(roomId)}/summarize-board`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: dataUrl }) });
+      const d = await r.json();
+      const suggestion = d.summary || 'Unable to summarize.';
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), userId: 'ai', type: 'chat', content: suggestion }]);
+    } catch {}
+  };
+  const suggestNextSteps = async () => {
+    try {
+      const transcript = messages.slice(-20).map(m => `${m.userId||'anon'}: ${m.content}`).join('\n');
+      const base = process.env.NEXT_PUBLIC_BASE_URL!;
+      const r = await fetch(`${base}/api/rooms/${encodeURIComponent(roomId)}/suggest-next`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript }) });
+      const d = await r.json();
+      const tips = d.tips || ['Try a quick recap', 'Assign a small practice'];
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), userId: 'ai', type: 'chat', content: `Next steps:\n- ${tips.join('\n- ')}` }]);
+    } catch {}
+  };
 
   const exportSVG = () => {
     const c = canvasRef.current; if (!c) return;
@@ -287,6 +311,17 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
       replayTimer.current = window.setTimeout(step, 8);
     };
     step();
+  };
+  const addBookmark = () => {
+    const label = prompt('Bookmark label?') || 'Note';
+    const ts = Date.now();
+    setBookmarks(prev => [...prev, { ts, label }]);
+    wsRef.current?.send(JSON.stringify({ type: 'room:bookmark', roomId, userId, ts, label }));
+  };
+  const jumpToBookmark = (bTs: number) => {
+    // find closest timeline index by timestamp
+    const idx = timelineRef.current.findIndex(e => e.ts >= bTs);
+    if (idx >= 0) { setPlaying(true); setScrubPos(idx); playFrom(idx); }
   };
   // Advanced scrubber: play/pause and manual position
   const [scrubPos, setScrubPos] = useState<number>(0);
@@ -349,24 +384,20 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <label>Name <input className="border rounded px-1" value={name} onChange={(e)=>setName(e.target.value)} placeholder="Display name"/></label>
               <label>Cursor <input type="color" value={myColor} onChange={(e)=>setMyColor(e.target.value)} /></label>
+              <button className="h-7 px-2 border rounded-md" onClick={addBookmark}>Add bookmark</button>
+              {bookmarks.length>0 && (
+                <select className="h-7 px-2 border rounded-md" onChange={(e)=>{ const v = e.target.value; if (!v) return; const ts = parseInt(v); if (ts) jumpToBookmark(ts); (e.target as HTMLSelectElement).value=''; }}>
+                  <option value="">Jump to…</option>
+                  {bookmarks.map((b,i)=> (<option key={i} value={b.ts}>{new Date(b.ts).toLocaleTimeString()} — {b.label}</option>))}
+                </select>
+              )}
             </div>
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <label>Color <input type="color" value={color} onChange={(e)=>setColor(e.target.value)} /></label>
               <label>Stroke <input type="range" min={1} max={8} value={stroke} onChange={(e)=>setStroke(parseInt(e.target.value))} /></label>
               <label>Shape
                 <select className="h-7 px-2 border rounded" onChange={(e)=>{
-                  const val = e.target.value;
-                  const ctx = canvasRef.current?.getContext('2d'); if (!ctx || !canvasRef.current) return;
-                  const rect = canvasRef.current.getBoundingClientRect();
-                  const cx = rect.width/2, cy = rect.height/2;
-                  ctx.strokeStyle = color; ctx.lineWidth = stroke;
-                  ctx.beginPath();
-                  if (val==='rect') { ctx.rect(cx-40, cy-30, 80, 60); }
-                  else if (val==='circle') { ctx.arc(cx, cy, 40, 0, Math.PI*2); }
-                  else if (val==='arrow') { ctx.moveTo(cx-40, cy); ctx.lineTo(cx+40, cy); ctx.moveTo(cx+30, cy-10); ctx.lineTo(cx+40, cy); ctx.lineTo(cx+30, cy+10); }
-                  ctx.stroke();
-                  wsRef.current?.send(JSON.stringify({ type: 'room:wb', roomId, userId, payload: { shape: val, color, stroke } }));
-                  (e.target as HTMLSelectElement).value='';
+                  const val = e.target.value; const ctx = canvasRef.current?.getContext('2d'); if (!ctx || !canvasRef.current) return; const rect = canvasRef.current.getBoundingClientRect(); const cx = rect.width/2, cy = rect.height/2; ctx.strokeStyle = color; ctx.lineWidth = stroke; ctx.beginPath(); if (val==='rect') { ctx.rect(cx-40, cy-30, 80, 60); } else if (val==='circle') { ctx.arc(cx, cy, 40, 0, Math.PI*2); } else if (val==='arrow') { ctx.moveTo(cx-40, cy); ctx.lineTo(cx+40, cy); ctx.moveTo(cx+30, cy-10); ctx.lineTo(cx+40, cy); ctx.lineTo(cx+30, cy+10); } ctx.stroke(); wsRef.current?.send(JSON.stringify({ type: 'room:wb', roomId, userId, payload: { shape: val, color, stroke } })); (e.target as HTMLSelectElement).value='';
                 }} defaultValue=""><option value="">Add shape…</option><option value="rect">Rectangle</option><option value="circle">Circle</option><option value="arrow">Arrow</option></select>
               </label>
               <button className="h-7 px-2 border rounded-md" onClick={undo}>Undo</button>
@@ -376,15 +407,10 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
               <button className="h-7 px-2 border rounded-md" onClick={exportPDF}>Export PDF</button>
               <button className="h-7 px-2 border rounded-md" onClick={exportSVG}>Export SVG</button>
               <label className="h-7 inline-flex items-center gap-1 text-xs">Drop file
-                <input type="file" className="hidden" onChange={(e)=>{
-                  const file = e.target.files?.[0]; if (!file) return;
-                  const reader = new FileReader(); reader.onload = ()=>{
-                    const url = String(reader.result||'');
-                    wsRef.current?.send(JSON.stringify({ type: 'room:file', roomId, userId, url, name: file.name }));
-                    setMessages(prev => [...prev, { id: crypto.randomUUID(), userId, type: 'file', content: file.name }]);
-                  }; reader.readAsDataURL(file);
-                }} />
+                <input type="file" className="hidden" onChange={(e)=>{ const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ()=>{ const url = String(reader.result||''); wsRef.current?.send(JSON.stringify({ type: 'room:file', roomId, userId, url, name: file.name })); setMessages(prev => [...prev, { id: crypto.randomUUID(), userId, type: 'file', content: file.name }]); }; reader.readAsDataURL(file); }} />
               </label>
+              <button className="h-7 px-2 border rounded-md" onClick={summarizeBoard}>AI summarize</button>
+              <button className="h-7 px-2 border rounded-md" onClick={suggestNextSteps}>AI next steps</button>
             </div>
             <canvas ref={canvasRef} className="w-full h-64 bg-white rounded border" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} onPointerOut={onPointer} />
             {Object.entries(cursors).map(([uid, c]) => (
