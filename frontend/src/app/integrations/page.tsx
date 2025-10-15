@@ -14,6 +14,8 @@ export default function IntegrationsPage() {
   const [status, setStatus] = useState<string>("");
   const [driveFiles, setDriveFiles] = useState<Array<{ id: string; name: string }>>([]);
   const [oneFiles, setOneFiles] = useState<Array<{ id: string; name: string }>>([]);
+  const [newAssign, setNewAssign] = useState<{ title: string; description: string; due: string }>({ title: '', description: '', due: '' });
+  const [grade, setGrade] = useState<{ studentId: string; assignmentId: string; score: string }>(() => ({ studentId: '', assignmentId: '', score: '' }));
 
   useEffect(() => { if (typeof window !== 'undefined') { const uid = window.localStorage.getItem('userId'); if (uid) setUserId(uid); } }, []);
 
@@ -45,6 +47,31 @@ export default function IntegrationsPage() {
     try { const r = await fetch(`${base}/api/integrations/teams/sync`, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ userId, teamId }) }); if (!r.ok) throw new Error(await r.text()); setStatus('Synced Microsoft Teams'); } catch (e: any) { setStatus(e.message); }
   };
 
+  const createGclassAssignment = async (courseId: string) => {
+    try {
+      const r = await fetch(`${base}/api/integrations/gclass/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, courseId, title: newAssign.title, description: newAssign.description, dueDate: newAssign.due }) });
+      if (!r.ok) throw new Error(await r.text()); setStatus('Created Classroom assignment');
+    } catch (e: any) { setStatus(e.message); }
+  };
+  const returnGclassGrade = async () => {
+    try {
+      const r = await fetch(`${base}/api/integrations/gclass/grade`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, assignmentId: grade.assignmentId, studentId: grade.studentId, score: Number(grade.score) }) });
+      if (!r.ok) throw new Error(await r.text()); setStatus('Returned Classroom grade');
+    } catch (e: any) { setStatus(e.message); }
+  };
+  const createTeamsAssignment = async (teamId: string) => {
+    try {
+      const r = await fetch(`${base}/api/integrations/teams/assign`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, teamId, title: newAssign.title, description: newAssign.description, dueDate: newAssign.due }) });
+      if (!r.ok) throw new Error(await r.text()); setStatus('Created Teams assignment');
+    } catch (e: any) { setStatus(e.message); }
+  };
+  const returnTeamsGrade = async () => {
+    try {
+      const r = await fetch(`${base}/api/integrations/teams/grade`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, assignmentId: grade.assignmentId, studentId: grade.studentId, score: Number(grade.score) }) });
+      if (!r.ok) throw new Error(await r.text()); setStatus('Returned Teams grade');
+    } catch (e: any) { setStatus(e.message); }
+  };
+
   return (
     <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
       <h1 className="text-xl font-semibold">Integrations</h1>
@@ -69,10 +96,22 @@ export default function IntegrationsPage() {
                     <span className="flex items-center gap-2">
                       <button className="h-7 px-2 border rounded" onClick={()=>void listRoster(c.id)}>Roster</button>
                       <button className="h-7 px-2 border rounded" onClick={()=>void syncGclass(c.id)}>Sync</button>
+                      <button className="h-7 px-2 border rounded" onClick={()=>void createGclassAssignment(c.id)}>Create assignment</button>
                     </span>
                   </li>
                 ))}
               </ul>
+              <div className="mt-2 grid sm:grid-cols-3 gap-2">
+                <input className="h-8 px-2 border rounded" placeholder="Title" value={newAssign.title} onChange={(e)=>setNewAssign({ ...newAssign, title: e.target.value })} />
+                <input className="h-8 px-2 border rounded" placeholder="Due (YYYY-MM-DD)" value={newAssign.due} onChange={(e)=>setNewAssign({ ...newAssign, due: e.target.value })} />
+                <input className="h-8 px-2 border rounded col-span-full" placeholder="Description" value={newAssign.description} onChange={(e)=>setNewAssign({ ...newAssign, description: e.target.value })} />
+              </div>
+              <div className="mt-2 grid sm:grid-cols-3 gap-2">
+                <input className="h-8 px-2 border rounded" placeholder="Assignment ID" value={grade.assignmentId} onChange={(e)=>setGrade({ ...grade, assignmentId: e.target.value })} />
+                <input className="h-8 px-2 border rounded" placeholder="Student ID" value={grade.studentId} onChange={(e)=>setGrade({ ...grade, studentId: e.target.value })} />
+                <input className="h-8 px-2 border rounded" placeholder="Score" value={grade.score} onChange={(e)=>setGrade({ ...grade, score: e.target.value })} />
+                <button className="h-8 px-3 border rounded-md text-sm" onClick={returnGclassGrade}>Return grade</button>
+              </div>
             </div>
           )}
           {students.length>0 && (
@@ -104,10 +143,22 @@ export default function IntegrationsPage() {
                     <span className="flex items-center gap-2">
                       <button className="h-7 px-2 border rounded" onClick={()=>void listTeamMembers(t.id)}>Members</button>
                       <button className="h-7 px-2 border rounded" onClick={()=>void syncTeams(t.id)}>Sync</button>
+                      <button className="h-7 px-2 border rounded" onClick={()=>void createTeamsAssignment(t.id)}>Create assignment</button>
                     </span>
                   </li>
                 ))}
               </ul>
+              <div className="mt-2 grid sm:grid-cols-3 gap-2">
+                <input className="h-8 px-2 border rounded" placeholder="Title" value={newAssign.title} onChange={(e)=>setNewAssign({ ...newAssign, title: e.target.value })} />
+                <input className="h-8 px-2 border rounded" placeholder="Due (YYYY-MM-DD)" value={newAssign.due} onChange={(e)=>setNewAssign({ ...newAssign, due: e.target.value })} />
+                <input className="h-8 px-2 border rounded col-span-full" placeholder="Description" value={newAssign.description} onChange={(e)=>setNewAssign({ ...newAssign, description: e.target.value })} />
+              </div>
+              <div className="mt-2 grid sm:grid-cols-3 gap-2">
+                <input className="h-8 px-2 border rounded" placeholder="Assignment ID" value={grade.assignmentId} onChange={(e)=>setGrade({ ...grade, assignmentId: e.target.value })} />
+                <input className="h-8 px-2 border rounded" placeholder="Student ID" value={grade.studentId} onChange={(e)=>setGrade({ ...grade, studentId: e.target.value })} />
+                <input className="h-8 px-2 border rounded" placeholder="Score" value={grade.score} onChange={(e)=>setGrade({ ...grade, score: e.target.value })} />
+                <button className="h-8 px-3 border rounded-md text-sm" onClick={returnTeamsGrade}>Return grade</button>
+              </div>
             </div>
           )}
           {members.length>0 && (

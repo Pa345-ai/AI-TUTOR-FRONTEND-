@@ -322,6 +322,13 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
   const facilitate = async () => {
     const base = process.env.NEXT_PUBLIC_BASE_URL!;
     await fetch(`${base}/api/rooms/${encodeURIComponent(roomId)}/facilitate`, { method: 'POST' });
+    // request a board summary and suggestion
+    try {
+      const c = canvasRef.current; if (c) {
+        const img = c.toDataURL('image/png');
+        await fetch(`${base}/api/rooms/${encodeURIComponent(roomId)}/summarize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: img }) });
+      }
+    } catch {}
   };
 
   return (
