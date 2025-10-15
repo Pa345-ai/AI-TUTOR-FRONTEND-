@@ -54,7 +54,25 @@ const handler = NextAuth({
       // never expose provider tokens client-side
       if ((session as any).accessToken) delete (session as any).accessToken;
       if ((session as any).refreshToken) delete (session as any).refreshToken;
+      if ((token as any)?.role) (session as any).role = (token as any).role;
       return session;
+    },
+    async jwt({ token, account, user }) {
+      try {
+        const base = process.env.NEXT_PUBLIC_BASE_URL!;
+        // After sign-in, ensure role is fetched/attached; refresh periodically otherwise
+        const email = (token as any).email || user?.email;
+        if (email) {
+          const url = new URL(`${base}/api/auth/role`);
+          url.searchParams.set('email', String(email));
+          const r = await fetch(url.toString());
+          if (r.ok) {
+            const d = await r.json();
+            (token as any).role = d.role || (token as any).role || 'student';
+          }
+        }
+      } catch {}
+      return token;
     },
   },
   pages: {
