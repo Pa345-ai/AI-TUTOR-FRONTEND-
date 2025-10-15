@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { healthSummary } from "@/lib/local-inference";
+import { healthSummary, warmupModel } from "@/lib/local-inference";
 
 export default function OfflineModelsPage() {
   const [supported, setSupported] = useState<{ stt: boolean; tts: boolean; wasm: boolean; webrtc: boolean; webgpu: boolean } | null>(null);
@@ -125,11 +125,21 @@ export default function OfflineModelsPage() {
             </div>
             <div className="border rounded p-2">
               <div className="font-medium">Installed packs</div>
-              <ul className="list-disc ml-4">
-                {health.packs.length? health.packs.map(p=> (
-                  <li key={p.id}>{p.id} v{p.version}</li>
-                )) : <li>None</li>}
-              </ul>
+              {health.packs.length ? (
+                <ul className="list-disc ml-4 space-y-1">
+                  {health.packs.map(p => (
+                    <li key={p.id} className="flex items-center gap-2">
+                      <span>{p.id} v{p.version}</span>
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded border ${p.loaded? 'bg-green-50 border-green-200 text-green-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'}`}>{p.loaded? 'Warm' : 'Cold'}</span>
+                      {!p.loaded && (
+                        <button className="h-6 px-2 border rounded text-[11px]" onClick={()=>void warmupModel(p.id as 'mini-sum'|'tiny-qna')}>Warm up</button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-xs text-muted-foreground">None</div>
+              )}
             </div>
             <div className="border rounded p-2">
               <div className="font-medium">Tips</div>

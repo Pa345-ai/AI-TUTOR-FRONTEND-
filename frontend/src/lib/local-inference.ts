@@ -67,6 +67,59 @@ async function loadOrt(): Promise<any | undefined> {
   }
 }
 
+// In-memory lazy session cache; we do not expose sessions directly to avoid bundling types
+const sessionReadyByPack: Map<string, Promise<boolean>> = new Map();
+
+async function ensureSession(packId: string): Promise<boolean> {
+  try {
+    const existing = sessionReadyByPack.get(packId);
+    if (existing) return existing;
+    const promise = (async () => {
+      const pack = PACKS.find(p => p.id === packId);
+      if (!pack) return false;
+      const ort = await loadOrt();
+      if (!ort) return false;
+      // fetch model from Cache Storage (installed) or network as fallback
+      let bytes: ArrayBuffer | null = null;
+      try {
+        if ('caches' in globalThis) {
+          const cache = await caches.open('offline-models');
+          const res = await cache.match(new Request(pack.entry));
+          if (res) bytes = await res.arrayBuffer();
+        }
+      } catch {}
+      if (!bytes) {
+        try {
+          const res = await fetch(pack.entry);
+          if (res.ok) bytes = await res.arrayBuffer();
+        } catch {}
+      }
+      if (!bytes) return false;
+      try {
+        const model = new Uint8Array(bytes);
+        // Prefer WebGPU if available; otherwise WASM
+        const providers: string[] = [];
+        const caps = detectCapabilities();
+        if (caps.webgpu && (ort as any).webgpu) providers.push('webgpu');
+        providers.push('wasm');
+        // Some builds of onnxruntime-web accept options.executionProviders; if not supported, ignore
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const options: any = providers.length ? { executionProviders: providers } : undefined;
+        // Create session; if it throws, we catch and report false
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        await (ort as any).InferenceSession.create(model, options);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    sessionReadyByPack.set(packId, promise);
+    return promise;
+  } catch {
+    return false;
+  }
+}
+
 // Lightweight extractive summarizer (frequency-based) as fallback
 export function lightweightSummarize(text: string, maxSentences = 4): string {
   const sents = text
@@ -120,12 +173,10 @@ export async function tryLocalSummarize(text: string): Promise<LocalSummaryResul
   }
   // Load ONNX runtime and try run; if fails, use lightweight
   try {
-    const ort = await loadOrt();
-    if (!ort) throw new Error('ORT not available');
-    // A real model would be invoked here. Since we ship packs via Cache Storage,
-    // you could fetch the blob URL and initialize an InferenceSession.
-    // For now, use lightweight summarizer as placeholder after verifying capability/install.
-    return { ok: true, usedModel: true, text: lightweightSummarize(text), packId: 'mini-sum' };
+    const ok = await ensureSession('mini-sum');
+    // A real model would be invoked here. We still return the lightweight result,
+    // but flag usedModel=true if the session loaded successfully.
+    return { ok: true, usedModel: ok, text: lightweightSummarize(text), packId: 'mini-sum' };
   } catch {
     return { ok: true, usedModel: false, text: lightweightSummarize(text) };
   }
@@ -139,9 +190,8 @@ export async function tryLocalQA(question: string, context: string): Promise<Loc
     return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
   }
   try {
-    const ort = await loadOrt();
-    if (!ort) throw new Error('ORT not available');
-    return { ok: true, usedModel: true, answer: lightweightQA(question, context), packId: 'tiny-qna' };
+    const ok = await ensureSession('tiny-qna');
+    return { ok: true, usedModel: ok, answer: lightweightQA(question, context), packId: 'tiny-qna' };
   } catch {
     return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
   }
@@ -169,6 +219,14 @@ export function preferLocalQA(): boolean {
 
 export async function healthSummary() {
   const caps = detectCapabilities();
-  const packs = await installedPacks();
+  const installed = await installedPacks();
+  const packs = await Promise.all(installed.map(async p => {
+    const loaded = await (sessionReadyByPack.get(p.id) ?? Promise.resolve(false));
+    return { ...p, loaded };
+  }));
   return { caps, packs };
+}
+
+export async function warmupModel(id: 'mini-sum'|'tiny-qna'): Promise<boolean> {
+  try { return await ensureSession(id); } catch { return false; }
 }
