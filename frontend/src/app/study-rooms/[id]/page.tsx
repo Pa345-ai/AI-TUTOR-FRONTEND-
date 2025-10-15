@@ -346,19 +346,45 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
           ))}
           </div>
           <div className="relative space-y-2">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs flex-wrap">
               <label>Name <input className="border rounded px-1" value={name} onChange={(e)=>setName(e.target.value)} placeholder="Display name"/></label>
               <label>Cursor <input type="color" value={myColor} onChange={(e)=>setMyColor(e.target.value)} /></label>
             </div>
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs flex-wrap">
               <label>Color <input type="color" value={color} onChange={(e)=>setColor(e.target.value)} /></label>
               <label>Stroke <input type="range" min={1} max={8} value={stroke} onChange={(e)=>setStroke(parseInt(e.target.value))} /></label>
+              <label>Shape
+                <select className="h-7 px-2 border rounded" onChange={(e)=>{
+                  const val = e.target.value;
+                  const ctx = canvasRef.current?.getContext('2d'); if (!ctx || !canvasRef.current) return;
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  const cx = rect.width/2, cy = rect.height/2;
+                  ctx.strokeStyle = color; ctx.lineWidth = stroke;
+                  ctx.beginPath();
+                  if (val==='rect') { ctx.rect(cx-40, cy-30, 80, 60); }
+                  else if (val==='circle') { ctx.arc(cx, cy, 40, 0, Math.PI*2); }
+                  else if (val==='arrow') { ctx.moveTo(cx-40, cy); ctx.lineTo(cx+40, cy); ctx.moveTo(cx+30, cy-10); ctx.lineTo(cx+40, cy); ctx.lineTo(cx+30, cy+10); }
+                  ctx.stroke();
+                  wsRef.current?.send(JSON.stringify({ type: 'room:wb', roomId, userId, payload: { shape: val, color, stroke } }));
+                  (e.target as HTMLSelectElement).value='';
+                }} defaultValue=""><option value="">Add shape…</option><option value="rect">Rectangle</option><option value="circle">Circle</option><option value="arrow">Arrow</option></select>
+              </label>
               <button className="h-7 px-2 border rounded-md" onClick={undo}>Undo</button>
               <button className="h-7 px-2 border rounded-md" onClick={redo}>Redo</button>
               <button className="h-7 px-2 border rounded-md" onClick={takeSnapshot}>Save snapshot</button>
               <button className="h-7 px-2 border rounded-md" onClick={() => { const c = canvasRef.current; if (!c) return; const url = c.toDataURL('image/png'); const a = document.createElement('a'); a.href = url; a.download = `whiteboard-${roomId}.png`; a.click(); }}>Export PNG</button>
               <button className="h-7 px-2 border rounded-md" onClick={exportPDF}>Export PDF</button>
               <button className="h-7 px-2 border rounded-md" onClick={exportSVG}>Export SVG</button>
+              <label className="h-7 inline-flex items-center gap-1 text-xs">Drop file
+                <input type="file" className="hidden" onChange={(e)=>{
+                  const file = e.target.files?.[0]; if (!file) return;
+                  const reader = new FileReader(); reader.onload = ()=>{
+                    const url = String(reader.result||'');
+                    wsRef.current?.send(JSON.stringify({ type: 'room:file', roomId, userId, url, name: file.name }));
+                    setMessages(prev => [...prev, { id: crypto.randomUUID(), userId, type: 'file', content: file.name }]);
+                  }; reader.readAsDataURL(file);
+                }} />
+              </label>
             </div>
             <canvas ref={canvasRef} className="w-full h-64 bg-white rounded border" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp} onPointerOut={onPointer} />
             {Object.entries(cursors).map(([uid, c]) => (

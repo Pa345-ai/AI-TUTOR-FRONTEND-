@@ -8,6 +8,9 @@ export default function OfflineModelsPage() {
   const [packs, setPacks] = useState<Array<{ id: string; name: string; size: string; status: 'not-installed'|'installed'|'updating', downloadedBytes?: number; totalBytes?: number }>>([
     { id: 'tiny-qna', name: 'Tiny Q&A model (~40MB)', size: '40MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 40*1024*1024 },
     { id: 'mini-sum', name: 'Mini Summarizer (~60MB)', size: '60MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 60*1024*1024 },
+    { id: 'topic-notes', name: 'Topic Notes Pack (~2MB)', size: '2MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 2*1024*1024 },
+    { id: 'topic-quizzes', name: 'Topic Quizzes Pack (~1MB)', size: '1MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 1*1024*1024 },
+    { id: 'topic-flashcards', name: 'Topic Flashcards Pack (~1MB)', size: '1MB', status: 'not-installed', downloadedBytes: 0, totalBytes: 1*1024*1024 },
   ]);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
@@ -53,6 +56,8 @@ export default function OfflineModelsPage() {
       }
       const full = new Blob(chunks, { type: 'application/octet-stream' });
       await cache.put(new Request(url), new Response(full));
+      // Optionally store a manifest entry for offline routing/sync
+      try { await cache.put(new Request(`/models/${id}.manifest`), new Response(JSON.stringify({ id, installedAt: new Date().toISOString() }), { headers: { 'Content-Type':'application/json' } })); } catch {}
       setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'installed', downloadedBytes: full.size } : p));
       // refresh quota
       try { const est = await (navigator as any).storage?.estimate?.(); if (est) setQuota({ usage: est.usage || 0, quota: est.quota || 0 }); } catch {}
