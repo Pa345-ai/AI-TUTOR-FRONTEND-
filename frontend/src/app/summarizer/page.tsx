@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { chat, exportToDocs, generateFlashcards } from "@/lib/api";
+import { preferLocalInference, tryLocalSummarize } from "@/lib/local-inference";
 
 export default function SummarizerPage() {
   const [text, setText] = useState("");
@@ -23,10 +24,17 @@ export default function SummarizerPage() {
     if (!text.trim()) return;
     setLoading(true);
     try {
-      const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
-      const storedLang = (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en";
-      const res = await chat({ userId, message: `Summarize this content concisely in bullet points:\n\n${text}`, language: storedLang as "en" | "si" | "ta" });
-      setSummary(res.reply);
+      const forceLocal = preferLocalInference();
+      const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (forceLocal || offline) {
+        const r = await tryLocalSummarize(text);
+        setSummary(r.text);
+      } else {
+        const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+        const storedLang = (typeof window !== "undefined" ? window.localStorage.getItem("language") : null) || "en";
+        const res = await chat({ userId, message: `Summarize this content concisely in bullet points:\n\n${text}`, language: storedLang as "en" | "si" | "ta" });
+        setSummary(res.reply);
+      }
     } catch (e) {
       setSummary(e instanceof Error ? e.message : String(e));
     } finally {
