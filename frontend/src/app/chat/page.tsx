@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { chat, fetchChatHistory, streamChat, postEngagement, translate, adaptiveNext, adaptiveGrade, addMemoryPin, addMemoryRedaction, fetchDueReviews, fetchMemory, summarizeMemory } from "@/lib/api";
-import { preferLocalInference, tryLocalQA } from "@/lib/local-inference";
+import { preferLocalInference, preferLocalQA as preferLocalQAFlag, tryLocalQA } from "@/lib/local-inference";
 import { queryLocalQa } from "@/lib/offline-qa";
 import { localTutorReply } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
@@ -667,7 +667,7 @@ export default function ChatPage() {
     const userMessage: Message = { id: crypto.randomUUID(), role: 'user', content: trimmed };
     setMessages(prev => [...prev, userMessage]);
     try {
-      const forceLocal = preferLocalInference();
+      const forceLocal = preferLocalQAFlag() || preferLocalInference();
       const offline = typeof navigator !== 'undefined' && !navigator.onLine;
       if (forceLocal || offline) {
         // Local QA over offline corpus (best-effort)
@@ -770,7 +770,7 @@ export default function ChatPage() {
     if (typeof window !== 'undefined') try { window.localStorage.removeItem('chatDraft'); } catch {}
     setIsSending(true);
     try {
-      const forceLocal = preferLocalInference();
+      const forceLocal = preferLocalQAFlag() || preferLocalInference();
       const offline = typeof navigator !== 'undefined' && !navigator.onLine;
       if (forceLocal || offline) {
         // Local QA path

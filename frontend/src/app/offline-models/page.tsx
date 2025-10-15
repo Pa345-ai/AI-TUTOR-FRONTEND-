@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { healthSummary } from "@/lib/local-inference";
 
 export default function OfflineModelsPage() {
   const [supported, setSupported] = useState<{ stt: boolean; tts: boolean; wasm: boolean; webrtc: boolean; webgpu: boolean } | null>(null);
@@ -11,6 +12,7 @@ export default function OfflineModelsPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [quota, setQuota] = useState<{ usage: number; quota: number } | null>(null);
+  const [health, setHealth] = useState<{ caps: any; packs: Array<{ id: string; version: string }> } | null>(null);
 
   useEffect(() => {
     // Device checks
@@ -20,6 +22,7 @@ export default function OfflineModelsPage() {
     const webrtc = typeof (window as any).RTCPeerConnection !== 'undefined';
     const webgpu = typeof (navigator as any).gpu !== 'undefined';
     setSupported({ stt, tts, wasm, webrtc, webgpu });
+    (async () => { try { setHealth(await healthSummary()); } catch {} })();
     // Storage quota
     (async () => {
       try {
@@ -54,6 +57,7 @@ export default function OfflineModelsPage() {
       // refresh quota
       try { const est = await (navigator as any).storage?.estimate?.(); if (est) setQuota({ usage: est.usage || 0, quota: est.quota || 0 }); } catch {}
       setStatus('Installed');
+      try { setHealth(await healthSummary()); } catch {}
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e));
     } finally {
@@ -68,6 +72,7 @@ export default function OfflineModelsPage() {
       await cache.delete(new Request(`/models/${id}.bin`));
       setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'not-installed' } : p));
       setStatus('Removed');
+      try { setHealth(await healthSummary()); } catch {}
     } catch (e) { setStatus(e instanceof Error ? e.message : String(e)); }
   }, []);
 
@@ -84,14 +89,55 @@ export default function OfflineModelsPage() {
           <div className={`border rounded p-2 ${supported.webgpu?'':'opacity-60'}`}><div className="font-medium">WebGPU</div><div>{supported.webgpu? 'Supported' : 'Not available'}</div></div>
         </div>
       )}
-      <div className="border rounded-md p-3 text-xs">
-        <div className="text-sm font-medium mb-1">Local inference fallback</div>
+      <div className="border rounded-md p-3 text-xs space-y-2">
+        <div className="text-sm font-medium">Local inference fallback</div>
         <div className="flex items-center gap-2">
-          <button className="h-8 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only','true'); } catch {} }}>Force local</button>
+          <button className="h-8 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only','true'); } catch {} }}>Force local (global)</button>
           <button className="h-8 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only','false'); } catch {} }}>Auto (online first)</button>
-          <span className="text-muted-foreground">Chat and summarizer will respect this.</span>
+          <span className="text-muted-foreground">Global toggle for all surfaces.</span>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <div className="border rounded p-2">
+            <div className="font-medium">Summarizer</div>
+            <div className="flex items-center gap-2 mt-1">
+              <button className="h-7 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only_summary','true'); } catch {} }}>Force local</button>
+              <button className="h-7 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only_summary','false'); } catch {} }}>Auto</button>
+            </div>
+          </div>
+          <div className="border rounded p-2">
+            <div className="font-medium">Chat Q&A</div>
+            <div className="flex items-center gap-2 mt-1">
+              <button className="h-7 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only_qa','true'); } catch {} }}>Force local</button>
+              <button className="h-7 px-2 border rounded" onClick={()=>{ try { window.localStorage.setItem('offline_only_qa','false'); } catch {} }}>Auto</button>
+            </div>
+          </div>
         </div>
       </div>
+      {health && (
+        <div className="border rounded-md p-3 text-xs">
+          <div className="text-sm font-medium mb-2">Local health</div>
+          <div className="grid sm:grid-cols-3 gap-2">
+            <div className="border rounded p-2">
+              <div className="font-medium">Capabilities</div>
+              <div>WebGPU: {health.caps.webgpu? 'Yes':'No'}</div>
+              <div>WebNN: {health.caps.webnn? 'Yes':'No'}</div>
+              <div>WASM: {health.caps.wasm? 'Yes':'No'}</div>
+            </div>
+            <div className="border rounded p-2">
+              <div className="font-medium">Installed packs</div>
+              <ul className="list-disc ml-4">
+                {health.packs.length? health.packs.map(p=> (
+                  <li key={p.id}>{p.id} v{p.version}</li>
+                )) : <li>None</li>}
+              </ul>
+            </div>
+            <div className="border rounded p-2">
+              <div className="font-medium">Tips</div>
+              <div>Install packs above to enable full on‑device inference.</div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid gap-3">
         {packs.map(p => (
           <div key={p.id} className="border rounded-md p-3 flex items-center justify-between">

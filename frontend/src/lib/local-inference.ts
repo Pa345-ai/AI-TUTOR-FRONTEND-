@@ -22,8 +22,9 @@ export type ModelPack = {
 };
 
 const PACKS: ModelPack[] = [
-  { id: 'mini-sum', name: 'Mini Summarizer', version: '0.1.0', type: 'summarizer', entry: '/models/mini-sum.onnx' },
-  { id: 'tiny-qna', name: 'Tiny Q&A', version: '0.1.0', type: 'qa', entry: '/models/tiny-qna.onnx' },
+  // Align entries with installer which uses /models/{id}.bin
+  { id: 'mini-sum', name: 'Mini Summarizer', version: '0.1.0', type: 'summarizer', entry: '/models/mini-sum.bin' },
+  { id: 'tiny-qna', name: 'Tiny Q&A', version: '0.1.0', type: 'qa', entry: '/models/tiny-qna.bin' },
 ];
 
 export function detectCapabilities(): RunnerCapabilities {
@@ -148,6 +149,22 @@ export async function tryLocalQA(question: string, context: string): Promise<Loc
 
 export function preferLocalInference(): boolean {
   try { return (typeof window !== 'undefined' && window.localStorage.getItem('offline_only') === 'true'); } catch { return false; }
+}
+
+export function preferLocalSummarizer(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    const s = window.localStorage.getItem('offline_only_summary') === 'true';
+    return s || (window.localStorage.getItem('offline_only') === 'true');
+  } catch { return false; }
+}
+
+export function preferLocalQA(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    const q = window.localStorage.getItem('offline_only_qa') === 'true';
+    return q || (window.localStorage.getItem('offline_only') === 'true');
+  } catch { return false; }
 }
 
 export async function healthSummary() {

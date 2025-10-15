@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { chat, exportToDocs, generateFlashcards } from "@/lib/api";
-import { preferLocalInference, tryLocalSummarize } from "@/lib/local-inference";
+import { preferLocalInference, preferLocalSummarizer, tryLocalSummarize } from "@/lib/local-inference";
 
 export default function SummarizerPage() {
   const [text, setText] = useState("");
@@ -24,7 +24,7 @@ export default function SummarizerPage() {
     if (!text.trim()) return;
     setLoading(true);
     try {
-      const forceLocal = preferLocalInference();
+      const forceLocal = preferLocalSummarizer() || preferLocalInference();
       const offline = typeof navigator !== 'undefined' && !navigator.onLine;
       if (forceLocal || offline) {
         const r = await tryLocalSummarize(text);
