@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [quietStart, setQuietStart] = useState<string>('21:00');
   const [quietEnd, setQuietEnd] = useState<string>('07:00');
   const [tone, setTone] = useState<'neutral'|'calm'|'energetic'|'soothing'>('neutral');
+  const [consents, setConsents] = useState<{ camera: boolean; mic: boolean; emotion: boolean; analytics: boolean }>({ camera: false, mic: false, emotion: false, analytics: true });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -51,6 +52,10 @@ export default function SettingsPage() {
     if (qs) setQuietStart(qs);
     if (qe) setQuietEnd(qe);
     const t = window.localStorage.getItem('engagementTone') as any; if (t) setTone(t);
+    try {
+      const c = JSON.parse(window.localStorage.getItem('consents') || '{}');
+      setConsents({ camera: !!c.camera, mic: !!c.mic, emotion: !!c.emotion, analytics: c.analytics !== false });
+    } catch {}
   }, []);
 
   const save = () => {
@@ -68,6 +73,7 @@ export default function SettingsPage() {
     window.localStorage.setItem('quietStart', quietStart);
     window.localStorage.setItem('quietEnd', quietEnd);
     window.localStorage.setItem('engagementTone', tone);
+    window.localStorage.setItem('consents', JSON.stringify(consents));
   };
 
   const applyRole = async () => {
@@ -121,6 +127,23 @@ export default function SettingsPage() {
           ))}
         </div>
         <p className="text-xs text-muted-foreground">Affects tutor pace and pitch.</p>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Consent & Privacy</label>
+        <div className="grid sm:grid-cols-2 gap-2 text-sm">
+          <label className="flex items-center gap-2"><input type="checkbox" checked={consents.camera} onChange={(e)=>setConsents({...consents, camera: e.target.checked})} /> Camera use (presence/emotion)</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={consents.mic} onChange={(e)=>setConsents({...consents, mic: e.target.checked})} /> Microphone use (voice)</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={consents.emotion} onChange={(e)=>setConsents({...consents, emotion: e.target.checked})} /> Emotion signals (opt‑in)</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={consents.analytics} onChange={(e)=>setConsents({...consents, analytics: e.target.checked})} /> Anonymous analytics</label>
+        </div>
+        <div className="text-xs text-muted-foreground">Your choices are enforced on‑device; analytics and emotion features are disabled unless explicitly enabled here.</div>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Audit Trail</label>
+        <div className="flex items-center gap-2 text-sm">
+          <Button size="sm" variant="outline" onClick={async ()=>{ try { const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL!}/api/admin/audit`); const d = await res.json(); alert(`${(d.logs||[]).length} recent events`); } catch {} }}>View recent</Button>
+          <Button size="sm" variant="outline" onClick={async ()=>{ try { await fetch(`${process.env.NEXT_PUBLIC_BASE_URL!}/api/admin/audit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'consent.update', target: 'self' }) }); } catch {} }}>Record consent update</Button>
+        </div>
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">User ID</label>

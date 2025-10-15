@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -51,15 +52,15 @@ export default function LoginPage() {
             {/* Social auth */}
             <div className="grid gap-3">
               <button type="button" onClick={()=>signIn('google', { callbackUrl: '/progress' })} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm hover:bg-white/15 transition shadow-[0_0_16px_rgba(59,130,246,0.15)]">
-                <img src="/google.svg" alt="Google" className="h-4 w-4" />
+                <Image src="/google.svg" alt="Google" width={16} height={16} />
                 <span>Continue with Google</span>
               </button>
               <button type="button" onClick={()=>signIn('github', { callbackUrl: '/progress' })} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-black/80 px-3 py-2 text-sm hover:bg-black transition">
-                <img src="/github.svg" alt="GitHub" className="h-4 w-4 invert" />
+                <Image src="/github.svg" alt="GitHub" width={16} height={16} className="invert" />
                 <span className="text-white">Continue with GitHub</span>
               </button>
               <button type="button" onClick={()=>signIn('facebook', { callbackUrl: '/progress' })} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#1877F2] bg-[#1877F2] px-3 py-2 text-sm text-white hover:brightness-110 transition shadow-[0_0_16px_rgba(24,119,242,0.35)]">
-                <img src="/facebook.svg" alt="Facebook" className="h-4 w-4" />
+                <Image src="/facebook.svg" alt="Facebook" width={16} height={16} />
                 <span>Continue with Facebook</span>
               </button>
               <div className="flex items-center gap-2 text-[11px] text-white/60">
