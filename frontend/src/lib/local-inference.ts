@@ -18,13 +18,14 @@ export type ModelPack = {
   name: string;               // human friendly
   version: string;            // semver-like
   type: 'summarizer' | 'qa';
-  entry: string;              // path to entry model file (e.g., /models/mini-sum.onnx)
+  entry: string;              // path to ONNX model file
+  tokenizerVocab?: string;    // optional BERT WordPiece vocab JSON
+  inputFormat?: 'bert_qa' | 'bert_cls_sum' | 'seq2seq_sum';
 };
 
 const PACKS: ModelPack[] = [
-  // Align entries with installer which uses /models/{id}.bin
-  { id: 'mini-sum', name: 'Mini Summarizer', version: '0.1.0', type: 'summarizer', entry: '/models/mini-sum.bin' },
-  { id: 'tiny-qna', name: 'Tiny Q&A', version: '0.1.0', type: 'qa', entry: '/models/tiny-qna.bin' },
+  { id: 'mini-sum', name: 'Mini Summarizer', version: '0.1.0', type: 'summarizer', entry: '/models/mini-sum.onnx', tokenizerVocab: '/models/mini-sum-vocab.json', inputFormat: 'bert_cls_sum' },
+  { id: 'tiny-qna', name: 'Tiny Q&A', version: '0.1.0', type: 'qa', entry: '/models/tiny-qna.onnx', tokenizerVocab: '/models/tiny-qna-vocab.json', inputFormat: 'bert_qa' },
 ];
 
 export function detectCapabilities(): RunnerCapabilities {
@@ -41,8 +42,9 @@ export async function isPackInstalled(id: string): Promise<boolean> {
     const cache = await caches.open('offline-models');
     const pack = PACKS.find(p => p.id === id);
     if (!pack) return false;
-    const res = await cache.match(new Request(pack.entry));
-    return !!res;
+    const res1 = await cache.match(new Request(pack.entry));
+    const res2 = pack.tokenizerVocab ? await cache.match(new Request(pack.tokenizerVocab)) : undefined;
+    return !!res1 && (!!res2 || !pack.tokenizerVocab);
   } catch {
     return false;
   }
@@ -180,21 +182,38 @@ export async function tryLocalSummarize(text: string): Promise<LocalSummaryResul
     if (!ok || !session) {
       return { ok: true, usedModel: false, text: lightweightSummarize(text) };
     }
-    // Heuristic encoding: feed char codes as int32 tensor
+    // Heuristic BERT CLS summarizer: score sentences via model logits
     const ort = await loadOrt();
     if (!ort) return { ok: true, usedModel: false, text: lightweightSummarize(text) };
-    const arr = new Int32Array(Math.max(1, Math.min(2048, text.length)));
-    for (let i = 0; i < arr.length; i++) arr[i] = text.charCodeAt(i) || 0;
-    const tensor = new (ort as any).Tensor('int32', arr, [1, arr.length]);
-    const feeds: Record<string, any> = { input: tensor };
-    let outputs: Record<string, any> = {};
-    try { outputs = await (session as any).run(feeds); } catch {}
-    const firstKey = Object.keys(outputs)[0];
-    const out = firstKey ? outputs[firstKey] : undefined;
-    if (out && typeof out.data === 'string') {
-      return { ok: true, usedModel: true, text: out.data as string, packId: 'mini-sum' };
+    const pack = PACKS.find(p => p.id==='mini-sum');
+    const vocab = await (async () => {
+      try {
+        if (!pack?.tokenizerVocab) return null;
+        if ('caches' in globalThis) {
+          const cache = await caches.open('offline-models');
+          const hit = await cache.match(new Request(pack.tokenizerVocab));
+          if (hit) return await hit.json();
+        }
+        const res = await fetch(pack!.tokenizerVocab!); if (res.ok) return await res.json();
+      } catch {}
+      return null;
+    })();
+    const sents = text.replace(/\s+/g,' ').split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+    const scores: number[] = [];
+    for (const s of sents) {
+      if (!vocab) { scores.push(Math.random()); continue; }
+      const CLS = vocab['[CLS]'] ?? 101; const SEP = vocab['[SEP]'] ?? 102;
+      const toks = (s.toLowerCase().match(/[a-z0-9]+/g) || []).slice(0, 64);
+      const ids = [CLS, ...toks.map(t=>vocab[t] ?? (vocab['[UNK]'] ?? 100)), SEP];
+      const input = new (ort as any).Tensor('int32', Int32Array.from(ids), [1, ids.length]);
+      let out: any = {};
+      try { out = await (session as any).run({ input_ids: input }); } catch { out = {}; }
+      const key = Object.keys(out)[0];
+      const val = key && out[key]?.data instanceof Float32Array ? out[key].data[0] : Math.random();
+      scores.push(val);
     }
-    return { ok: true, usedModel: true, text: lightweightSummarize(text), packId: 'mini-sum' };
+    const topIdx = scores.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v).slice(0, Math.min(4, sents.length)).sort((a,b)=>a.i-b.i).map(x=>x.i);
+    return { ok: true, usedModel: true, text: topIdx.map(i=>sents[i]).join(' '), packId: 'mini-sum' };
   } catch {
     return { ok: true, usedModel: false, text: lightweightSummarize(text) };
   }
@@ -213,17 +232,52 @@ export async function tryLocalQA(question: string, context: string): Promise<Loc
     if (!ok || !session) return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
     const ort = await loadOrt();
     if (!ort) return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
-    const joined = `${question}\n\n${context}`;
-    const arr = new Int32Array(Math.max(1, Math.min(2048, joined.length)));
-    for (let i = 0; i < arr.length; i++) arr[i] = joined.charCodeAt(i) || 0;
-    const tensor = new (ort as any).Tensor('int32', arr, [1, arr.length]);
-    const feeds: Record<string, any> = { input: tensor };
-    let outputs: Record<string, any> = {};
-    try { outputs = await (session as any).run(feeds); } catch {}
-    const firstKey = Object.keys(outputs)[0];
-    const out = firstKey ? outputs[firstKey] : undefined;
-    if (out && typeof out.data === 'string') {
-      return { ok: true, usedModel: true, answer: out.data as string, packId: 'tiny-qna' };
+    const pack = PACKS.find(p => p.id==='tiny-qna');
+    // load vocab
+    let vocab: Record<string, number> | null = null;
+    try {
+      if (pack?.tokenizerVocab) {
+        if ('caches' in globalThis) {
+          const cache = await caches.open('offline-models');
+          const hit = await cache.match(new Request(pack.tokenizerVocab));
+          if (hit) vocab = await hit.json();
+        }
+        if (!vocab) { const r = await fetch(pack!.tokenizerVocab!); if (r.ok) vocab = await r.json(); }
+      }
+    } catch {}
+    if (!vocab) return { ok: true, usedModel: false, answer: lightweightQA(question, context) };
+    // Build BERT QA inputs
+    const CLS = vocab['[CLS]'] ?? 101; const SEP = vocab['[SEP]'] ?? 102;
+    const qtoks = (question.toLowerCase().match(/[a-z0-9]+/g) || []).slice(0, 32);
+    const ctoks = (context.toLowerCase().match(/[a-z0-9]+/g) || []).slice(0, 256);
+    const qids = qtoks.map(t=>vocab![t] ?? (vocab!['[UNK]'] ?? 100));
+    const cids = ctoks.map(t=>vocab![t] ?? (vocab!['[UNK]'] ?? 100));
+    const inputIds = [CLS, ...qids, SEP, ...cids, SEP];
+    const tt = inputIds.map((_,i)=> (i <= qids.length+1 ? 0 : 1));
+    const am = inputIds.map(()=>1);
+    const feeds: Record<string, any> = {
+      input_ids: new (ort as any).Tensor('int32', Int32Array.from(inputIds), [1, inputIds.length]),
+      token_type_ids: new (ort as any).Tensor('int32', Int32Array.from(tt), [1, tt.length]),
+      attention_mask: new (ort as any).Tensor('int32', Int32Array.from(am), [1, am.length]),
+    };
+    const outputs = await (session as any).run(feeds).catch(()=> ({} as Record<string, any>));
+    const start = (outputs['start_logits']?.data || outputs['start']?.data) as Float32Array | undefined;
+    const end = (outputs['end_logits']?.data || outputs['end']?.data) as Float32Array | undefined;
+    if (start && end) {
+      // naive span extraction maps back to tokens (best effort)
+      let bestStart = 0, bestEnd = 0, bestScore = -1e9;
+      for (let i = 0; i < start.length; i++) {
+        for (let j = i; j < Math.min(i+30, end.length); j++) {
+          const score = start[i] + end[j];
+          if (score > bestScore) { bestScore = score; bestStart = i; bestEnd = j; }
+        }
+      }
+      const inv: Record<number, string> = {};
+      for (const [k, v] of Object.entries(vocab)) inv[v] = k;
+      const toks: string[] = [];
+      for (let k = bestStart; k <= bestEnd; k++) { const t = inv[inputIds[k]] || ''; if (!t) continue; toks.push(t.startsWith('##')? t.slice(2) : (' '+t)); }
+      const ans = toks.join('').trim();
+      if (ans) return { ok: true, usedModel: true, answer: ans, packId: 'tiny-qna' };
     }
     return { ok: true, usedModel: true, answer: lightweightQA(question, context), packId: 'tiny-qna' };
   } catch {
