@@ -135,7 +135,6 @@ import {
   Rabbit,
   Squirrel,
   Turtle,
-  Octopus,
   Butterfly,
   Bee,
   Spider,
