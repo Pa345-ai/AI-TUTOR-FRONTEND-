@@ -548,7 +548,8 @@ export function EmotionRecognition() {
             <div className="mt-4 flex items-center gap-2">
               <Button
                 onClick={isRecording ? stopRecording : startRecording}
-                variant={isRecording ? "destructive" : "default"}
+                variant={isRecording ? "outline" : "default"}
+                className={isRecording ? "text-red-600 hover:text-red-700 hover:bg-red-50" : ""}
               >
                 {isRecording ? (
                   <>

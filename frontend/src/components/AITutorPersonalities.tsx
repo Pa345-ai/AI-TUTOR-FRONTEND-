@@ -374,7 +374,8 @@ export function AITutorPersonalities() {
           {isActive && (
             <Button
               onClick={endSession}
-              variant="destructive"
+              variant="outline"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <Pause className="h-4 w-4 mr-2" />
               End Session
