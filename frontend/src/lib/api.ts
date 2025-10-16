@@ -1147,6 +1147,93 @@ export async function fetchStudentSuggestions(userId: string) {
   return res.json() as Promise<{ suggestions: Array<{ topic: string; pCorrect: number; difficulty: 'easy'|'medium'|'hard' }> }>;
 }
 
+// =====================================================
+// META-LEARNING CORE API FUNCTIONS
+// =====================================================
+
+// Teaching Optimization Engine
+export async function fetchTeachingStrategies() {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/meta-learning/teaching-strategies`);
+  if (!res.ok) throw new Error(`Teaching strategies error ${res.status}`);
+  return res.json() as Promise<{ strategies: any[] }>;
+}
+
+export async function logTeachingInteraction(interaction: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/meta-learning/teaching-interactions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(interaction)
+  });
+  if (!res.ok) throw new Error(`Teaching interaction error ${res.status}`);
+  return res.json();
+}
+
+// Self-Improving Curriculum AI
+export async function fetchCurriculumPerformance(subject?: string, difficulty?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/meta-learning/curriculum-performance`);
+  if (subject) url.searchParams.set('subject', subject);
+  if (difficulty) url.searchParams.set('difficulty', difficulty);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Curriculum performance error ${res.status}`);
+  return res.json() as Promise<{ performance: any[] }>;
+}
+
+export async function createCurriculumRule(rule: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/meta-learning/curriculum-rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rule)
+  });
+  if (!res.ok) throw new Error(`Create curriculum rule error ${res.status}`);
+  return res.json();
+}
+
+// Federated Learning Network
+export async function fetchFederatedModels() {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/meta-learning/federated-models`);
+  if (!res.ok) throw new Error(`Federated models error ${res.status}`);
+  return res.json() as Promise<{ models: any[] }>;
+}
+
+export async function fetchFederatedRounds(modelId?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/meta-learning/federated-rounds`);
+  if (modelId) url.searchParams.set('modelId', modelId);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Federated rounds error ${res.status}`);
+  return res.json() as Promise<{ rounds: any[] }>;
+}
+
+// Meta-Learning Insights
+export async function fetchMetaLearningInsights(insightType?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/meta-learning/insights`);
+  if (insightType) url.searchParams.set('type', insightType);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Meta-learning insights error ${res.status}`);
+  return res.json() as Promise<{ insights: any[] }>;
+}
+
+export async function fetchMetaLearningExperiments() {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/meta-learning/experiments`);
+  if (!res.ok) throw new Error(`Meta-learning experiments error ${res.status}`);
+  return res.json() as Promise<{ experiments: any[] }>;
+}
+
+// Meta-Learning Analytics
+export async function fetchMetaLearningAnalytics(timeRange: string = '30d') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/meta-learning/analytics?timeRange=${timeRange}`);
+  if (!res.ok) throw new Error(`Meta-learning analytics error ${res.status}`);
+  return res.json() as Promise<{ analytics: any }>;
+}
+
 // A/B testing helpers
 export type AbAssignment = { userId: string; testName: string; bucket: 'A'|'B'; createdAt?: string };
 export async function abAssign(userId: string): Promise<{ bucket: 'A'|'B' }> {

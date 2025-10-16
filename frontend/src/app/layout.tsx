@@ -235,6 +235,7 @@ export default function RootLayout({
                 >{theme==='dark'?'🌙':theme==='light'?'☀️':'🖥️'}</button>
                 <Link href="/settings" className="hover:underline">Settings</Link>
                 <Link href="/connection-test" className="hover:underline">Connection Test</Link>
+                <Link href="/meta-learning" className="hover:underline">Meta-Learning</Link>
               </nav>
             </div>
           </header>
