@@ -163,12 +163,55 @@ export interface LeaderboardItem {
   level?: number;
 }
 
-export async function fetchLeaderboard(limit = 10): Promise<LeaderboardItem[]> {
+export async function fetchLeaderboard(limit = 10, season?: string): Promise<LeaderboardItem[]> {
   const baseUrl = getBaseUrl();
-  const res = await fetch(`${baseUrl}/api/leaderboard?limit=${limit}`);
+  const url = new URL(`${baseUrl}/api/leaderboard`);
+  url.searchParams.set('limit', String(limit));
+  if (season) url.searchParams.set('season', season);
+  const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`Leaderboard error ${res.status}`);
   const data = (await res.json()) as { leaderboard?: LeaderboardItem[] };
   return data.leaderboard ?? [];
+}
+
+// Gamification: seasons & anti-cheat
+export async function fetchSeasons(): Promise<Array<{ id: string; name: string; startAt?: string; endAt?: string; current?: boolean }>> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/leaderboard/seasons`);
+  if (!res.ok) throw new Error(`Seasons error ${res.status}`);
+  const data = await res.json() as { seasons?: Array<{ id: string; name: string; startAt?: string; endAt?: string; current?: boolean }> };
+  return data.seasons || [];
+}
+export async function fetchSeasonInfo(season: string): Promise<{ id: string; name: string; startAt?: string; endAt?: string; rolloverAt?: string; winners?: Array<{ userId: string; xp: number; name?: string }> }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/leaderboard/season/${encodeURIComponent(season)}`);
+  if (!res.ok) throw new Error(`Season info error ${res.status}`);
+  return res.json();
+}
+export async function fetchLeaderboardFlags(season: string): Promise<Array<{ userId: string; reason: string; severity?: number; events?: string[] }>> {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/leaderboard/flags`);
+  url.searchParams.set('season', season);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Flags error ${res.status}`);
+  const data = await res.json() as { flags?: Array<{ userId: string; reason: string; severity?: number; events?: string[] }> };
+  return data.flags || [];
+}
+export async function reportSuspicious(userId: string, reason: string): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/leaderboard/flags`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, reason }) });
+  if (!res.ok) throw new Error(`Report error ${res.status}`);
+}
+export async function penalizeUser(userId: string, season: string, xpPenalty: number): Promise<void> {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/leaderboard/penalize`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, season, xpPenalty }) });
+  if (!res.ok) throw new Error(`Penalize error ${res.status}`);
+}
+export async function rolloverSeason(season: string): Promise<{ nextSeason: string }>{
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/leaderboard/rollover`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ season }) });
+  if (!res.ok) throw new Error(`Rollover error ${res.status}`);
+  return res.json();
 }
 
 export interface FlashcardItem {
