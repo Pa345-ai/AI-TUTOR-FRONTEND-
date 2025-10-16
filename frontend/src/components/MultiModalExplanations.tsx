@@ -1,715 +1,486 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
-  Palette, 
+  Brain, 
+  MessageSquare, 
+  Mic, 
+  MicOff, 
+  Volume2, 
+  VolumeX, 
+  Image, 
+  Video, 
+  FileText, 
   Code, 
-  BarChart3, 
-  Calculator, 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  Download, 
-  Upload,
-  Eraser,
-  Square,
-  Circle,
-  Triangle,
-  ArrowRight,
-  ArrowDown,
-  Minus,
-  Plus,
-  Save,
-  Eye,
-  EyeOff,
-  Layers,
-  Zap,
-  Brain,
+  Calculator,
+  Palette,
+  BarChart3,
+  Play,
+  Pause,
+  RotateCcw,
+  Download,
+  Settings,
   Lightbulb,
   Target,
-  CheckCircle,
-  AlertCircle
+  BookOpen,
+  Zap,
+  Edit3,
+  BarChart,
+  PieChart,
+  LineChart,
+  MousePointer,
+  Type,
+  Pen,
+  Layers,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+import { DrawingCanvas } from './DrawingCanvas';
+import { InteractiveDiagrams } from './InteractiveDiagrams';
+import { StepByStepVisualSolver } from './StepByStepVisualSolver';
+import { CodeSyntaxHighlighter } from './CodeSyntaxHighlighter';
 
-interface DrawingTool {
+interface ExplanationMode {
   id: string;
   name: string;
   icon: React.ReactNode;
-  type: 'pen' | 'shape' | 'text' | 'eraser';
-  color?: string;
-  size?: number;
-}
-
-interface CodeExample {
-  id: string;
-  language: string;
-  title: string;
-  code: string;
-  explanation: string;
-  lineHighlights?: number[];
-  interactive?: boolean;
-}
-
-interface Diagram {
-  id: string;
-  type: 'flowchart' | 'mindmap' | 'timeline' | 'hierarchy' | 'network';
-  title: string;
-  nodes: Array<{
-    id: string;
-    label: string;
-    x: number;
-    y: number;
-    type: 'start' | 'process' | 'decision' | 'end' | 'data';
-    connections?: string[];
-  }>;
-  interactive: boolean;
-}
-
-interface Step {
-  id: string;
-  title: string;
   description: string;
-  visual?: 'drawing' | 'code' | 'diagram' | 'calculation';
-  content?: any;
-  completed: boolean;
-  hints?: string[];
+  color: string;
 }
 
-interface Problem {
+interface MultiModalExplanation {
   id: string;
   title: string;
-  description: string;
-  subject: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  steps: Step[];
-  solution?: any;
-  timeEstimate: number; // minutes
+  content: string;
+  mode: 'text' | 'voice' | 'visual' | 'interactive' | 'code' | 'step-by-step';
+  timestamp: Date;
+  isActive: boolean;
 }
 
 export function MultiModalExplanations() {
-  const [activeTool, setActiveTool] = useState<string>('pen');
-  const [drawingColor, setDrawingColor] = useState('#000000');
-  const [brushSize, setBrushSize] = useState(3);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentProblem, setCurrentProblem] = useState<Problem | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [showCode, setShowCode] = useState(true);
-  const [showDiagram, setShowDiagram] = useState(true);
-  const [showDrawing, setShowDrawing] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvasHistory, setCanvasHistory] = useState<ImageData[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [activeMode, setActiveMode] = useState<'text' | 'voice' | 'visual' | 'interactive' | 'code' | 'step-by-step'>('text');
+  const [explanations, setExplanations] = useState<MultiModalExplanation[]>([]);
+  const [currentExplanation, setCurrentExplanation] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
+    voiceEnabled: true,
+    visualEnabled: true,
+    interactiveEnabled: true,
+    codeEnabled: true,
+    stepByStepEnabled: true,
+    autoAdvance: false,
+    showHints: true
+  });
 
-  const drawingTools: DrawingTool[] = [
-    { id: 'pen', name: 'Pen', icon: <Palette className="h-4 w-4" />, type: 'pen' },
-    { id: 'eraser', name: 'Eraser', icon: <Eraser className="h-4 w-4" />, type: 'eraser' },
-    { id: 'rectangle', name: 'Rectangle', icon: <Square className="h-4 w-4" />, type: 'shape' },
-    { id: 'circle', name: 'Circle', icon: <Circle className="h-4 w-4" />, type: 'shape' },
-    { id: 'triangle', name: 'Triangle', icon: <Triangle className="h-4 w-4" />, type: 'shape' },
-    { id: 'arrow', name: 'Arrow', icon: <ArrowRight className="h-4 w-4" />, type: 'shape' },
-    { id: 'line', name: 'Line', icon: <Minus className="h-4 w-4" />, type: 'shape' }
-  ];
-
-  const codeExamples: CodeExample[] = [
+  const explanationModes: ExplanationMode[] = [
     {
-      id: 'python-basic',
-      language: 'python',
-      title: 'Basic Python Function',
-      code: `def calculate_area(length, width):
-    """Calculate the area of a rectangle"""
-    area = length * width
-    return area
-
-# Example usage
-length = 5
-width = 3
-result = calculate_area(length, width)
-print(f"The area is {result}")`,
-      explanation: 'This function takes two parameters (length and width) and returns their product. The docstring explains what the function does.',
-      lineHighlights: [1, 4, 7, 8, 9],
-      interactive: true
+      id: 'text',
+      name: 'Text Explanation',
+      icon: <MessageSquare className="h-5 w-5" />,
+      description: 'Traditional text-based explanations',
+      color: 'bg-blue-500'
     },
     {
-      id: 'javascript-async',
-      language: 'javascript',
-      title: 'Async/Await Example',
-      code: `async function fetchUserData(userId) {
+      id: 'voice',
+      name: 'Voice Explanation',
+      icon: <Mic className="h-5 w-5" />,
+      description: 'Audio explanations with voice synthesis',
+      color: 'bg-green-500'
+    },
+    {
+      id: 'visual',
+      name: 'Visual Drawing',
+      icon: <Palette className="h-5 w-5" />,
+      description: 'Draw and paint visual explanations',
+      color: 'bg-purple-500'
+    },
+    {
+      id: 'interactive',
+      name: 'Interactive Diagrams',
+      icon: <BarChart3 className="h-5 w-5" />,
+      description: 'Interactive charts and diagrams',
+      color: 'bg-orange-500'
+    },
+    {
+      id: 'code',
+      name: 'Code Examples',
+      icon: <Code className="h-5 w-5" />,
+      description: 'Syntax-highlighted code examples',
+      color: 'bg-gray-500'
+    },
+    {
+      id: 'step-by-step',
+      name: 'Step-by-Step Visual',
+      icon: <Target className="h-5 w-5" />,
+      description: 'Visual step-by-step problem solving',
+      color: 'bg-red-500'
+    }
+  ];
+
+  // Generate explanation based on mode
+  const generateExplanation = async (mode: string, content: string) => {
+    setIsGenerating(true);
+    
     try {
-        const response = await fetch(\`/api/users/\${userId}\`);
-        const userData = await response.json();
-        return userData;
+      // Simulate AI generation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const newExplanation: MultiModalExplanation = {
+        id: Date.now().toString(),
+        title: `${mode.charAt(0).toUpperCase() + mode.slice(1)} Explanation`,
+        content,
+        mode: mode as any,
+        timestamp: new Date(),
+        isActive: true
+      };
+      
+      setExplanations(prev => [newExplanation, ...prev]);
     } catch (error) {
-        console.error('Error fetching user:', error);
-        throw error;
+      console.error('Error generating explanation:', error);
+    } finally {
+      setIsGenerating(false);
     }
-}
+  };
 
-// Usage
-fetchUserData(123)
-    .then(data => console.log(data))
-    .catch(error => console.error(error));`,
-      explanation: 'This function demonstrates async/await pattern for handling asynchronous operations. The try-catch block handles potential errors.',
-      lineHighlights: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14],
-      interactive: true
+  // Handle text explanation
+  const handleTextExplanation = () => {
+    if (!currentExplanation.trim()) return;
+    generateExplanation('text', currentExplanation);
+  };
+
+  // Handle voice explanation
+  const handleVoiceExplanation = () => {
+    if (!currentExplanation.trim()) return;
+    generateExplanation('voice', currentExplanation);
+  };
+
+  // Handle visual explanation
+  const handleVisualExplanation = (drawingData: string) => {
+    generateExplanation('visual', drawingData);
+  };
+
+  // Toggle voice listening
+  const toggleListening = () => {
+    setIsListening(!isListening);
+    // Simulate voice recognition
+    if (!isListening) {
+      setTimeout(() => {
+        setCurrentExplanation('This is a voice input example for visual explanation');
+        setIsListening(false);
+      }, 2000);
     }
-  ];
+  };
 
-  const diagrams: Diagram[] = [
-    {
-      id: 'math-workflow',
-      type: 'flowchart',
-      title: 'Quadratic Equation Solving Process',
-      nodes: [
-        { id: 'start', label: 'Start', x: 100, y: 50, type: 'start' },
-        { id: 'input', label: 'Input: ax² + bx + c = 0', x: 100, y: 120, type: 'data' },
-        { id: 'discriminant', label: 'Calculate Discriminant\nD = b² - 4ac', x: 100, y: 190, type: 'process' },
-        { id: 'check', label: 'D > 0?', x: 100, y: 260, type: 'decision' },
-        { id: 'two-roots', label: 'Two Real Roots\nx = (-b ± √D) / 2a', x: 50, y: 330, type: 'process' },
-        { id: 'one-root', label: 'One Real Root\nx = -b / 2a', x: 150, y: 330, type: 'process' },
-        { id: 'no-roots', label: 'No Real Roots', x: 250, y: 330, type: 'process' },
-        { id: 'end', label: 'Display Results', x: 100, y: 400, type: 'end' }
-      ],
-      interactive: true
-    },
-    {
-      id: 'concept-map',
-      type: 'mindmap',
-      title: 'Algebra Concepts',
-      nodes: [
-        { id: 'algebra', label: 'Algebra', x: 200, y: 100, type: 'start' },
-        { id: 'variables', label: 'Variables', x: 100, y: 180, type: 'process' },
-        { id: 'equations', label: 'Equations', x: 200, y: 180, type: 'process' },
-        { id: 'functions', label: 'Functions', x: 300, y: 180, type: 'process' },
-        { id: 'linear', label: 'Linear', x: 50, y: 260, type: 'data' },
-        { id: 'quadratic', label: 'Quadratic', x: 150, y: 260, type: 'data' },
-        { id: 'polynomial', label: 'Polynomial', x: 250, y: 260, type: 'data' },
-        { id: 'exponential', label: 'Exponential', x: 350, y: 260, type: 'data' }
-      ],
-      interactive: true
+  // Toggle voice speaking
+  const toggleSpeaking = () => {
+    setIsSpeaking(!isSpeaking);
+    // Simulate text-to-speech
+    if (!isSpeaking) {
+      setTimeout(() => {
+        setIsSpeaking(false);
+      }, 3000);
     }
-  ];
+  };
 
-  const sampleProblems: Problem[] = [
-    {
-      id: 'quadratic-solve',
-      title: 'Solving Quadratic Equations',
-      description: 'Learn to solve quadratic equations using the quadratic formula with visual step-by-step guidance.',
-      subject: 'Mathematics',
-      difficulty: 'medium',
-      timeEstimate: 15,
-      steps: [
-        {
-          id: 'step1',
-          title: 'Identify the coefficients',
-          description: 'For the equation ax² + bx + c = 0, identify values of a, b, and c',
-          visual: 'drawing',
-          completed: false,
-          hints: ['Look for the coefficient of x² (a)', 'Find the coefficient of x (b)', 'Identify the constant term (c)']
-        },
-        {
-          id: 'step2',
-          title: 'Calculate the discriminant',
-          description: 'Use the formula D = b² - 4ac to find the discriminant',
-          visual: 'calculation',
-          completed: false,
-          hints: ['Square the value of b', 'Multiply 4, a, and c', 'Subtract the second term from the first']
-        },
-        {
-          id: 'step3',
-          title: 'Apply the quadratic formula',
-          description: 'Use x = (-b ± √D) / 2a to find the roots',
-          visual: 'code',
-          completed: false,
-          hints: ['Substitute the values into the formula', 'Calculate both + and - cases', 'Simplify the results']
-        },
-        {
-          id: 'step4',
-          title: 'Verify your solution',
-          description: 'Check your answers by substituting back into the original equation',
-          visual: 'diagram',
-          completed: false,
-          hints: ['Replace x with your calculated values', 'Simplify both sides', 'Check if they are equal']
-        }
-      ]
-    }
-  ];
+  // Clear explanations
+  const clearExplanations = () => {
+    setExplanations([]);
+  };
 
-  // Initialize with first problem
-  useEffect(() => {
-    if (sampleProblems.length > 0) {
-      setCurrentProblem(sampleProblems[0]);
-    }
-  }, []);
-
-  // Drawing functions
-  const startDrawing = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
+  // Download explanation
+  const downloadExplanation = (explanation: MultiModalExplanation) => {
+    const data = {
+      title: explanation.title,
+      content: explanation.content,
+      mode: explanation.mode,
+      timestamp: explanation.timestamp.toISOString()
+    };
     
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    setIsDrawing(true);
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.strokeStyle = drawingColor;
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Save state for undo
-    saveCanvasState();
-  }, [drawingColor, brushSize]);
-
-  const draw = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  }, [isDrawing]);
-
-  const stopDrawing = useCallback(() => {
-    setIsDrawing(false);
-  }, []);
-
-  const saveCanvasState = useCallback(() => {
-    if (!canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const newHistory = canvasHistory.slice(0, historyIndex + 1);
-    newHistory.push(imageData);
-    setCanvasHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [canvasHistory, historyIndex]);
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
-      if (!canvas || !ctx) return;
-
-      const imageData = canvasHistory[historyIndex - 1];
-      ctx.putImageData(imageData, 0, 0);
-      setHistoryIndex(historyIndex - 1);
-    }
-  }, [historyIndex, canvasHistory]);
-
-  const clearCanvas = useCallback(() => {
-    if (!canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    saveCanvasState();
-  }, [saveCanvasState]);
-
-  const downloadCanvas = useCallback(() => {
-    if (!canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const link = document.createElement('a');
-    link.download = 'drawing.png';
-    link.href = canvas.toDataURL();
-    link.click();
-  }, []);
-
-  // Step navigation
-  const nextStep = useCallback(() => {
-    if (currentProblem && currentStep < currentProblem.steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    }
-  }, [currentProblem, currentStep]);
-
-  const prevStep = useCallback(() => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  }, [currentStep]);
-
-  const completeStep = useCallback(() => {
-    if (!currentProblem) return;
-    
-    const updatedSteps = currentProblem.steps.map((step, index) => 
-      index === currentStep ? { ...step, completed: true } : step
-    );
-    
-    setCurrentProblem({
-      ...currentProblem,
-      steps: updatedSteps
-    });
-  }, [currentProblem, currentStep]);
-
-  // Auto-play functionality
-  const startAutoPlay = useCallback(() => {
-    setIsPlaying(true);
-    const interval = setInterval(() => {
-      if (currentStep < (currentProblem?.steps.length || 0) - 1) {
-        setCurrentStep(prev => prev + 1);
-      } else {
-        setIsPlaying(false);
-        clearInterval(interval);
-      }
-    }, 3000 / playbackSpeed);
-  }, [currentStep, currentProblem, playbackSpeed]);
-
-  const stopAutoPlay = useCallback(() => {
-    setIsPlaying(false);
-  }, []);
-
-  const currentStepData = currentProblem?.steps[currentStep];
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${explanation.title.toLowerCase().replace(/\s+/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
-          <Brain className="h-8 w-8 text-purple-600" />
-          Multi-Modal Explanations
-        </h1>
-        <p className="text-gray-600">Interactive visual learning with drawing, code, diagrams, and step-by-step problem solving</p>
+    <div className="multi-modal-explanations h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 bg-white border-b">
+        <h2 className="text-xl font-semibold">Multi-Modal Explanations</h2>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowSettings(!showSettings)}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
+          <Button
+            variant="outline"
+            onClick={clearExplanations}
+            className="flex items-center gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Clear All
+          </Button>
+        </div>
       </div>
 
-      {/* Problem Selection */}
-      {currentProblem && (
-        <div className="bg-white rounded-lg border p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold">{currentProblem.title}</h2>
-              <p className="text-gray-600">{currentProblem.description}</p>
-              <div className="flex items-center gap-4 mt-2">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  currentProblem.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
-                  currentProblem.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {currentProblem.difficulty}
-                </span>
-                <span className="text-sm text-gray-500">{currentProblem.timeEstimate} min</span>
-                <span className="text-sm text-gray-500">{currentProblem.subject}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={isPlaying ? stopAutoPlay : startAutoPlay}
+      <div className="flex-1 flex">
+        {/* Mode selection sidebar */}
+        <div className="w-64 bg-gray-50 border-r p-4">
+          <h3 className="font-semibold mb-4">Explanation Modes</h3>
+          <div className="space-y-2">
+            {explanationModes.map(mode => (
+              <div
+                key={mode.id}
+                className={`p-3 rounded-lg cursor-pointer border transition-colors ${
+                  activeMode === mode.id 
+                    ? 'bg-blue-100 border-blue-300' 
+                    : 'bg-white border-gray-200 hover:bg-gray-50'
+                }`}
+                onClick={() => setActiveMode(mode.id as any)}
               >
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {isPlaying ? 'Pause' : 'Auto-play'}
-              </Button>
-              <select
-                value={playbackSpeed}
-                onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-                className="px-2 py-1 border rounded text-sm"
-              >
-                <option value={0.5}>0.5x</option>
-                <option value={1}>1x</option>
-                <option value={1.5}>1.5x</option>
-                <option value={2}>2x</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Progress */}
-          <div className="mb-6">
-            <div className="flex justify-between text-sm mb-2">
-              <span>Step {currentStep + 1} of {currentProblem.steps.length}</span>
-              <span>{Math.round(((currentStep + 1) / currentProblem.steps.length) * 100)}%</span>
-            </div>
-            <Progress value={((currentStep + 1) / currentProblem.steps.length) * 100} className="h-2" />
-          </div>
-
-          {/* Step Navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <Button
-              onClick={prevStep}
-              disabled={currentStep === 0}
-              variant="outline"
-            >
-              Previous
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={completeStep}
-                disabled={currentStepData?.completed}
-                variant={currentStepData?.completed ? "outline" : "default"}
-              >
-                {currentStepData?.completed ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Completed
-                  </>
-                ) : (
-                  <>
-                    <Target className="h-4 w-4 mr-2" />
-                    Mark Complete
-                  </>
-                )}
-              </Button>
-            </div>
-            <Button
-              onClick={nextStep}
-              disabled={currentStep === currentProblem.steps.length - 1}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Current Step */}
-      {currentStepData && (
-        <div className="bg-white rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-yellow-500" />
-            {currentStepData.title}
-          </h3>
-          <p className="text-gray-600 mb-4">{currentStepData.description}</p>
-
-          {/* Hints */}
-          {currentStepData.hints && currentStepData.hints.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                Hints
-              </h4>
-              <ul className="space-y-1">
-                {currentStepData.hints.map((hint, index) => (
-                  <li key={index} className="text-sm text-blue-700">• {hint}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Multi-Modal Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Drawing Interface */}
-            {showDrawing && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Palette className="h-4 w-4" />
-                    Drawing Canvas
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowDrawing(!showDrawing)}
-                    >
-                      {showDrawing ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${mode.color} text-white`}>
+                    {mode.icon}
                   </div>
-                </div>
-
-                {/* Drawing Tools */}
-                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                  {drawingTools.map((tool) => (
-                    <Button
-                      key={tool.id}
-                      variant={activeTool === tool.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setActiveTool(tool.id)}
-                    >
-                      {tool.icon}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Color and Size Controls */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">Color:</label>
-                    <input
-                      type="color"
-                      value={drawingColor}
-                      onChange={(e) => setDrawingColor(e.target.value)}
-                      className="w-8 h-8 border rounded cursor-pointer"
-                    />
+                  <div>
+                    <h4 className="font-medium text-sm">{mode.name}</h4>
+                    <p className="text-xs text-gray-500">{mode.description}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">Size:</label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="20"
-                      value={brushSize}
-                      onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="w-20"
-                    />
-                    <span className="text-sm text-gray-500">{brushSize}px</span>
-                  </div>
-                </div>
-
-                {/* Canvas */}
-                <div className="border rounded-lg overflow-hidden">
-                  <canvas
-                    ref={canvasRef}
-                    width={600}
-                    height={400}
-                    className="w-full h-96 cursor-crosshair"
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                  />
-                </div>
-
-                {/* Canvas Controls */}
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex <= 0}>
-                    <RotateCcw className="h-4 w-4" />
-                    Undo
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={clearCanvas}>
-                    <Eraser className="h-4 w-4" />
-                    Clear
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={downloadCanvas}>
-                    <Download className="h-4 w-4" />
-                    Download
-                  </Button>
                 </div>
               </div>
-            )}
-
-            {/* Code Examples */}
-            {showCode && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Code className="h-4 w-4" />
-                    Code Examples
-                  </h4>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCode(!showCode)}
-                  >
-                    {showCode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-
-                {codeExamples.map((example) => (
-                  <div key={example.id} className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-100 px-4 py-2 flex items-center justify-between">
-                      <h5 className="font-medium">{example.title}</h5>
-                      <span className="text-sm text-gray-500">{example.language}</span>
-                    </div>
-                    <div className="p-4">
-                      <pre className="bg-gray-900 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                        <code>{example.code}</code>
-                      </pre>
-                      <p className="text-sm text-gray-600 mt-2">{example.explanation}</p>
-                      {example.interactive && (
-                        <Button size="sm" className="mt-2">
-                          <Play className="h-3 w-3 mr-1" />
-                          Run Code
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
 
-          {/* Interactive Diagrams */}
-          {showDiagram && (
-            <div className="mt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Interactive Diagrams
-                </h4>
+          {/* Voice controls */}
+          {activeMode === 'voice' && (
+            <div className="mt-6 p-4 bg-white border rounded-lg">
+              <h4 className="font-medium mb-3">Voice Controls</h4>
+              <div className="space-y-2">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowDiagram(!showDiagram)}
+                  onClick={toggleListening}
+                  className={`w-full ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
                 >
-                  {showDiagram ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {isListening ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
+                  {isListening ? 'Stop Listening' : 'Start Listening'}
+                </Button>
+                <Button
+                  onClick={toggleSpeaking}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {isSpeaking ? <VolumeX className="h-4 w-4 mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}
+                  {isSpeaking ? 'Stop Speaking' : 'Start Speaking'}
                 </Button>
               </div>
+            </div>
+          )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {diagrams.map((diagram) => (
-                  <div key={diagram.id} className="border rounded-lg p-4">
-                    <h5 className="font-medium mb-3">{diagram.title}</h5>
-                    <div className="relative bg-gray-50 rounded-lg h-64 overflow-hidden">
-                      <svg width="100%" height="100%" className="absolute inset-0">
-                        {diagram.nodes.map((node) => (
-                          <g key={node.id}>
-                            <rect
-                              x={node.x - 30}
-                              y={node.y - 15}
-                              width="60"
-                              height="30"
-                              rx="5"
-                              fill={
-                                node.type === 'start' ? '#10b981' :
-                                node.type === 'end' ? '#ef4444' :
-                                node.type === 'decision' ? '#f59e0b' :
-                                '#3b82f6'
-                              }
-                              className="cursor-pointer hover:opacity-80"
-                            />
-                            <text
-                              x={node.x}
-                              y={node.y + 5}
-                              textAnchor="middle"
-                              className="text-xs font-medium fill-white"
-                            >
-                              {node.label.split('\n')[0]}
-                            </text>
-                            {node.label.includes('\n') && (
-                              <text
-                                x={node.x}
-                                y={node.y + 18}
-                                textAnchor="middle"
-                                className="text-xs font-medium fill-white"
-                              >
-                                {node.label.split('\n')[1]}
-                              </text>
-                            )}
-                          </g>
-                        ))}
-                      </svg>
-                    </div>
-                    {diagram.interactive && (
-                      <Button size="sm" className="mt-2">
-                        <Play className="h-3 w-3 mr-1" />
-                        Interact
-                      </Button>
-                    )}
-                  </div>
-                ))}
+          {/* Settings panel */}
+          {showSettings && (
+            <div className="mt-6 p-4 bg-white border rounded-lg">
+              <h4 className="font-medium mb-3">Settings</h4>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.voiceEnabled}
+                    onChange={(e) => setSettings(prev => ({ ...prev, voiceEnabled: e.target.checked }))}
+                  />
+                  <span className="text-sm">Voice explanations</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.visualEnabled}
+                    onChange={(e) => setSettings(prev => ({ ...prev, visualEnabled: e.target.checked }))}
+                  />
+                  <span className="text-sm">Visual explanations</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.interactiveEnabled}
+                    onChange={(e) => setSettings(prev => ({ ...prev, interactiveEnabled: e.target.checked }))}
+                  />
+                  <span className="text-sm">Interactive diagrams</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.codeEnabled}
+                    onChange={(e) => setSettings(prev => ({ ...prev, codeEnabled: e.target.checked }))}
+                  />
+                  <span className="text-sm">Code examples</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.stepByStepEnabled}
+                    onChange={(e) => setSettings(prev => ({ ...prev, stepByStepEnabled: e.target.checked }))}
+                  />
+                  <span className="text-sm">Step-by-step solving</span>
+                </label>
               </div>
             </div>
           )}
         </div>
-      )}
+
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col">
+          {/* Input area */}
+          <div className="p-4 bg-gray-50 border-b">
+            <div className="flex gap-2">
+              <Textarea
+                value={currentExplanation}
+                onChange={(e) => setCurrentExplanation(e.target.value)}
+                placeholder="Enter your question or topic for explanation..."
+                className="flex-1"
+                rows={2}
+              />
+              <div className="flex flex-col gap-2">
+                {activeMode === 'text' && (
+                  <Button
+                    onClick={handleTextExplanation}
+                    disabled={isGenerating || !currentExplanation.trim()}
+                    className="flex items-center gap-2"
+                  >
+                    <Brain className="h-4 w-4" />
+                    {isGenerating ? 'Generating...' : 'Explain'}
+                  </Button>
+                )}
+                {activeMode === 'voice' && (
+                  <Button
+                    onClick={handleVoiceExplanation}
+                    disabled={isGenerating || !currentExplanation.trim()}
+                    className="flex items-center gap-2"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                    {isGenerating ? 'Generating...' : 'Speak'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Content area based on active mode */}
+          <div className="flex-1 p-4">
+            {activeMode === 'text' && (
+              <div className="h-full">
+                <h3 className="text-lg font-semibold mb-4">Text Explanations</h3>
+                <div className="space-y-4">
+                  {explanations.filter(e => e.mode === 'text').map(explanation => (
+                    <div key={explanation.id} className="bg-white border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">{explanation.title}</h4>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadExplanation(explanation)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-gray-700">{explanation.content}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {explanation.timestamp.toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                  {explanations.filter(e => e.mode === 'text').length === 0 && (
+                    <div className="text-center text-gray-500 py-8">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No text explanations yet. Enter a question above to get started.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeMode === 'voice' && (
+              <div className="h-full">
+                <h3 className="text-lg font-semibold mb-4">Voice Explanations</h3>
+                <div className="space-y-4">
+                  {explanations.filter(e => e.mode === 'voice').map(explanation => (
+                    <div key={explanation.id} className="bg-white border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">{explanation.title}</h4>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={toggleSpeaking}
+                          >
+                            <Volume2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => downloadExplanation(explanation)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-gray-700">{explanation.content}</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {explanation.timestamp.toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                  {explanations.filter(e => e.mode === 'voice').length === 0 && (
+                    <div className="text-center text-gray-500 py-8">
+                      <Mic className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No voice explanations yet. Use voice input to get started.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeMode === 'visual' && (
+              <div className="h-full">
+                <h3 className="text-lg font-semibold mb-4">Visual Drawing Interface</h3>
+                <DrawingCanvas
+                  width={800}
+                  height={500}
+                  onDrawingChange={handleVisualExplanation}
+                  className="border border-gray-300 rounded-lg"
+                />
+              </div>
+            )}
+
+            {activeMode === 'interactive' && (
+              <div className="h-full">
+                <InteractiveDiagrams />
+              </div>
+            )}
+
+            {activeMode === 'code' && (
+              <div className="h-full">
+                <CodeSyntaxHighlighter />
+              </div>
+            )}
+
+            {activeMode === 'step-by-step' && (
+              <div className="h-full">
+                <StepByStepVisualSolver />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
