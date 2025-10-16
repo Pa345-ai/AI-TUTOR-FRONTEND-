@@ -1375,6 +1375,193 @@ export async function fetchNeuroVerseAnalytics(timeRange: string = '30d') {
   return res.json() as Promise<{ analytics: any }>;
 }
 
+// =====================================================
+// OMNIMIND OS API FUNCTIONS
+// =====================================================
+
+// AI Plugin Ecosystem
+export async function fetchAIPlugins(category?: string, pluginType?: string, pricingModel?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/omnimind/plugins`);
+  if (category) url.searchParams.set('category', category);
+  if (pluginType) url.searchParams.set('type', pluginType);
+  if (pricingModel) url.searchParams.set('pricing', pricingModel);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`AI plugins error ${res.status}`);
+  return res.json() as Promise<{ plugins: any[] }>;
+}
+
+export async function createAIPlugin(pluginData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/plugins`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pluginData)
+  });
+  if (!res.ok) throw new Error(`Create AI plugin error ${res.status}`);
+  return res.json();
+}
+
+export async function installPlugin(pluginId: string, userId: string, organizationId: string, config: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/plugins/${pluginId}/install`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, organizationId, config })
+  });
+  if (!res.ok) throw new Error(`Install plugin error ${res.status}`);
+  return res.json();
+}
+
+// Open API Hub
+export async function createAPIKey(userId: string, organizationId: string, keyData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/api-keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, organizationId, ...keyData })
+  });
+  if (!res.ok) throw new Error(`Create API key error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchAPIKeys(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/api-keys?userId=${userId}`);
+  if (!res.ok) throw new Error(`API keys error ${res.status}`);
+  return res.json() as Promise<{ keys: any[] }>;
+}
+
+export async function fetchPlatformIntegrations() {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/integrations`);
+  if (!res.ok) throw new Error(`Platform integrations error ${res.status}`);
+  return res.json() as Promise<{ integrations: any[] }>;
+}
+
+export async function createPlatformIntegration(integrationData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/integrations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(integrationData)
+  });
+  if (!res.ok) throw new Error(`Create integration error ${res.status}`);
+  return res.json();
+}
+
+// NeuroCloud AI Workspace
+export async function createAIWorkspace(organizationId: string, workspaceData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/workspaces`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ organizationId, ...workspaceData })
+  });
+  if (!res.ok) throw new Error(`Create AI workspace error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchAIWorkspaces(organizationId?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/omnimind/workspaces`);
+  if (organizationId) url.searchParams.set('organizationId', organizationId);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`AI workspaces error ${res.status}`);
+  return res.json() as Promise<{ workspaces: any[] }>;
+}
+
+export async function fetchTrainingDatasets(workspaceId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/workspaces/${workspaceId}/datasets`);
+  if (!res.ok) throw new Error(`Training datasets error ${res.status}`);
+  return res.json() as Promise<{ datasets: any[] }>;
+}
+
+export async function createTrainingDataset(workspaceId: string, datasetData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/workspaces/${workspaceId}/datasets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datasetData)
+  });
+  if (!res.ok) throw new Error(`Create training dataset error ${res.status}`);
+  return res.json();
+}
+
+export async function startModelTrainingJob(workspaceId: string, jobData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/workspaces/${workspaceId}/training-jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(jobData)
+  });
+  if (!res.ok) throw new Error(`Start training job error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchModelTrainingJobs(workspaceId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/workspaces/${workspaceId}/training-jobs`);
+  if (!res.ok) throw new Error(`Training jobs error ${res.status}`);
+  return res.json() as Promise<{ jobs: any[] }>;
+}
+
+export async function fetchDeployedModels(workspaceId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/workspaces/${workspaceId}/models`);
+  if (!res.ok) throw new Error(`Deployed models error ${res.status}`);
+  return res.json() as Promise<{ models: any[] }>;
+}
+
+// Developer Tools
+export async function createDeveloperAccount(userId: string, accountData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/developers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, ...accountData })
+  });
+  if (!res.ok) throw new Error(`Create developer account error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchDeveloperAccount(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/developers?userId=${userId}`);
+  if (!res.ok) throw new Error(`Developer account error ${res.status}`);
+  return res.json() as Promise<{ account: any }>;
+}
+
+export async function logSDKDownload(developerId: string, sdkName: string, sdkVersion: string, platform: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/sdk-downloads`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ developerId, sdkName, sdkVersion, platform })
+  });
+  if (!res.ok) throw new Error(`Log SDK download error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchDeveloperResources(category?: string, difficultyLevel?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/omnimind/resources`);
+  if (category) url.searchParams.set('category', category);
+  if (difficultyLevel) url.searchParams.set('difficulty', difficultyLevel);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Developer resources error ${res.status}`);
+  return res.json() as Promise<{ resources: any[] }>;
+}
+
+// OmniMind Analytics
+export async function fetchOmniMindAnalytics(timeRange: string = '30d') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/omnimind/analytics?timeRange=${timeRange}`);
+  if (!res.ok) throw new Error(`OmniMind analytics error ${res.status}`);
+  return res.json() as Promise<{ analytics: any }>;
+}
+
 // A/B testing helpers
 export type AbAssignment = { userId: string; testName: string; bucket: 'A'|'B'; createdAt?: string };
 export async function abAssign(userId: string): Promise<{ bucket: 'A'|'B' }> {
