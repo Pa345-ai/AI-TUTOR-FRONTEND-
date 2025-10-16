@@ -189,6 +189,8 @@ export default function RootLayout({
                 <Link href="/ai-personalities" className="hover:underline">AI Personalities</Link>
                 <Link href="/quiz-generator" className="hover:underline">Quiz Generator</Link>
                 <Link href="/lesson-generator" className="hover:underline">Lesson Generator</Link>
+                <Link href="/eli5-expert" className="hover:underline">ELI5 + Expert</Link>
+                <Link href="/homework-feedback" className="hover:underline">Homework Feedback</Link>
                 {/* One-tap multi-modal toggles */}
                 <div className="flex items-center gap-1">
                   <button
