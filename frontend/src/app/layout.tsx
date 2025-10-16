@@ -183,6 +183,8 @@ export default function RootLayout({
                 <Link href="/ultra-intelligent" className="hover:underline">Ultra-Intelligent</Link>
                 <Link href="/knowledge-graph-enhanced" className="hover:underline">Knowledge Graph</Link>
                 <Link href="/multi-modal-memory" className="hover:underline">Multi-Modal</Link>
+                <Link href="/enhanced-progress" className="hover:underline">Progress</Link>
+                <Link href="/ai-flashcards" className="hover:underline">AI Flashcards</Link>
                 {/* One-tap multi-modal toggles */}
                 <div className="flex items-center gap-1">
                   <button
