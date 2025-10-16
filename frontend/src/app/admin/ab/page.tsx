@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { abAssign, abSet, listAbAssignments, adminListEvents, type AbAssignment } from "@/lib/api";
 
 export default function AbAdminPage() {
-  const base = process.env.NEXT_PUBLIC_BASE_URL!;
+  const _base = process.env.NEXT_PUBLIC_BASE_URL!;
   const [assignments, setAssignments] = useState<AbAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");

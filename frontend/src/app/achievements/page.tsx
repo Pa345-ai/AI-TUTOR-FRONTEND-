@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchAchievements, fetchUserAchievements, type AchievementItem } from "@/lib/api";
 
 export default function AchievementsPage() {
@@ -18,7 +18,7 @@ export default function AchievementsPage() {
     }
   }, []);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -37,9 +37,9 @@ export default function AchievementsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
-  useEffect(() => { void load(); }, [userId]);
+  useEffect(() => { void load(); }, [load]);
 
   const has = (id: string) => mine.some((x) => x.id === id);
 

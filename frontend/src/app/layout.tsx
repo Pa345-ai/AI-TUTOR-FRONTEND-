@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+// Removed unused imports: usePathname, useRouter
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
@@ -23,7 +23,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  // Removed unused pathname variable
   // Lightweight guarded wrapper component
   function Guarded({ children }: { children: React.ReactNode }) {
     // Only guard known protected sections
@@ -63,7 +63,7 @@ export default function RootLayout({
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     setOffline(!navigator.onLine);
-    navigator.serviceWorker.addEventListener('message', (e: MessageEvent<{ type: string; count?: number }>) => {
+    navigator.serviceWorker.addEventListener('message', (_e: MessageEvent<{ type: string; count?: number }>) => {
       const data = e.data;
       if (data?.type === 'QUEUE_SIZE') setQueued(typeof data.count === 'number' ? data.count : 0);
       if (data?.type === 'FLUSH_DONE') setQueued(0);

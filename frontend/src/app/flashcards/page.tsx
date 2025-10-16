@@ -264,7 +264,7 @@ function DueBreakdown({ due }: { due: FlashcardItem[] }) {
   );
 }
 
-function DeckStats({ items, decks, due }: { items: FlashcardItem[]; decks: Array<{ id: string; name: string }>; due: FlashcardItem[] }) {
+function DeckStats({ items, decks, due: _due }: { items: FlashcardItem[]; decks: Array<{ id: string; name: string }>; due: FlashcardItem[] }) {
   const map: Record<string, number> = {};
   for (const d of decks) map[d.name] = 0;
   for (const c of items) {

@@ -161,7 +161,7 @@ export default function AdminMetricsDashboards() {
       <section className="border rounded-md p-3">
         <div className="text-sm font-medium mb-2">Throughput (top endpoints)</div>
         <div className="grid gap-1 text-xs">
-          {throughput.map(([path, n], i) => (
+          {throughput.map(([path, n], _i) => (
             <div key={path} className="flex items-center gap-2">
               <span className="w-8 text-right">{n}</span>
               <div className="h-2 bg-muted rounded flex-1"><div className="h-full bg-blue-600 rounded" style={{ width: `${Math.min(100, (n / Math.max(1, throughput[0]?.[1] || 1))*100)}%` }} /></div>

@@ -57,7 +57,7 @@ const handler = NextAuth({
       if ((token as any)?.role) (session as any).role = (token as any).role;
       return session;
     },
-    async jwt({ token, account, user }) {
+    async jwt({ token, account: _account, user }) {
       try {
         const base = process.env.NEXT_PUBLIC_BASE_URL!;
         // After sign-in, ensure role is fetched/attached; refresh periodically otherwise
