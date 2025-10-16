@@ -45,9 +45,10 @@ export default function OfflineModelsPage() {
   const install = useCallback(async (id: string) => {
     setDownloading(id); setStatus('Downloading…');
     try {
-      // Real download with progress (HTTP range optional); here we stream and track progress
-      const url = `/models/${id}.bin`;
-      const resp = await fetch(url);
+      // Download ONNX model (and vocab if available) with progress
+      const modelUrl = `/models/${id}.onnx`;
+      const vocabUrl = id === 'tiny-qna' ? '/models/tiny-qna-vocab.json' : (id === 'mini-sum' ? '/models/mini-sum-vocab.json' : undefined);
+      const resp = await fetch(modelUrl);
       if (!resp.ok || !resp.body) throw new Error(`Download failed: ${resp.status}`);
       const reader = resp.body.getReader();
       const cache = await caches.open('offline-models');
@@ -60,9 +61,10 @@ export default function OfflineModelsPage() {
         setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'updating', downloadedBytes: received } : p));
       }
       const full = new Blob(chunks, { type: 'application/octet-stream' });
-      await cache.put(new Request(url), new Response(full));
+      await cache.put(new Request(modelUrl), new Response(full));
+      if (vocabUrl) { try { const vr = await fetch(vocabUrl); if (vr.ok) await cache.put(new Request(vocabUrl), vr.clone()); } catch {} }
       // Optionally store a manifest entry for offline routing/sync
-      try { await cache.put(new Request(`/models/${id}.manifest`), new Response(JSON.stringify({ id, installedAt: new Date().toISOString() }), { headers: { 'Content-Type':'application/json' } })); } catch {}
+      try { await cache.put(new Request(`/models/${id}.manifest`), new Response(JSON.stringify({ id, installedAt: new Date().toISOString(), entry: modelUrl, vocab: vocabUrl }), { headers: { 'Content-Type':'application/json' } })); } catch {}
       setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'installed', downloadedBytes: full.size } : p));
       // refresh quota
       try { const est = await (navigator as any).storage?.estimate?.(); if (est) setQuota({ usage: est.usage || 0, quota: est.quota || 0 }); } catch {}
@@ -79,7 +81,9 @@ export default function OfflineModelsPage() {
     setStatus('Removing…');
     try {
       const cache = await caches.open('offline-models');
-      await cache.delete(new Request(`/models/${id}.bin`));
+      await cache.delete(new Request(`/models/${id}.onnx`));
+      if (id === 'tiny-qna') await cache.delete(new Request('/models/tiny-qna-vocab.json'));
+      if (id === 'mini-sum') await cache.delete(new Request('/models/mini-sum-vocab.json'));
       setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'not-installed' } : p));
       setStatus('Removed');
       try { setHealth(await healthSummary()); } catch {}
