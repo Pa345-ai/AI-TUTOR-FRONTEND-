@@ -37,10 +37,15 @@ export interface BackendMessage {
   createdAt?: string;
 }
 
+import { MOCK_BACKEND, mockChat, mockProgress, mockAchievements, mockFlashcards, mockLearningPaths, mockNotifications, mockStudyRooms, mockLeaderboard } from './mock-api';
+
 const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {
     const fromEnv = process.env.NEXT_PUBLIC_BASE_URL;
     if (!fromEnv) {
+      if (MOCK_BACKEND) {
+        return 'mock://api';
+      }
       throw new Error("NEXT_PUBLIC_BASE_URL is not set");
     }
     return fromEnv;
@@ -48,6 +53,9 @@ const getBaseUrl = (): string => {
   // Server: also rely on NEXT_PUBLIC_BASE_URL for now
   const fromEnv = process.env.NEXT_PUBLIC_BASE_URL;
   if (!fromEnv) {
+    if (MOCK_BACKEND) {
+      return 'mock://api';
+    }
     throw new Error("NEXT_PUBLIC_BASE_URL is not set");
   }
   return fromEnv;
@@ -55,6 +63,12 @@ const getBaseUrl = (): string => {
 
 export async function chat(request: ChatRequest, init?: RequestInit): Promise<ChatResponse> {
   const baseUrl = getBaseUrl();
+  
+  // Use mock data if backend is not available
+  if (baseUrl === 'mock://api') {
+    return await mockChat(request);
+  }
+  
   const res = await fetch(`${baseUrl}/api/chat/message`, {
     method: "POST",
     headers: {
@@ -113,6 +127,12 @@ export interface ProgressResponse {
 
 export async function fetchProgress(userId: string): Promise<ProgressResponse["progress"]> {
   const baseUrl = getBaseUrl();
+  
+  if (baseUrl === 'mock://api') {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockProgress();
+  }
+  
   const res = await fetch(`${baseUrl}/api/progress/${encodeURIComponent(userId)}`);
   if (!res.ok) throw new Error(`Progress error ${res.status}`);
   const data = (await res.json()) as ProgressResponse;
@@ -142,6 +162,12 @@ export interface AchievementItem {
 
 export async function fetchAchievements(): Promise<AchievementItem[]> {
   const baseUrl = getBaseUrl();
+  
+  if (baseUrl === 'mock://api') {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return mockAchievements();
+  }
+  
   const res = await fetch(`${baseUrl}/api/achievements`);
   if (!res.ok) throw new Error(`Achievements error ${res.status}`);
   const data = (await res.json()) as { achievements?: AchievementItem[] };
