@@ -236,6 +236,7 @@ export default function RootLayout({
                 <Link href="/settings" className="hover:underline">Settings</Link>
                 <Link href="/connection-test" className="hover:underline">Connection Test</Link>
                 <Link href="/meta-learning" className="hover:underline">Meta-Learning</Link>
+                <Link href="/neuroverse" className="hover:underline">NeuroVerse</Link>
               </nav>
             </div>
           </header>

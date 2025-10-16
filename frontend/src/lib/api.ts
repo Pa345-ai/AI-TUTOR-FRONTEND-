@@ -1234,6 +1234,147 @@ export async function fetchMetaLearningAnalytics(timeRange: string = '30d') {
   return res.json() as Promise<{ analytics: any }>;
 }
 
+// =====================================================
+// NEUROVERSE API FUNCTIONS
+// =====================================================
+
+// Virtual Environments
+export async function fetchVirtualEnvironments(environmentType?: string, subjectArea?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/neuroverse/environments`);
+  if (environmentType) url.searchParams.set('type', environmentType);
+  if (subjectArea) url.searchParams.set('subject', subjectArea);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Virtual environments error ${res.status}`);
+  return res.json() as Promise<{ environments: any[] }>;
+}
+
+export async function fetchVirtualScenes(environmentId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/environments/${environmentId}/scenes`);
+  if (!res.ok) throw new Error(`Virtual scenes error ${res.status}`);
+  return res.json() as Promise<{ scenes: any[] }>;
+}
+
+// AI Companion Avatars
+export async function fetchAICompanionAvatars(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/companions?userId=${userId}`);
+  if (!res.ok) throw new Error(`AI companion avatars error ${res.status}`);
+  return res.json() as Promise<{ companions: any[] }>;
+}
+
+export async function createAICompanionAvatar(userId: string, companionData: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/companions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, ...companionData })
+  });
+  if (!res.ok) throw new Error(`Create AI companion error ${res.status}`);
+  return res.json();
+}
+
+export async function logAvatarInteraction(interaction: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/avatar-interactions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(interaction)
+  });
+  if (!res.ok) throw new Error(`Log avatar interaction error ${res.status}`);
+  return res.json();
+}
+
+// Mixed Reality Labs
+export async function fetchVirtualExperiments(subjectArea?: string, difficultyLevel?: string) {
+  const baseUrl = getBaseUrl();
+  const url = new URL(`${baseUrl}/api/neuroverse/experiments`);
+  if (subjectArea) url.searchParams.set('subject', subjectArea);
+  if (difficultyLevel) url.searchParams.set('difficulty', difficultyLevel);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Virtual experiments error ${res.status}`);
+  return res.json() as Promise<{ experiments: any[] }>;
+}
+
+export async function startExperimentSession(userId: string, experimentId: string, environmentId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/experiment-sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, experimentId, environmentId })
+  });
+  if (!res.ok) throw new Error(`Start experiment session error ${res.status}`);
+  return res.json();
+}
+
+export async function updateExperimentSession(sessionId: string, updates: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/experiment-sessions/${sessionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+  if (!res.ok) throw new Error(`Update experiment session error ${res.status}`);
+  return res.json();
+}
+
+// VR/AR Sessions
+export async function startVRARSession(userId: string, sessionType: string, deviceType: string, environmentId: string, sceneId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/vr-ar-sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, sessionType, deviceType, environmentId, sceneId })
+  });
+  if (!res.ok) throw new Error(`Start VR/AR session error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchVRARSessions(userId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/vr-ar-sessions?userId=${userId}`);
+  if (!res.ok) throw new Error(`VR/AR sessions error ${res.status}`);
+  return res.json() as Promise<{ sessions: any[] }>;
+}
+
+export async function updateVRARSession(sessionId: string, updates: any) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/vr-ar-sessions/${sessionId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+  if (!res.ok) throw new Error(`Update VR/AR session error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchCollaborativeSessions() {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/collaborative-sessions`);
+  if (!res.ok) throw new Error(`Collaborative sessions error ${res.status}`);
+  return res.json() as Promise<{ sessions: any[] }>;
+}
+
+export async function joinCollaborativeSession(sessionId: string, userId: string, avatarId: string) {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/collaborative-sessions/${sessionId}/join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, avatarId })
+  });
+  if (!res.ok) throw new Error(`Join collaborative session error ${res.status}`);
+  return res.json();
+}
+
+// NeuroVerse Analytics
+export async function fetchNeuroVerseAnalytics(timeRange: string = '30d') {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/neuroverse/analytics?timeRange=${timeRange}`);
+  if (!res.ok) throw new Error(`NeuroVerse analytics error ${res.status}`);
+  return res.json() as Promise<{ analytics: any }>;
+}
+
 // A/B testing helpers
 export type AbAssignment = { userId: string; testName: string; bucket: 'A'|'B'; createdAt?: string };
 export async function abAssign(userId: string): Promise<{ bucket: 'A'|'B' }> {
