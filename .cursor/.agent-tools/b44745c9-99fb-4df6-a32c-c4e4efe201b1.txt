@@ -1,0 +1,176 @@
+
+added 515 packages in 8s
+npm notice
+npm notice New major version of npm available! 10.9.3 -> 11.6.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+npm notice To update run: npm install -g npm@11.6.2
+npm notice
+
+> frontend@0.1.0 build
+> next build --turbopack
+
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+   ▲ Next.js 15.5.4 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Finished writing to disk in 141ms
+ ✓ Compiled successfully in 6.7s
+   Linting and checking validity of types ...
+
+./src/app/achievements/page.tsx
+42:37  Warning: React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/admin/ab/page.tsx
+7:9  Warning: 'base' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/admin/metrics/page.tsx
+164:39  Warning: 'i' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/admin/page.tsx
+57:216  Warning: React Hook useEffect has a missing dependency: 'loadAll'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+210:115  Warning: 'id' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+333:29  Warning: 'i' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/api/auth/[...nextauth]/route.ts
+60:24  Warning: 'account' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/chat/page.tsx
+169:9  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+187:9  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+534:7  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+885:6  Warning: React Hook useCallback has missing dependencies: 'speak' and 'voiceTutorOn'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/exams/page.tsx
+156:6  Warning: React Hook useCallback has missing dependencies: 'cheatEvents', 'sections', 'sessionId', and 'userId'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/flashcards/page.tsx
+267:36  Warning: 'due' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/knowledge-graph/page.tsx
+187:78  Warning: 'col' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/layout.tsx
+4:10  Warning: 'usePathname' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+4:23  Warning: 'useRouter' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+26:9  Warning: 'pathname' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+124:23  Warning: 'e' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/learning-paths/page.tsx
+4:166  Warning: 'updateLearningPath' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+126:15  Warning: 'id' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/lessons/page.tsx
+70:7  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+
+./src/app/notifications/page.tsx
+32:37  Warning: React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/offline-models/page.tsx
+56:31  Warning: 'total' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+78:6  Warning: React Hook useCallback has a missing dependency: 'packs'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/profile/page.tsx
+12:10  Warning: 'loading' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/quizzes/page.tsx
+96:7  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+
+./src/app/study-rooms/[id]/page.tsx
+23:22  Warning: 'setUserColors' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+24:10  Warning: 'cursor' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+24:18  Warning: 'setCursor' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+35:9  Warning: 'vectorRef' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+134:6  Warning: React Hook useEffect has missing dependencies: 'myColor' and 'name'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+165:9  Warning: 'say' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+228:11  Warning: 'w' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+228:26  Warning: 'h' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+290:9  Warning: 'replayTimeline' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/summarizer/page.tsx
+3:10  Warning: 'useMemo' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+19:10  Warning: 'numPages' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/teacher-dashboard/page.tsx
+4:53  Warning: 'fetchStudentSummary' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/lib/local-inference.ts
+64:5  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-var-requires').
+109:9  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+112:9  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unsafe-argument').
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/48) ...
+   Generating static pages (12/48) 
+   Generating static pages (24/48) 
+   Generating static pages (36/48) 
+ ✓ Generating static pages (48/48)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                            Size  First Load JS
+┌ ○ /                               8.89 kB         130 kB
+├ ○ /_not-found                         0 B         121 kB
+├ ○ /achievements                   6.17 kB         127 kB
+├ ○ /adaptive                       8.55 kB         261 kB
+├ ○ /admin                          10.8 kB         132 kB
+├ ○ /admin/ab                       6.94 kB         128 kB
+├ ○ /admin/metrics                  8.13 kB         129 kB
+├ ƒ /api/auth/[...nextauth]             0 B            0 B
+├ ○ /career                         7.06 kB         136 kB
+├ ○ /chat                           89.2 kB         342 kB
+├ ○ /classes                        7.45 kB         128 kB
+├ ○ /exams                          3.81 kB         133 kB
+├ ○ /exams/analytics                1.39 kB         122 kB
+├ ○ /flashcards                     9.07 kB         138 kB
+├ ○ /heatmap                         8.5 kB         137 kB
+├ ○ /history                        1.76 kB         131 kB
+├ ○ /homework                       7.64 kB         136 kB
+├ ○ /integrations                   1.99 kB         123 kB
+├ ○ /knowledge-graph                 7.9 kB         129 kB
+├ ○ /landing                        3.28 kB         162 kB
+├ ○ /leaderboard                    6.53 kB         127 kB
+├ ○ /learning-paths                 8.21 kB         129 kB
+├ ○ /lessons                        10.5 kB         139 kB
+├ ○ /lessons/interactive            11.7 kB         264 kB
+├ ○ /login                          17.4 kB         176 kB
+├ ○ /mastery                        7.95 kB         137 kB
+├ ○ /memory                         6.13 kB         127 kB
+├ ○ /notifications                  6.15 kB         127 kB
+├ ○ /offline-models                 5.06 kB         126 kB
+├ ○ /onboarding                       941 B         122 kB
+├ ○ /packs                            895 B         122 kB
+├ ○ /parent-dashboard               7.51 kB         128 kB
+├ ○ /privacy                        3.48 kB         162 kB
+├ ○ /profile                        6.29 kB         127 kB
+├ ○ /progress                       8.33 kB         137 kB
+├ ○ /quizzes                        13.1 kB         142 kB
+├ ○ /reset-password                 1.09 kB         159 kB
+├ ○ /settings                       4.07 kB         133 kB
+├ ○ /signup                         17.6 kB         176 kB
+├ ○ /study-room                     7.68 kB         137 kB
+├ ○ /study-rooms                     6.7 kB         136 kB
+├ ƒ /study-rooms/[id]               11.1 kB         140 kB
+├ ○ /summarizer                     9.98 kB         139 kB
+├ ○ /teacher-dashboard              7.46 kB         128 kB
+├ ○ /teacher-dashboard/assignments  6.25 kB         127 kB
+├ ○ /teacher-dashboard/submissions  7.57 kB         136 kB
+└ ○ /terms                          2.93 kB         161 kB
++ First Load JS shared by all        135 kB
+  ├ chunks/076c1b03f28fa33d.js      17.2 kB
+  ├ chunks/67ea754a7545ec92.js      59.2 kB
+  ├ chunks/6d17a196719d2d8a.js        13 kB
+  ├ chunks/10891bd0eaa7473c.css     14.4 kB
+  └ other shared chunks (total)     31.6 kB
+
+
+ƒ Middleware                        43.1 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
