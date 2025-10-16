@@ -22,8 +22,7 @@ export function CodeRunner() {
         // @ts-expect-error global load
         const mod = await import("https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.mjs");
         if (cancelled) return;
-        // @ts-ignore
-        const pyodide = await mod.loadPyodide();
+        const pyodide: unknown = await (mod as unknown as { loadPyodide: () => Promise<unknown> }).loadPyodide();
         pyodideRef.current = pyodide;
         setPyodideReady(true);
       } catch {
@@ -70,8 +69,9 @@ export function CodeRunner() {
         const wrapped = `\nimport sys, io\nfrom contextlib import redirect_stdout, redirect_stderr\nbuf = io.StringIO()\nerr = io.StringIO()\ncode = r'''\n${code.replace(/`/g, "\\`")}\n'''\nwith redirect_stdout(buf):\n    with redirect_stderr(err):\n        exec(code, {})\nprint(buf.getvalue(), end='')\nprint(err.getvalue(), end='')\n`;
         const result = await pyodideRef.current.runPythonAsync(wrapped);
         setOutput(String(result ?? ""));
-      } catch (e: any) {
-        setOutput(String(e?.message || e || "Python error"));
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        setOutput(String(errMsg || "Python error"));
       }
     }
   }, [language, code]);

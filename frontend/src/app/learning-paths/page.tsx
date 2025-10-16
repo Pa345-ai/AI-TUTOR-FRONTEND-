@@ -134,7 +134,7 @@ export default function LearningPathsPage() {
 
   const savePrefs = useCallback(async () => {
     if (!prefs) return;
-    await setSchedulePrefs({ userId, ...prefs });
+    await setSchedulePrefs({ ...prefs, userId });
   }, [prefs, userId]);
 
   const planWeek = useCallback(async () => {
@@ -236,8 +236,8 @@ export default function LearningPathsPage() {
       <div className="border rounded-md p-3 space-y-2">
         <div className="text-sm font-medium">Schedule & Calendar</div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <input className="h-8 px-2 border rounded-md" placeholder="Timezone (e.g., UTC)" value={prefs?.timezone || ''} onChange={(e)=>setPrefs({ ...(prefs||{ userId }), userId, timezone: e.target.value })} />
-          <input className="h-8 px-2 border rounded-md w-28" placeholder="Daily minutes" type="number" value={prefs?.dailyMinutes ?? 60} onChange={(e)=>setPrefs({ ...(prefs||{ userId }), userId, dailyMinutes: parseInt(e.target.value||'60') })} />
+          <input className="h-8 px-2 border rounded-md" placeholder="Timezone (e.g., UTC)" value={prefs?.timezone || ''} onChange={(e)=>setPrefs((prev)=>({ ...(prev||{}), userId, timezone: e.target.value }))} />
+          <input className="h-8 px-2 border rounded-md w-28" placeholder="Daily minutes" type="number" value={prefs?.dailyMinutes ?? 60} onChange={(e)=>setPrefs((prev)=>({ ...(prev||{}), userId, dailyMinutes: parseInt(e.target.value||'60') }))} />
           <button className="h-8 px-3 border rounded-md" onClick={()=>void savePrefs()}>Save Prefs</button>
           <button className="h-8 px-3 border rounded-md" onClick={()=>void planWeek()}>Plan Week</button>
           <button className="h-8 px-3 border rounded-md" onClick={async ()=>{ const ics = await exportICS(userId); const blob = new Blob([ics], { type: 'text/calendar' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'learning-path.ics'; a.click(); URL.revokeObjectURL(url); }}>Export ICS</button>

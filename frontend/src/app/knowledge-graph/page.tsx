@@ -234,7 +234,7 @@ export default function KnowledgeGraphPage() {
             ) : (
               <ul className="text-sm list-disc pl-5">
                 {readyToAdvance.weak.map(w => (
-                  <li key={w}>Review prerequisite "{w}" first. Suggested steps: practice 3 questions on {w}, then retake a quick check on {topic}.
+                  <li key={w}>Review prerequisite &quot;{w}&quot; first. Suggested steps: practice 3 questions on {w}, then retake a quick check on {topic}.
                   </li>
                 ))}
               </ul>

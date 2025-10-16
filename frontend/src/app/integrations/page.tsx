@@ -81,7 +81,7 @@ export default function IntegrationsPage() {
           <div className="text-xs">OAuth: <a className="underline" href={`${base}/api/integrations/gclass/oauth/start?userId=${encodeURIComponent(userId)}`}>Connect Google</a></div>
           <div className="text-xs flex items-center gap-2">
             <input className="h-8 px-2 border rounded-md flex-1" placeholder="Paste Google OAuth token" value={gToken} onChange={(e)=>setGToken(e.target.value)} />
-            <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>void saveToken(google, gToken)}>Save token</button>
+            <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>void saveToken('google', gToken)}>Save token</button>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <button className="h-8 px-3 border rounded-md" onClick={listCourses}>List courses</button>
@@ -128,7 +128,7 @@ export default function IntegrationsPage() {
           <div className="text-xs">OAuth: <a className="underline" href={`${base}/api/integrations/teams/oauth/start?userId=${encodeURIComponent(userId)}`}>Connect Microsoft</a></div>
           <div className="text-xs flex items-center gap-2">
             <input className="h-8 px-2 border rounded-md flex-1" placeholder="Paste Microsoft OAuth token" value={mToken} onChange={(e)=>setMToken(e.target.value)} />
-            <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>void saveToken(microsoft, mToken)}>Save token</button>
+            <button className="h-8 px-3 border rounded-md text-sm" onClick={()=>void saveToken('microsoft', mToken)}>Save token</button>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <button className="h-8 px-3 border rounded-md" onClick={listTeams}>List teams</button>
@@ -177,14 +177,14 @@ export default function IntegrationsPage() {
         <div className="grid sm:grid-cols-2 gap-2 text-xs">
           <div className="border rounded-md p-2">
             <div className="font-medium">Drive</div>
-            <input className="w-full h-8 px-2 border rounded" placeholder="https://drive.google.com/file/..." onKeyDown={(e)=>{ if (e.key===Enter) setDriveFiles(prev => [...prev, { id: crypto.randomUUID(), name: (e.target as HTMLInputElement).value }]); }} />
+            <input className="w-full h-8 px-2 border rounded" placeholder="https://drive.google.com/file/..." onKeyDown={(e)=>{ if (e.key==='Enter') setDriveFiles(prev => [...prev, { id: crypto.randomUUID(), name: (e.target as HTMLInputElement).value }]); }} />
             <ul className="mt-2 grid gap-1">
               {driveFiles.map(f => (<li key={f.id} className="border rounded px-2 py-1 text-xs">{f.name}</li>))}
             </ul>
           </div>
           <div className="border rounded-md p-2">
             <div className="font-medium">OneDrive</div>
-            <input className="w-full h-8 px-2 border rounded" placeholder="https://1drv.ms/..." onKeyDown={(e)=>{ if (e.key===Enter) setOneFiles(prev => [...prev, { id: crypto.randomUUID(), name: (e.target as HTMLInputElement).value }]); }} />
+            <input className="w-full h-8 px-2 border rounded" placeholder="https://1drv.ms/..." onKeyDown={(e)=>{ if (e.key==='Enter') setOneFiles(prev => [...prev, { id: crypto.randomUUID(), name: (e.target as HTMLInputElement).value }]); }} />
             <ul className="mt-2 grid gap-1">
               {oneFiles.map(f => (<li key={f.id} className="border rounded px-2 py-1 text-xs">{f.name}</li>))}
             </ul>

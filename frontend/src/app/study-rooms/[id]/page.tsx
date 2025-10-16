@@ -165,8 +165,8 @@ export default function StudyRoomPage({ params }: { params: { id: string } }) {
   const say = async (text: string) => {
     try {
       const stream = await ttsStream(text);
-      const reader = (stream as any).getReader(); const chunks: Uint8Array[] = [];
-      while (true) { const { value, done } = await reader.read(); if (done) break; if (value) chunks.push(value); }
+      const reader = (stream as any).getReader(); const chunks: BlobPart[] = [];
+      while (true) { const { value, done } = await reader.read(); if (done) break; if (value) chunks.push(value as BlobPart); }
       const blob = new Blob(chunks, { type: 'audio/mpeg' }); const url = URL.createObjectURL(blob); await new Audio(url).play().catch(()=>{}); URL.revokeObjectURL(url);
     } catch {}
   };

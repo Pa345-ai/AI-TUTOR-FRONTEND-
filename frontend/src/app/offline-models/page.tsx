@@ -15,7 +15,7 @@ export default function OfflineModelsPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [quota, setQuota] = useState<{ usage: number; quota: number } | null>(null);
-  const [health, setHealth] = useState<{ caps: any; packs: Array<{ id: string; version: string }> } | null>(null);
+  const [health, setHealth] = useState<{ caps: any; packs: Array<{ id: string; version: string; loaded?: boolean }> } | null>(null);
   const [routes, setRoutes] = useState<Array<{ path: string; enabled: boolean }>>([
     { path: '/lessons', enabled: true },
     { path: '/quizzes', enabled: true },
@@ -52,12 +52,12 @@ export default function OfflineModelsPage() {
       if (!resp.ok || !resp.body) throw new Error(`Download failed: ${resp.status}`);
       const reader = resp.body.getReader();
       const cache = await caches.open('offline-models');
-      const chunks: Uint8Array[] = [];
+      const chunks: BlobPart[] = [];
       let received = 0; const total = packs.find(p=>p.id===id)?.totalBytes || 0;
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        if (value) { chunks.push(value); received += value.length; }
+        if (value) { chunks.push(value as BlobPart); received += value.length; }
         setPacks(prev => prev.map(p => p.id===id? { ...p, status: 'updating', downloadedBytes: received } : p));
       }
       const full = new Blob(chunks, { type: 'application/octet-stream' });

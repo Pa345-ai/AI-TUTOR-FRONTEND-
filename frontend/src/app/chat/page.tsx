@@ -175,9 +175,13 @@ export default function ChatPage() {
           }).catch(() => {});
         }
       } catch {}
-      // Load memory refresher
-      try { const due = await fetchDueReviews(storedUserId || '123', 10); setDueReviews(due || []); } catch {}
-      try { const m = await fetchMemory(storedUserId || '123', 'daily'); setMemorySummary(m?.memory?.summary || ""); } catch {}
+      // Load memory refresher (no top-level await inside effect)
+      fetchDueReviews(storedUserId || '123', 10)
+        .then((due) => { setDueReviews(due || []); })
+        .catch(() => {});
+      fetchMemory(storedUserId || '123', 'daily')
+        .then((m) => { setMemorySummary(m?.memory?.summary || ""); })
+        .catch(() => {});
       // Detect Web Speech STT support
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -185,7 +189,16 @@ export default function ChatPage() {
         setSttSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
       } catch {}
       // Emotion/affect consent log bootstrap
-      try { const consent = window.localStorage.getItem('cameraConsent'); if (consent === 'true') { await fetch(`${process.env.NEXT_PUBLIC_BASE_URL!}/api/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: storedUserId || '123', feature: 'emotion', granted: true }) }); } } catch {}
+      try {
+        const consent = window.localStorage.getItem('cameraConsent');
+        if (consent === 'true') {
+          fetch(`${process.env.NEXT_PUBLIC_BASE_URL!}/api/consent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: storedUserId || '123', feature: 'emotion', granted: true }),
+          }).catch(() => {});
+        }
+      } catch {}
       // Load TTS voices
       try {
         if ('speechSynthesis' in window) {
@@ -539,9 +552,9 @@ export default function ChatPage() {
     try {
       const stream = await ttsStream(text, voiceName || undefined);
       const reader = (stream as any).getReader();
-      const chunks: Uint8Array[] = [];
+      const chunks: BlobPart[] = [];
       while (true) {
-        const { value, done } = await reader.read(); if (done) break; if (value) chunks.push(value);
+        const { value, done } = await reader.read(); if (done) break; if (value) chunks.push(value as BlobPart);
       }
       const blob = new Blob(chunks, { type: 'audio/mpeg' });
       const url = URL.createObjectURL(blob);

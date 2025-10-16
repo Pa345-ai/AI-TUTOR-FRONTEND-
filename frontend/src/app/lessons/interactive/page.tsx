@@ -120,8 +120,8 @@ export default function InteractiveLessonPage() {
     setCurrentIndex(s.currentStepIndex || 0);
     setScore(s.score || 0);
     // Initialize SRT editor from session
-    if (s.lesson?.srt) {
-      setSrtText(s.lesson.srt);
+    if ((s.lesson as Partial<InteractiveLesson>)?.srt) {
+      setSrtText((s.lesson as Partial<InteractiveLesson>).srt as string);
     } else {
       const steps = s.lesson?.steps || [];
       const plain = steps.map((st: any) => (st?.title ? `${st.title}. ${st.content || ''}` : (st.content || ''))).join("\n");
