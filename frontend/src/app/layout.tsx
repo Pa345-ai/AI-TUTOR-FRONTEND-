@@ -63,7 +63,7 @@ export default function RootLayout({
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     setOffline(!navigator.onLine);
-    navigator.serviceWorker.addEventListener('message', (_e: MessageEvent<{ type: string; count?: number }>) => {
+    navigator.serviceWorker.addEventListener('message', (e: MessageEvent<{ type: string; count?: number }>) => {
       const data = e.data;
       if (data?.type === 'QUEUE_SIZE') setQueued(typeof data.count === 'number' ? data.count : 0);
       if (data?.type === 'FLUSH_DONE') setQueued(0);
@@ -180,6 +180,7 @@ export default function RootLayout({
                 <Link href="/notifications" className="hover:underline relative">Notifications{unread>0 && (<span className="ml-1 inline-flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white align-middle">{unread}</span>)}</Link>
                 <Link href="/memory" className="hover:underline">Memory</Link>
                 <Link href="/integrations" className="hover:underline">Integrations</Link>
+                <Link href="/ultra-intelligent" className="hover:underline">Ultra-Intelligent</Link>
                 {/* One-tap multi-modal toggles */}
                 <div className="flex items-center gap-1">
                   <button
