@@ -6,6 +6,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { BackendStatus } from '@/components/BackendStatus';
+import BackendConnectionStatus from '@/components/BackendConnectionStatus';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -233,6 +234,7 @@ export default function RootLayout({
                   title="Toggle theme"
                 >{theme==='dark'?'🌙':theme==='light'?'☀️':'🖥️'}</button>
                 <Link href="/settings" className="hover:underline">Settings</Link>
+                <Link href="/connection-test" className="hover:underline">Connection Test</Link>
               </nav>
             </div>
           </header>
@@ -256,6 +258,7 @@ export default function RootLayout({
             {/* Client-side redirect guard for protected sections */}
             <Guarded>{children}</Guarded>
           </main>
+          <BackendConnectionStatus />
         </div>
       </body>
     </html>

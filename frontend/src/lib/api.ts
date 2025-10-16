@@ -38,6 +38,21 @@ export interface BackendMessage {
 }
 
 import { MOCK_BACKEND, mockChat, mockProgress, mockAchievements, mockFlashcards, mockLearningPaths, mockNotifications, mockStudyRooms, mockLeaderboard } from './mock-api';
+import { 
+  chatWithSupabase, 
+  fetchProgressWithSupabase, 
+  fetchAchievementsWithSupabase, 
+  fetchStudyRoomsWithSupabase, 
+  fetchLeaderboardWithSupabase, 
+  fetchFlashcardsWithSupabase, 
+  fetchLearningPathsWithSupabase, 
+  fetchNotificationsWithSupabase,
+  processVoiceWithSupabase,
+  processEmotionWithSupabase,
+  generateQuizWithSupabase,
+  getCareerAdviceWithSupabase,
+  getHomeworkFeedbackWithSupabase
+} from './supabase-api';
 
 const getBaseUrl = (): string => {
   if (typeof window !== "undefined") {
@@ -67,6 +82,15 @@ export async function chat(request: ChatRequest, init?: RequestInit): Promise<Ch
   // Use mock data if backend is not available
   if (baseUrl === 'mock://api') {
     return await mockChat(request);
+  }
+  
+  // Try Supabase backend first
+  try {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      return await chatWithSupabase(request);
+    }
+  } catch (error) {
+    console.warn('Supabase chat failed, trying fallback:', error);
   }
   
   try {
@@ -145,6 +169,15 @@ export async function fetchProgress(userId: string): Promise<ProgressResponse["p
   if (baseUrl === 'mock://api') {
     await new Promise(resolve => setTimeout(resolve, 500));
     return mockProgress();
+  }
+  
+  // Try Supabase backend first
+  try {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      return await fetchProgressWithSupabase(userId);
+    }
+  } catch (error) {
+    console.warn('Supabase progress fetch failed, trying fallback:', error);
   }
   
   try {
