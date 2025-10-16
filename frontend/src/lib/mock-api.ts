@@ -1,5 +1,5 @@
 // Mock API for testing when backend is not available
-export const MOCK_BACKEND = true;
+export const MOCK_BACKEND = false;
 
 export interface MockResponse {
   success: boolean;

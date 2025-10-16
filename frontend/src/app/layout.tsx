@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
+import { BackendStatus } from '@/components/BackendStatus';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -246,6 +247,9 @@ export default function RootLayout({
               </div>
             </div>
           )}
+          <div className="mx-auto max-w-5xl w-full px-4 py-2">
+            <BackendStatus />
+          </div>
           {/* Unified refreshers surfacing: show due topics across app */}
           <RefreshersBar />
           <main className="flex-1">

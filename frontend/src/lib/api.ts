@@ -69,36 +69,50 @@ export async function chat(request: ChatRequest, init?: RequestInit): Promise<Ch
     return await mockChat(request);
   }
   
-  const res = await fetch(`${baseUrl}/api/chat/message`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      userId: request.userId,
-      content: request.message,
-      language: request.language ?? "en",
-      mode: request.mode,
-      level: request.level,
-      subject: request.subject,
-      grade: request.grade,
-      curriculum: request.curriculum,
-      personaSocratic: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaSocratic') || '0') : 0) || undefined,
-      personaStrictness: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaStrictness') || '0') : 0) || undefined,
-      personaEncouragement: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaEncouragement') || '0') : 0) || undefined,
-    }),
-    ...init,
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Chat API error ${res.status}: ${text || res.statusText}`);
+  try {
+    const res = await fetch(`${baseUrl}/api/chat/message`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId: request.userId,
+        content: request.message,
+        language: request.language ?? "en",
+        mode: request.mode,
+        level: request.level,
+        subject: request.subject,
+        grade: request.grade,
+        curriculum: request.curriculum,
+        personaSocratic: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaSocratic') || '0') : 0) || undefined,
+        personaStrictness: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaStrictness') || '0') : 0) || undefined,
+        personaEncouragement: (typeof window !== 'undefined' ? parseInt(window.localStorage.getItem('personaEncouragement') || '0') : 0) || undefined,
+      }),
+      ...init,
+    });
+    
+    if (!res.ok) {
+      // If backend is not available, fall back to mock data
+      if (res.status === 404 || res.status >= 500) {
+        console.warn('Backend not available, using mock data');
+        return await mockChat(request);
+      }
+      
+      const text = await res.text().catch(() => "");
+      throw new Error(`Chat API error ${res.status}: ${text || res.statusText}`);
+    }
+    
+    const data = (await res.json()) as { message?: { content?: string } };
+    const reply = data?.message?.content;
+    if (!reply) {
+      throw new Error("Invalid response from Chat API");
+    }
+    return { reply };
+  } catch (error) {
+    // If network error or backend unavailable, use mock data
+    console.warn('Backend connection failed, using mock data:', error);
+    return await mockChat(request);
   }
-  const data = (await res.json()) as { message?: { content?: string } };
-  const reply = data?.message?.content;
-  if (!reply) {
-    throw new Error("Invalid response from Chat API");
-  }
-  return { reply };
 }
 
 export async function fetchChatHistory(userId: string): Promise<BackendMessage[]> {
@@ -133,10 +147,21 @@ export async function fetchProgress(userId: string): Promise<ProgressResponse["p
     return mockProgress();
   }
   
-  const res = await fetch(`${baseUrl}/api/progress/${encodeURIComponent(userId)}`);
-  if (!res.ok) throw new Error(`Progress error ${res.status}`);
-  const data = (await res.json()) as ProgressResponse;
-  return data.progress;
+  try {
+    const res = await fetch(`${baseUrl}/api/progress/${encodeURIComponent(userId)}`);
+    if (!res.ok) {
+      if (res.status === 404 || res.status >= 500) {
+        console.warn('Backend not available, using mock data');
+        return mockProgress();
+      }
+      throw new Error(`Progress error ${res.status}`);
+    }
+    const data = (await res.json()) as ProgressResponse;
+    return data.progress;
+  } catch (error) {
+    console.warn('Backend connection failed, using mock data:', error);
+    return mockProgress();
+  }
 }
 
 export async function streakCheckin(userId: string) {
@@ -168,10 +193,21 @@ export async function fetchAchievements(): Promise<AchievementItem[]> {
     return mockAchievements();
   }
   
-  const res = await fetch(`${baseUrl}/api/achievements`);
-  if (!res.ok) throw new Error(`Achievements error ${res.status}`);
-  const data = (await res.json()) as { achievements?: AchievementItem[] };
-  return data.achievements ?? [];
+  try {
+    const res = await fetch(`${baseUrl}/api/achievements`);
+    if (!res.ok) {
+      if (res.status === 404 || res.status >= 500) {
+        console.warn('Backend not available, using mock data');
+        return mockAchievements();
+      }
+      throw new Error(`Achievements error ${res.status}`);
+    }
+    const data = (await res.json()) as { achievements?: AchievementItem[] };
+    return data.achievements ?? [];
+  } catch (error) {
+    console.warn('Backend connection failed, using mock data:', error);
+    return mockAchievements();
+  }
 }
 
 export async function fetchUserAchievements(userId: string): Promise<AchievementItem[]> {
