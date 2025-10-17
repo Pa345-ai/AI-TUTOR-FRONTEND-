@@ -1,33 +1,33 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Brain, Network, TrendingUp, Play, BarChart3, Settings, RefreshCw, Plus, Zap, Target, Eye, Lightbulb } from 'lucide-react'
+import { Brain, Network, TrendingUp, Play, BarChart3, Settings, RefreshCw, Plus, Zap, Target, BookOpen, Lightbulb } from 'lucide-react'
 import PersonalCognitiveTwin from '@/components/cognitive-twin/PersonalCognitiveTwin'
 import PredictiveLearningEngine from '@/components/cognitive-twin/PredictiveLearningEngine'
 import MemoryReplayTool from '@/components/cognitive-twin/MemoryReplayTool'
 
 interface CognitiveTwinStats {
   totalTwins: number
-  activePredictions: number
-  replaySessions: number
+  activeTwins: number
   knowledgeNodes: number
-  cognitiveHealth: number
+  replaySessions: number
+  averagePerformance: number
+  predictionAccuracy: number
+  cognitiveHealthScore: number
   learningEfficiency: number
-  memoryRetention: number
-  problemSolving: number
 }
 
 export default function CognitiveTwinPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'personal_twin' | 'predictive_engine' | 'memory_replay'>('overview')
   const [stats, setStats] = useState<CognitiveTwinStats>({
     totalTwins: 0,
-    activePredictions: 0,
-    replaySessions: 0,
+    activeTwins: 0,
     knowledgeNodes: 0,
-    cognitiveHealth: 0,
-    learningEfficiency: 0,
-    memoryRetention: 0,
-    problemSolving: 0
+    replaySessions: 0,
+    averagePerformance: 0,
+    predictionAccuracy: 0,
+    cognitiveHealthScore: 0,
+    learningEfficiency: 0
   })
   const [isLoading, setIsLoading] = useState(true)
 
@@ -42,14 +42,14 @@ export default function CognitiveTwinPage() {
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       setStats({
-        totalTwins: 3,
-        activePredictions: 12,
-        replaySessions: 47,
-        knowledgeNodes: 156,
-        cognitiveHealth: 94.2,
-        learningEfficiency: 89.1,
-        memoryRetention: 92.3,
-        problemSolving: 85.7
+        totalTwins: 1,
+        activeTwins: 1,
+        knowledgeNodes: 47,
+        replaySessions: 23,
+        averagePerformance: 91.5,
+        predictionAccuracy: 87.3,
+        cognitiveHealthScore: 94.2,
+        learningEfficiency: 89.1
       })
     } catch (error) {
       console.error('Failed to load cognitive twin stats:', error)
@@ -84,7 +84,7 @@ export default function CognitiveTwinPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl">
+            <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl">
               <Brain className="w-8 h-8 text-white" />
             </div>
             <div>
@@ -93,15 +93,14 @@ export default function CognitiveTwinPage() {
             </div>
           </div>
           
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 border border-purple-200">
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200">
             <div className="flex items-center space-x-2 mb-2">
               <Zap className="w-5 h-5 text-purple-600" />
               <h2 className="text-lg font-semibold text-purple-900">Digital Brain Clone</h2>
             </div>
             <p className="text-purple-700">
-              The Cognitive Digital Twin System creates a comprehensive digital representation of each student's learning patterns, 
-              knowledge graph, and cognitive abilities. This AI-powered system enables personalized learning optimization, 
-              performance prediction, and memory replay capabilities.
+              Your personal cognitive twin maps your knowledge graph, memory retention, and thinking style. 
+              It predicts your learning performance months ahead and lets you revisit any past learning session as a timeline of growth.
             </p>
           </div>
         </div>
@@ -152,20 +151,20 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
 
   const statCards = [
     {
-      title: 'Cognitive Twins',
-      value: stats.totalTwins,
+      title: 'Active Cognitive Twins',
+      value: stats.activeTwins,
       icon: Brain,
       color: 'purple',
-      description: 'Digital brain clones created',
+      description: 'Digital brain clones active',
       growth: '+1 this month'
     },
     {
-      title: 'Active Predictions',
-      value: stats.activePredictions,
-      icon: TrendingUp,
+      title: 'Knowledge Nodes',
+      value: stats.knowledgeNodes,
+      icon: Network,
       color: 'blue',
-      description: 'AI performance forecasts',
-      growth: '+3 this week'
+      description: 'Individual knowledge pieces mapped',
+      growth: '+12 this week'
     },
     {
       title: 'Replay Sessions',
@@ -173,50 +172,31 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
       icon: Play,
       color: 'green',
       description: 'Learning sessions recorded',
-      growth: '+8 this month'
+      growth: '+5 this week'
     },
     {
-      title: 'Knowledge Nodes',
-      value: stats.knowledgeNodes,
-      icon: Network,
+      title: 'Average Performance',
+      value: `${stats.averagePerformance}%`,
+      icon: Target,
       color: 'orange',
-      description: 'Concepts in knowledge graph',
-      growth: '+12 this week'
-    }
-  ]
-
-  const cognitiveMetrics = [
+      description: 'Overall learning performance',
+      growth: '+3.2% this month'
+    },
+    {
+      title: 'Prediction Accuracy',
+      value: `${stats.predictionAccuracy}%`,
+      icon: TrendingUp,
+      color: 'indigo',
+      description: 'AI prediction accuracy',
+      growth: '+2.1% this month'
+    },
     {
       title: 'Cognitive Health',
-      value: stats.cognitiveHealth,
-      icon: Brain,
-      color: 'green',
-      description: 'Overall cognitive well-being',
-      trend: '+2.3%'
-    },
-    {
-      title: 'Learning Efficiency',
-      value: stats.learningEfficiency,
-      icon: Zap,
-      color: 'blue',
-      description: 'Speed of knowledge acquisition',
-      trend: '+1.8%'
-    },
-    {
-      title: 'Memory Retention',
-      value: stats.memoryRetention,
-      icon: Target,
-      color: 'purple',
-      description: 'Information retention rate',
-      trend: '+3.1%'
-    },
-    {
-      title: 'Problem Solving',
-      value: stats.problemSolving,
+      value: `${stats.cognitiveHealthScore}%`,
       icon: Lightbulb,
-      color: 'orange',
-      description: 'Analytical thinking ability',
-      trend: '+1.5%'
+      color: 'pink',
+      description: 'Overall cognitive health score',
+      growth: '+1.8% this month'
     }
   ]
 
@@ -225,19 +205,21 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Cognitive Digital Twin Overview</h2>
         <p className="text-gray-600">
-          Comprehensive AI-powered system that creates digital brain clones for personalized learning optimization.
+          Your personal AI-powered digital brain clone that maps your learning patterns, predicts performance, and tracks growth.
         </p>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {statCards.map((card, index) => {
           const Icon = card.icon
           const colorClasses = {
             purple: 'bg-purple-50 text-purple-600 border-purple-200',
             blue: 'bg-blue-50 text-blue-600 border-blue-200',
             green: 'bg-green-50 text-green-600 border-green-200',
-            orange: 'bg-orange-50 text-orange-600 border-orange-200'
+            orange: 'bg-orange-50 text-orange-600 border-orange-200',
+            indigo: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+            pink: 'bg-pink-50 text-pink-600 border-pink-200'
           }
           
           return (
@@ -256,35 +238,8 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
         })}
       </div>
 
-      {/* Cognitive Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {cognitiveMetrics.map((metric, index) => {
-          const Icon = metric.icon
-          const colorClasses = {
-            green: 'bg-green-50 text-green-600 border-green-200',
-            blue: 'bg-blue-50 text-blue-600 border-blue-200',
-            purple: 'bg-purple-50 text-purple-600 border-purple-200',
-            orange: 'bg-orange-50 text-orange-600 border-orange-200'
-          }
-          
-          return (
-            <div key={index} className={`p-6 rounded-lg border ${colorClasses[metric.color as keyof typeof colorClasses]}`}>
-              <div className="flex items-center justify-between mb-4">
-                <Icon className="w-8 h-8" />
-                <div className="text-right">
-                  <div className="text-3xl font-bold">{metric.value}%</div>
-                  <div className="text-sm opacity-75">{metric.trend}</div>
-                </div>
-              </div>
-              <h3 className="font-semibold text-lg mb-1">{metric.title}</h3>
-              <p className="text-sm opacity-75">{metric.description}</p>
-            </div>
-          )
-        })}
-      </div>
-
       {/* Core Features */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-lg border border-purple-200">
           <div className="flex items-center space-x-3 mb-4">
             <Brain className="w-6 h-6 text-purple-600" />
@@ -292,13 +247,13 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
           </div>
           <p className="text-purple-700 text-sm mb-4">
             AI maps each learner's knowledge graph, memory retention, and thinking style. 
-            Creates a comprehensive digital representation of cognitive abilities.
+            Your digital brain clone learns and adapts to your unique learning patterns.
           </p>
           <div className="text-xs text-purple-600">
-            • Knowledge graph mapping<br/>
-            • Cognitive style analysis<br/>
-            • Learning preference detection<br/>
-            • Performance optimization
+            • Complete knowledge graph mapping<br/>
+            • Memory retention analysis<br/>
+            • Cognitive style identification<br/>
+            • Personalized learning strategies
           </div>
         </div>
 
@@ -309,7 +264,7 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
           </div>
           <p className="text-blue-700 text-sm mb-4">
             Forecasts how a student will perform months ahead and adjusts learning path accordingly. 
-            Uses advanced AI to predict learning outcomes and optimize strategies.
+            AI-powered performance prediction with 87.3% accuracy.
           </p>
           <div className="text-xs text-blue-600">
             • Performance forecasting<br/>
@@ -319,20 +274,53 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-teal-50 p-6 rounded-lg border border-green-200">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-lg border border-green-200">
           <div className="flex items-center space-x-3 mb-4">
             <Play className="w-6 h-6 text-green-600" />
             <h3 className="text-lg font-semibold text-green-900">Memory Replay Tool</h3>
           </div>
           <p className="text-green-700 text-sm mb-4">
             Students can revisit any past learning session as a timeline of growth. 
-            Provides detailed insights into learning patterns and breakthrough moments.
+            Track breakthroughs, milestones, and learning patterns over time.
           </p>
           <div className="text-xs text-green-600">
             • Session timeline replay<br/>
-            • Learning milestone tracking<br/>
-            • Breakthrough moment analysis<br/>
-            • Growth visualization
+            • Growth tracking<br/>
+            • Breakthrough identification<br/>
+            • Learning pattern analysis
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white p-6 rounded-lg border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg">
+            <Brain className="w-5 h-5 text-purple-600" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">Knowledge graph updated</p>
+              <p className="text-xs text-gray-600">Added 3 new concepts to mathematics domain</p>
+            </div>
+            <span className="text-xs text-gray-500">2 hours ago</span>
+          </div>
+          
+          <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">Performance prediction generated</p>
+              <p className="text-xs text-gray-600">3-month forecast: 91.5% performance expected</p>
+            </div>
+            <span className="text-xs text-gray-500">1 day ago</span>
+          </div>
+          
+          <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg">
+            <Play className="w-5 h-5 text-green-600" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">Learning session recorded</p>
+              <p className="text-xs text-gray-600">Algebra mastery session - 45 minutes, 88.5% performance</p>
+            </div>
+            <span className="text-xs text-gray-500">2 days ago</span>
           </div>
         </div>
       </div>
@@ -344,22 +332,22 @@ function OverviewTab({ stats, isLoading }: { stats: CognitiveTwinStats, isLoadin
           <button className="flex items-center space-x-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors">
             <Brain className="w-5 h-5 text-purple-600" />
             <div className="text-left">
-              <div className="font-medium">Create Cognitive Twin</div>
-              <div className="text-sm text-gray-500">Set up your digital brain clone</div>
+              <div className="font-medium">View Cognitive Twin</div>
+              <div className="text-sm text-gray-500">Explore your digital brain clone</div>
             </div>
           </button>
           <button className="flex items-center space-x-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
             <TrendingUp className="w-5 h-5 text-blue-600" />
             <div className="text-left">
-              <div className="font-medium">View Predictions</div>
-              <div className="text-sm text-gray-500">Check performance forecasts</div>
+              <div className="font-medium">Check Predictions</div>
+              <div className="text-sm text-gray-500">View performance forecasts</div>
             </div>
           </button>
           <button className="flex items-center space-x-3 p-4 bg-white rounded-lg border border-gray-200 hover:border-green-300 transition-colors">
             <Play className="w-5 h-5 text-green-600" />
             <div className="text-left">
-              <div className="font-medium">Replay Session</div>
-              <div className="text-sm text-gray-500">Review past learning sessions</div>
+              <div className="font-medium">Replay Sessions</div>
+              <div className="text-sm text-gray-500">Revisit past learning sessions</div>
             </div>
           </button>
         </div>
