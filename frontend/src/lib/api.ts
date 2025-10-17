@@ -1376,6 +1376,155 @@ export async function fetchNeuroVerseAnalytics(timeRange: string = '30d') {
 }
 
 // =====================================================
+// COGNITIVE DIGITAL TWIN API FUNCTIONS
+// =====================================================
+
+// Cognitive Twin Management
+export async function createCognitiveTwin(userId: string, twinName: string, cognitiveStyle: string = 'mixed', learningPace: string = 'moderate') {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/twins`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, twinName, cognitiveStyle, learningPace })
+  })
+  if (!response.ok) throw new Error('Failed to create cognitive twin')
+  return response.json()
+}
+
+export async function getCognitiveTwin(userId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/twins?userId=${userId}`)
+  if (!response.ok) throw new Error('Failed to fetch cognitive twin')
+  return response.json()
+}
+
+export async function updateCognitiveTwin(twinId: string, updates: any) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/twins/${twinId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  })
+  if (!response.ok) throw new Error('Failed to update cognitive twin')
+  return response.json()
+}
+
+// Knowledge Graph Management
+export async function addKnowledgeNode(twinId: string, nodeData: any) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/knowledge-nodes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ twinId, ...nodeData })
+  })
+  if (!response.ok) throw new Error('Failed to add knowledge node')
+  return response.json()
+}
+
+export async function getKnowledgeNodes(twinId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/knowledge-nodes?twinId=${twinId}`)
+  if (!response.ok) throw new Error('Failed to fetch knowledge nodes')
+  return response.json()
+}
+
+export async function updateKnowledgeNode(nodeId: string, updates: any) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/knowledge-nodes/${nodeId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  })
+  if (!response.ok) throw new Error('Failed to update knowledge node')
+  return response.json()
+}
+
+// Learning Predictions
+export async function createLearningPrediction(twinId: string, predictionData: any) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/predictions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ twinId, ...predictionData })
+  })
+  if (!response.ok) throw new Error('Failed to create learning prediction')
+  return response.json()
+}
+
+export async function getLearningPredictions(twinId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/predictions?twinId=${twinId}`)
+  if (!response.ok) throw new Error('Failed to fetch learning predictions')
+  return response.json()
+}
+
+export async function updatePredictionWithActual(predictionId: string, actualValue: number) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/predictions/${predictionId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ actualValue })
+  })
+  if (!response.ok) throw new Error('Failed to update prediction')
+  return response.json()
+}
+
+// Memory Replay Sessions
+export async function createMemoryReplaySession(twinId: string, sessionData: any) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/replay-sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ twinId, ...sessionData })
+  })
+  if (!response.ok) throw new Error('Failed to create replay session')
+  return response.json()
+}
+
+export async function getMemoryReplaySessions(twinId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/replay-sessions?twinId=${twinId}`)
+  if (!response.ok) throw new Error('Failed to fetch replay sessions')
+  return response.json()
+}
+
+export async function getMemoryReplaySession(sessionId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/replay-sessions/${sessionId}`)
+  if (!response.ok) throw new Error('Failed to fetch replay session')
+  return response.json()
+}
+
+// Cognitive Patterns
+export async function getCognitivePatterns(twinId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/patterns?twinId=${twinId}`)
+  if (!response.ok) throw new Error('Failed to fetch cognitive patterns')
+  return response.json()
+}
+
+export async function createCognitivePattern(twinId: string, patternData: any) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/patterns`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ twinId, ...patternData })
+  })
+  if (!response.ok) throw new Error('Failed to create cognitive pattern')
+  return response.json()
+}
+
+// Analytics
+export async function getCognitiveTwinAnalytics(twinId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/analytics?twinId=${twinId}`)
+  if (!response.ok) throw new Error('Failed to fetch cognitive twin analytics')
+  return response.json()
+}
+
+export async function createAnalyticsEntry(twinId: string, analyticsData: any) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/analytics`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ twinId, ...analyticsData })
+  })
+  if (!response.ok) throw new Error('Failed to create analytics entry')
+  return response.json()
+}
+
+// Cognitive Twin Insights
+export async function getCognitiveTwinInsights(twinId: string) {
+  const response = await fetch(`${baseUrl}/api/cognitive-twin/insights?twinId=${twinId}`)
+  if (!response.ok) throw new Error('Failed to fetch cognitive twin insights')
+  return response.json()
+}
+
+// =====================================================
 // OMNIMIND OS API FUNCTIONS
 // =====================================================
 
