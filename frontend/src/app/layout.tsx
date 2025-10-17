@@ -239,6 +239,7 @@ export default function RootLayout({
                         <Link href="/neuroverse" className="hover:underline">NeuroVerse</Link>
                         <Link href="/omnimind-os" className="hover:underline">OmniMind OS</Link>
                         <Link href="/cognitive-twin" className="hover:underline">Cognitive Twin</Link>
+                        <Link href="/cognitive-twin" className="hover:underline">Cognitive Twin</Link>
               </nav>
             </div>
           </header>
