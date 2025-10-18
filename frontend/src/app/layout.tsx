@@ -236,10 +236,11 @@ export default function RootLayout({
                 <Link href="/settings" className="hover:underline">Settings</Link>
                 <Link href="/connection-test" className="hover:underline">Connection Test</Link>
                 <Link href="/meta-learning" className="hover:underline">Meta-Learning</Link>
-                        <Link href="/neuroverse" className="hover:underline">NeuroVerse</Link>
-                        <Link href="/omnimind-os" className="hover:underline">OmniMind OS</Link>
-                        <Link href="/cognitive-twin" className="hover:underline">Cognitive Twin</Link>
-                        <Link href="/cross-domain" className="hover:underline">Cross-Domain</Link>
+            <Link href="/neuroverse" className="hover:underline">NeuroVerse</Link>
+            <Link href="/omnimind-os" className="hover:underline">OmniMind OS</Link>
+            <Link href="/cognitive-twin" className="hover:underline">Cognitive Twin</Link>
+            <Link href="/cross-domain" className="hover:underline">Cross-Domain</Link>
+            <Link href="/ai-tokenized-economy" className="hover:underline">AI Tokenized Economy</Link>
                         <Link href="/cross-domain" className="hover:underline">Cross-Domain</Link>
               </nav>
             </div>
