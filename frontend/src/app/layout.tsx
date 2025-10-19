@@ -241,6 +241,7 @@ export default function RootLayout({
             <Link href="/cognitive-twin" className="hover:underline">Cognitive Twin</Link>
             <Link href="/cross-domain" className="hover:underline">Cross-Domain</Link>
             <Link href="/ai-tokenized-economy" className="hover:underline">AI Tokenized Economy</Link>
+            <Link href="/ethical-intelligence" className="hover:underline">Ethical Intelligence</Link>
                         <Link href="/cross-domain" className="hover:underline">Cross-Domain</Link>
               </nav>
             </div>
