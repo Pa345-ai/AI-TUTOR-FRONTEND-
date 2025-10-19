@@ -1,71 +1,37 @@
 {
   "version": 2,
-  "name": "ai-tutoring-app",
+  "name": "omnimind-ai-tutor",
   "builds": [
     {
-      "src": "frontend/package.json",
+      "src": "package.json",
       "use": "@vercel/next"
     },
     {
-      "src": "backend/api/**/*.js",
+      "src": "supabase/functions/**/*.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/backend/api/$1"
+      "src": "/api/ai/(.*)",
+      "dest": "/supabase/functions/ai/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "dest": "/$1"
     }
   ],
-  "functions": {
-    "backend/api/ai/chat.js": {
-      "maxDuration": 30
-    },
-    "backend/api/ai/voice.js": {
-      "maxDuration": 30
-    },
-    "backend/api/ai/emotion.js": {
-      "maxDuration": 15
-    },
-    "backend/api/ai/feedback.js": {
-      "maxDuration": 30
-    },
-    "backend/api/ai/quiz-generate.js": {
-      "maxDuration": 30
-    },
-    "backend/api/ai/career-advice.js": {
-      "maxDuration": 30
-    },
-    "backend/api/ai/summarize.js": {
-      "maxDuration": 30
-    },
-    "backend/api/ai/lesson-generate.js": {
-      "maxDuration": 30
-    },
-    "backend/api/ai/translation.js": {
-      "maxDuration": 15
-    }
-  },
   "env": {
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
     "OPENAI_API_KEY": "@openai_api_key",
-    "GOOGLE_CLOUD_API_KEY": "@google_cloud_api_key",
-    "AZURE_SPEECH_KEY": "@azure_speech_key",
-    "AZURE_SPEECH_REGION": "@azure_speech_region",
-    "NEXTAUTH_SECRET": "@nextauth_secret",
-    "NEXTAUTH_URL": "@nextauth_url"
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key"
   },
-  "build": {
-    "env": {
-      "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
-      "NEXT_PUBLIC_API_URL": "@api_url"
+  "functions": {
+    "supabase/functions/ai/*.ts": {
+      "maxDuration": 30
     }
-  }
+  },
+  "regions": ["iad1"],
+  "framework": "nextjs"
 }
