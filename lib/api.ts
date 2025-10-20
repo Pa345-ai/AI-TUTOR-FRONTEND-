@@ -51,6 +51,129 @@ export class OmniMindAPI {
     return response.json()
   }
 
+  // Database Operations
+  static async getUser(userId: string) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    
+    if (error) throw error
+    return data
+  }
+
+  static async getLearningPaths(userId: string) {
+    const { data, error } = await supabase
+      .from('learning_paths')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async getAISessions(userId: string) {
+    const { data, error } = await supabase
+      .from('ai_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async getProgress(userId: string) {
+    const { data, error } = await supabase
+      .from('progress')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async getGamification(userId: string) {
+    const { data, error } = await supabase
+      .from('gamification')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error
+    return data
+  }
+
+  static async getCognitiveTwin(userId: string) {
+    const { data, error } = await supabase
+      .from('cognitive_twins')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error
+    return data
+  }
+
+  static async getTokens(userId: string) {
+    const { data, error } = await supabase
+      .from('tokens')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async getVREnvironments() {
+    const { data, error } = await supabase
+      .from('vr_environments')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async getDeveloperApps(userId: string) {
+    const { data, error } = await supabase
+      .from('developer_apps')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async getAuditLogs(userId: string) {
+    const { data, error } = await supabase
+      .from('audit_logs_enhanced')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    
+    if (error) throw error
+    return data || []
+  }
+
+  static async getSecurityEvents(userId: string) {
+    const { data, error } = await supabase
+      .from('security_events')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    
+    if (error) throw error
+    return data || []
+  }
+
   // Knowledge Graph Update
   static async updateKnowledgeGraph(data: {
     user_id: string

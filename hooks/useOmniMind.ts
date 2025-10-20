@@ -28,6 +28,10 @@ export const useOmniMind = (userId: string) => {
       setLoading(true)
       setError(null)
 
+      // Load user data first
+      const userData = await OmniMindAPI.getUser(userId)
+      setUser(userData)
+
       const [
         learningPathsData,
         aiSessionsData,

@@ -1,8 +1,19 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
+import { useAuth } from '../components/auth/AuthProvider'
+import { useRouter } from 'next/router'
 
 export default function Home() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && user) {
+      // Check if user has completed onboarding
+      router.push('/dashboard')
+    }
+  }, [user, loading, router])
   const features = [
     {
       category: "🧠 Ultra-Intelligent Learning Engine",

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import Head from 'next/head'
+import { useAuth, withAuth } from '../components/auth/AuthProvider'
 import { useOmniMind } from '../hooks/useOmniMind'
+import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { MobileNavigation } from '../components/layout/MobileNavigation'
 import { EmotionalTutor } from '../components/ai/EmotionalTutor'
 import { QuizGenerator } from '../components/ai/QuizGenerator'
 import { LearningPaths } from '../components/features/LearningPaths'
@@ -27,10 +30,11 @@ import { CollaborativeStudyRooms } from '../components/premium/collaborative/Col
 import { MetaLearningCore } from '../components/billion-dollar/MetaLearningCore'
 import { NeuroVerseMetaverse } from '../components/billion-dollar/NeuroVerseMetaverse'
 
-export default function Dashboard() {
+function Dashboard() {
+  const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(true)
-  const userId = '550e8400-e29b-41d4-a716-446655440001' // Demo user ID
+  const userId = user?.id || '550e8400-e29b-41d4-a716-446655440001' // Use real user ID or demo
   
   const {
     learningPaths,
@@ -51,6 +55,14 @@ export default function Dashboard() {
     // Simulate initial loading
     setTimeout(() => setIsLoading(false), 1000)
   }, [])
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" text="Loading your AI tutor..." />
+      </div>
+    )
+  }
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: '🏠' },
@@ -82,6 +94,9 @@ export default function Dashboard() {
         <title>Dashboard - OmniMind AI Tutor</title>
         <meta name="description" content="Your personalized AI learning dashboard" />
       </Head>
+      
+      {/* Mobile Navigation */}
+      <MobileNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
@@ -585,3 +600,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+export default withAuth(Dashboard)
