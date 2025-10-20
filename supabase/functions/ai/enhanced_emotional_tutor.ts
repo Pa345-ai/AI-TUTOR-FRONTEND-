@@ -298,6 +298,156 @@ async function generateSophisticatedResponse(
   const { user, knowledgeGraph, cognitiveTwin } = userContext
   const { learningVelocity, performanceLevel, dominantEmotion, learningStyle } = learningAnalysis
 
+  // Get OpenAI API key
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+  if (!openaiApiKey) {
+    throw new Error('OpenAI API key not configured')
+  }
+
+  // Create comprehensive prompt for AI emotional tutor
+  const systemPrompt = `You are an advanced AI emotional tutor with deep understanding of human psychology, learning patterns, and educational best practices. You excel at:
+
+1. **Emotional Intelligence**: Detecting and responding appropriately to student emotions
+2. **Adaptive Teaching**: Adjusting your approach based on learning style and emotional state
+3. **Empathetic Communication**: Being supportive, encouraging, and understanding
+4. **Educational Expertise**: Providing clear, accurate, and engaging explanations
+5. **Motivational Support**: Inspiring confidence and maintaining engagement
+
+Student Profile:
+- Age: ${user?.age || 'Not specified'}
+- Learning Style: ${learningStyle}
+- Experience Level: ${user?.experience_level || 'intermediate'}
+- Detected Emotion: ${emotion}
+- Session Type: ${sessionType}
+- Subject: ${subject || 'general'}
+- Performance Level: ${performanceLevel}
+- Learning Velocity: ${learningVelocity}
+- Recent Sessions: ${userContext.recentSessions?.length || 0}
+
+Current User Input: "${userInput}"
+
+Conversation History: ${JSON.stringify(conversationHistory.slice(-3))}
+
+Please provide a comprehensive response that includes:
+1. An emotionally intelligent, personalized response to the user
+2. Appropriate emotional tone and teaching approach
+3. Confidence score (0-1) based on your certainty
+4. Encouragement level (1-10) based on student needs
+5. 2-3 thoughtful follow-up questions
+6. Learning insights and suggested actions
+7. Step-by-step reasoning for your approach
+
+Respond in JSON format with this exact structure:
+{
+  "ai_response": "Your empathetic, educational response",
+  "emotional_tone": "empathetic|patient|enthusiastic|calming|encouraging|supportive",
+  "confidence_score": 0.85,
+  "teaching_approach": "supportive|explanatory|exploratory|simplified|challenging|adaptive",
+  "encouragement_level": 7,
+  "follow_up_questions": ["Question 1", "Question 2", "Question 3"],
+  "reasoning_steps": ["Step 1", "Step 2", "Step 3"],
+  "learning_insights": {
+    "strengths_identified": ["strength1", "strength2"],
+    "areas_for_improvement": ["area1", "area2"],
+    "learning_patterns": "pattern description",
+    "recommended_focus": "focus area"
+  },
+  "suggested_actions": ["action1", "action2", "action3"]
+}`
+
+  try {
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: userInput
+          }
+        ],
+        temperature: 0.8,
+        max_tokens: 2000
+      })
+    })
+
+    if (!openaiResponse.ok) {
+      throw new Error(`OpenAI API error: ${openaiResponse.statusText}`)
+    }
+
+    const aiData = await openaiResponse.json()
+    const aiContent = aiData.choices[0]?.message?.content
+
+    if (!aiContent) {
+      throw new Error('No content received from OpenAI')
+    }
+
+    // Parse AI response
+    let tutorResponse
+    try {
+      tutorResponse = JSON.parse(aiContent)
+    } catch (parseError) {
+      // Fallback response if JSON parsing fails
+      tutorResponse = {
+        ai_response: aiContent,
+        emotional_tone: "supportive",
+        confidence_score: 0.7,
+        teaching_approach: "adaptive",
+        encouragement_level: 6,
+        follow_up_questions: ["How can I help you further?", "What would you like to explore next?"],
+        reasoning_steps: ["Analyzed user input", "Applied emotional intelligence", "Generated response"],
+        learning_insights: {
+          strengths_identified: ["Engagement", "Curiosity"],
+          areas_for_improvement: ["Continue learning"],
+          learning_patterns: "Active engagement",
+          recommended_focus: "Current topic"
+        },
+        suggested_actions: ["Continue the conversation", "Ask clarifying questions", "Practice the concept"]
+      }
+    }
+
+    return {
+      ai_response: tutorResponse.ai_response,
+      emotional_tone: tutorResponse.emotional_tone,
+      confidence_score: tutorResponse.confidence_score,
+      teaching_approach: tutorResponse.teaching_approach,
+      encouragement_level: tutorResponse.encouragement_level,
+      follow_up_questions: tutorResponse.follow_up_questions,
+      session_metadata: {
+        emotion_detected: emotion,
+        learning_velocity: learningVelocity,
+        performance_level: performanceLevel,
+        conversation_length: conversationHistory.length
+      },
+      reasoning_steps: tutorResponse.reasoning_steps,
+      learning_insights: tutorResponse.learning_insights,
+      suggested_actions: tutorResponse.suggested_actions
+    }
+
+  } catch (error) {
+    // Fallback to rule-based response if AI fails
+    console.error('AI generation failed, using fallback:', error)
+    return generateFallbackResponse(userInput, emotion, sessionType, subject, learningAnalysis, userContext)
+  }
+}
+
+function generateFallbackResponse(
+  userInput: string,
+  emotion: string,
+  sessionType: string,
+  subject: string | undefined,
+  learningAnalysis: any,
+  userContext: any
+): EnhancedTutorResponse {
+
   // Generate sophisticated reasoning steps
   const reasoningSteps = [
     `Analyzed user input: "${userInput.substring(0, 50)}..."`,

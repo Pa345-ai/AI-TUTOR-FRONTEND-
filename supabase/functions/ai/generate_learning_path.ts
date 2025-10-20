@@ -59,127 +59,141 @@ serve(async (req) => {
 
     const { user_id, subject, difficulty_level, learning_goals, preferred_languages, learning_style }: LearningPathRequest = await req.json()
 
-    // Mock AI-generated learning path based on user preferences
-    const mockLearningPaths = {
-      'mathematics': {
-        'beginner': {
-          title: 'Mathematics Fundamentals for Beginners',
-          description: 'A comprehensive introduction to basic mathematical concepts and problem-solving techniques.',
-          estimated_duration_hours: 40,
-          learning_objectives: [
-            'Master basic arithmetic operations',
-            'Understand fractions and decimals',
-            'Learn basic geometry concepts',
-            'Develop problem-solving skills'
-          ],
-          lessons: [
-            {
-              title: 'Introduction to Numbers',
-              content: 'Learn about natural numbers, whole numbers, integers, and their properties.',
-              lesson_type: 'interactive',
-              duration_minutes: 30,
-              order_index: 1,
-              learning_objectives: ['Identify different types of numbers', 'Understand number properties']
-            },
-            {
-              title: 'Basic Operations',
-              content: 'Master addition, subtraction, multiplication, and division with practical examples.',
-              lesson_type: 'video',
-              duration_minutes: 45,
-              order_index: 2,
-              learning_objectives: ['Perform basic arithmetic operations', 'Solve word problems']
-            },
-            {
-              title: 'Fractions and Decimals',
-              content: 'Understanding fractions, decimals, and their conversions.',
-              lesson_type: 'interactive',
-              duration_minutes: 50,
-              order_index: 3,
-              learning_objectives: ['Convert between fractions and decimals', 'Perform operations with fractions']
-            }
-          ]
-        },
-        'intermediate': {
-          title: 'Intermediate Mathematics Mastery',
-          description: 'Advanced mathematical concepts including algebra, geometry, and statistics.',
-          estimated_duration_hours: 60,
-          learning_objectives: [
-            'Master algebraic concepts',
-            'Understand geometric principles',
-            'Learn statistical analysis',
-            'Apply mathematics to real-world problems'
-          ],
-          lessons: [
-            {
-              title: 'Algebraic Expressions',
-              content: 'Working with variables, expressions, and equations.',
-              lesson_type: 'interactive',
-              duration_minutes: 40,
-              order_index: 1,
-              learning_objectives: ['Simplify algebraic expressions', 'Solve linear equations']
-            },
-            {
-              title: 'Geometry Fundamentals',
-              content: 'Understanding shapes, angles, and spatial relationships.',
-              lesson_type: 'video',
-              duration_minutes: 55,
-              order_index: 2,
-              learning_objectives: ['Calculate area and perimeter', 'Understand angle relationships']
-            }
-          ]
-        }
-      },
-      'programming': {
-        'beginner': {
-          title: 'Programming Fundamentals with Python',
-          description: 'Learn programming from scratch using Python as your first language.',
-          estimated_duration_hours: 50,
-          learning_objectives: [
-            'Understand programming concepts',
-            'Master Python syntax',
-            'Build simple applications',
-            'Develop problem-solving skills'
-          ],
-          lessons: [
-            {
-              title: 'Introduction to Programming',
-              content: 'What is programming? Understanding algorithms and logic.',
-              lesson_type: 'video',
-              duration_minutes: 25,
-              order_index: 1,
-              learning_objectives: ['Understand programming concepts', 'Learn algorithmic thinking']
-            },
-            {
-              title: 'Python Basics',
-              content: 'Variables, data types, and basic operations in Python.',
-              lesson_type: 'interactive',
-              duration_minutes: 45,
-              order_index: 2,
-              learning_objectives: ['Write basic Python code', 'Understand data types']
-            }
-          ]
-        }
-      }
+    // Get user profile for personalized AI generation
+    const { data: userProfile } = await supabaseClient
+      .from('users')
+      .select('*')
+      .eq('id', user_id)
+      .single()
+
+    // Generate AI-powered learning path using OpenAI
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured')
     }
 
-    const pathData = mockLearningPaths[subject]?.[difficulty_level] || mockLearningPaths['mathematics']['beginner']
-    
-    // Generate AI insights based on user profile
-    const ai_insights = {
-      personalized_approach: learning_style === 'visual' 
-        ? 'This path emphasizes visual learning with diagrams, charts, and interactive visualizations.'
-        : learning_style === 'auditory'
-        ? 'This path includes audio explanations and verbal problem-solving techniques.'
-        : 'This path combines multiple learning styles for comprehensive understanding.',
-      recommended_pace: difficulty_level === 'beginner' 
-        ? 'Take your time with each concept. Spend 2-3 hours per week for steady progress.'
-        : 'You can move at a faster pace. Aim for 4-5 hours per week to maintain momentum.',
-      key_focus_areas: learning_goals.slice(0, 3),
-      potential_challenges: [
-        'Mathematical notation and symbols',
-        'Abstract thinking concepts',
-        'Problem-solving under time pressure'
-      ]
+    const aiPrompt = `You are an expert educational AI tutor. Create a comprehensive, personalized learning path for a student with the following profile:
+
+Student Profile:
+- Subject: ${subject}
+- Difficulty Level: ${difficulty_level}
+- Learning Goals: ${learning_goals.join(', ')}
+- Preferred Languages: ${preferred_languages.join(', ')}
+- Learning Style: ${learning_style}
+- User Age: ${userProfile?.age || 'Not specified'}
+- Previous Experience: ${userProfile?.experience_level || 'Not specified'}
+
+Please generate a detailed learning path that includes:
+1. A compelling title and description
+2. Realistic estimated duration in hours
+3. 5-8 specific learning objectives
+4. 6-10 detailed lessons with:
+   - Engaging titles
+   - Comprehensive content descriptions
+   - Appropriate lesson types (interactive, video, reading, practice)
+   - Realistic duration in minutes
+   - 2-3 specific learning objectives per lesson
+   - Logical progression order
+
+Also provide personalized AI insights including:
+- Personalized approach based on learning style
+- Recommended pace and study schedule
+- Key focus areas based on goals
+- Potential challenges and how to overcome them
+
+Format the response as a JSON object with this exact structure:
+{
+  "learning_path": {
+    "title": "string",
+    "description": "string",
+    "estimated_duration_hours": number,
+    "learning_objectives": ["string"],
+    "lessons": [
+      {
+        "title": "string",
+        "content": "string",
+        "lesson_type": "interactive|video|reading|practice",
+        "duration_minutes": number,
+        "order_index": number,
+        "learning_objectives": ["string"]
+      }
+    ]
+  },
+  "ai_insights": {
+    "personalized_approach": "string",
+    "recommended_pace": "string",
+    "key_focus_areas": ["string"],
+    "potential_challenges": ["string"]
+  }
+}`
+
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert educational AI tutor specializing in creating personalized learning paths. Always respond with valid JSON in the exact format requested.'
+          },
+          {
+            role: 'user',
+            content: aiPrompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 3000
+      })
+    })
+
+    if (!openaiResponse.ok) {
+      throw new Error(`OpenAI API error: ${openaiResponse.statusText}`)
+    }
+
+    const aiData = await openaiResponse.json()
+    const aiContent = aiData.choices[0]?.message?.content
+
+    if (!aiContent) {
+      throw new Error('No content received from OpenAI')
+    }
+
+    // Parse AI response
+    let pathData
+    try {
+      pathData = JSON.parse(aiContent)
+    } catch (parseError) {
+      // Fallback to structured generation if JSON parsing fails
+      const fallbackPrompt = `Generate a learning path for ${subject} at ${difficulty_level} level. Return only valid JSON with the exact structure specified.`
+      
+      const fallbackResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert educational AI tutor. Always respond with valid JSON only.'
+            },
+            {
+              role: 'user',
+              content: fallbackPrompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000
+        })
+      })
+
+      const fallbackData = await fallbackResponse.json()
+      pathData = JSON.parse(fallbackData.choices[0]?.message?.content)
     }
 
     // Create learning path in database

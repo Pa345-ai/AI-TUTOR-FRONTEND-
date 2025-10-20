@@ -339,14 +339,134 @@ async function generateSophisticatedQuizContent(
   
   const { performancePrediction, learningStyle, knowledgeGaps } = learningAnalysis
   
-  // Get comprehensive quiz templates with enhanced content
-  const quizTemplates = getEnhancedQuizTemplates(subject, topic, difficulty)
-  
-  // Select appropriate template
-  let quizData = quizTemplates[subject]?.[topic]?.[difficulty] || quizTemplates['mathematics']['algebra']['beginner']
-  
-  // Enhance questions based on user profile
-  const enhancedQuestions = quizData.questions.map((question, index) => {
+  // Get OpenAI API key
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+  if (!openaiApiKey) {
+    throw new Error('OpenAI API key not configured')
+  }
+
+  // Generate AI-powered quiz using OpenAI
+  const quizPrompt = `You are an expert educational AI that creates comprehensive, engaging quizzes. Generate a quiz with the following specifications:
+
+Subject: ${subject}
+Topic: ${topic}
+Difficulty Level: ${difficulty}
+Number of Questions: ${questionCount}
+Quiz Type: ${quizType}
+Learning Objectives: ${learningObjectives.join(', ')}
+User Learning Style: ${learningStyle}
+Performance Prediction: ${performancePrediction}%
+Knowledge Gaps: ${knowledgeGaps.join(', ')}
+
+Create a quiz that:
+1. Tests understanding at the appropriate difficulty level
+2. Includes diverse question types based on quizType
+3. Provides clear explanations for each answer
+4. Includes hints and reasoning steps
+5. Connects to real-world applications
+6. Identifies common mistakes
+7. Adapts to the user's learning style and knowledge gaps
+
+Format the response as JSON with this exact structure:
+{
+  "quiz": {
+    "title": "Quiz title",
+    "description": "Quiz description",
+    "questions": [
+      {
+        "id": "q1",
+        "question": "Question text",
+        "question_type": "multiple_choice|true_false|fill_blank|essay|interactive",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correct_answer": "Correct answer or array of correct answers",
+        "explanation": "Detailed explanation of the answer",
+        "difficulty": "beginner|intermediate|advanced",
+        "learning_objective": "What this question tests",
+        "hints": ["Hint 1", "Hint 2"],
+        "reasoning_steps": ["Step 1", "Step 2", "Step 3"],
+        "real_world_application": "How this applies in real life",
+        "common_mistakes": ["Common mistake 1", "Common mistake 2"]
+      }
+    ],
+    "time_limit_minutes": 30,
+    "passing_score": 70,
+    "adaptive_difficulty": true,
+    "personalized_feedback": true
+  },
+  "ai_insights": {
+    "recommended_approach": "How to approach this quiz",
+    "key_concepts": ["Concept 1", "Concept 2"],
+    "common_mistakes": ["Mistake 1", "Mistake 2"],
+    "study_tips": ["Tip 1", "Tip 2"],
+    "difficulty_analysis": "Analysis of difficulty level",
+    "learning_recommendations": ["Recommendation 1", "Recommendation 2"]
+  }
+}`
+
+  try {
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert educational AI that creates comprehensive, engaging quizzes. Always respond with valid JSON in the exact format requested.'
+          },
+          {
+            role: 'user',
+            content: quizPrompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 4000
+      })
+    })
+
+    if (!openaiResponse.ok) {
+      throw new Error(`OpenAI API error: ${openaiResponse.statusText}`)
+    }
+
+    const aiData = await openaiResponse.json()
+    const aiContent = aiData.choices[0]?.message?.content
+
+    if (!aiContent) {
+      throw new Error('No content received from OpenAI')
+    }
+
+    // Parse AI response
+    let quizData
+    try {
+      quizData = JSON.parse(aiContent)
+    } catch (parseError) {
+      // Fallback to rule-based generation if JSON parsing fails
+      quizData = generateFallbackQuiz(subject, topic, difficulty, questionCount, quizType, learningObjectives, learningAnalysis, userContext)
+    }
+
+    return quizData
+
+  } catch (error) {
+    console.error('AI quiz generation failed, using fallback:', error)
+    return generateFallbackQuiz(subject, topic, difficulty, questionCount, quizType, learningObjectives, learningAnalysis, userContext)
+  }
+}
+
+function generateFallbackQuiz(
+  subject: string,
+  topic: string,
+  difficulty: string,
+  questionCount: number,
+  quizType: string,
+  learningObjectives: string[],
+  learningAnalysis: any,
+  userContext: any
+): any {
+  // Fallback quiz generation logic
+  const enhancedQuestions = Array.from({ length: questionCount }, (_, index) => {
     return enhanceQuestionForUser(question, learningStyle, knowledgeGaps, index + 1)
   })
   

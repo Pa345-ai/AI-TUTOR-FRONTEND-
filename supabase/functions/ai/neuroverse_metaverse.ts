@@ -168,6 +168,23 @@ async function enterEnvironment(supabaseClient: any, request: NeuroVerseRequest)
     }
   }
 
+  // Get user profile for AI personalization
+  const { data: userProfile } = await supabaseClient
+    .from('users')
+    .select('*')
+    .eq('id', request.user_id)
+    .single()
+
+  // Generate AI-powered immersive experience
+  const immersiveExperience = await generateImmersiveExperience(
+    environment,
+    userProfile,
+    request.subject,
+    request.difficulty_level,
+    request.vr_equipment,
+    request.ar_supported
+  )
+
   // Get or create AI companion for user
   const { data: companion, error: companionError } = await supabaseClient
     .from('ai_companion_avatars')
@@ -689,4 +706,155 @@ async function logEnvironmentEntry(supabaseClient: any, userId: string, environm
       time_spent: 5,
       achievement_level: 0.7
     })
+}
+
+async function generateImmersiveExperience(
+  environment: any,
+  userProfile: any,
+  subject?: string,
+  difficultyLevel?: string,
+  vrEquipment?: string[],
+  arSupported?: boolean
+): Promise<any> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY')
+  if (!openaiApiKey) {
+    throw new Error('OpenAI API key not configured')
+  }
+
+  const prompt = `You are an expert AI that creates immersive 3D learning experiences. Generate a detailed, engaging experience for:
+
+Environment: ${environment.name}
+Environment Type: ${environment.environment_type}
+Subject: ${subject || 'General Learning'}
+Difficulty Level: ${difficultyLevel || 'intermediate'}
+User Learning Style: ${userProfile?.learning_style || 'visual'}
+User Age: ${userProfile?.age || 25}
+VR Equipment: ${vrEquipment?.join(', ') || 'None'}
+AR Supported: ${arSupported || false}
+
+Create an immersive experience that includes:
+1. Detailed 3D environment description
+2. Interactive elements and objects
+3. Learning activities and challenges
+4. AI avatar interactions
+5. Physics and environmental effects
+6. Audio and visual cues
+7. Progression pathways
+8. Accessibility features
+
+Format as JSON with this structure:
+{
+  "environment_data": {
+    "3d_scene": "Detailed 3D environment description",
+    "interactive_objects": ["object1", "object2"],
+    "learning_activities": ["activity1", "activity2"],
+    "physics_settings": {
+      "gravity": "earth-like",
+      "lighting": "dynamic",
+      "weather": "calm"
+    },
+    "audio_ambience": "Description of ambient sounds",
+    "visual_effects": ["effect1", "effect2"]
+  },
+  "ai_avatars": [
+    {
+      "id": "avatar1",
+      "name": "AI Tutor",
+      "personality": "helpful",
+      "capabilities": ["teaching", "guidance"],
+      "appearance": "Description of appearance",
+      "interaction_style": "conversational"
+    }
+  ],
+  "learning_pathway": {
+    "objectives": ["objective1", "objective2"],
+    "challenges": ["challenge1", "challenge2"],
+    "rewards": ["reward1", "reward2"],
+    "progression_gates": ["gate1", "gate2"]
+  },
+  "accessibility": {
+    "motion_sickness_prevention": true,
+    "audio_descriptions": true,
+    "text_size_options": true,
+    "color_blind_friendly": true
+  }
+}`
+
+  try {
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert AI that creates immersive 3D learning experiences. Always respond with valid JSON in the exact format requested.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.8,
+        max_tokens: 3000
+      })
+    })
+
+    if (!openaiResponse.ok) {
+      throw new Error(`OpenAI API error: ${openaiResponse.statusText}`)
+    }
+
+    const aiData = await openaiResponse.json()
+    const aiContent = aiData.choices[0]?.message?.content
+
+    if (!aiContent) {
+      throw new Error('No content received from OpenAI')
+    }
+
+    return JSON.parse(aiContent)
+
+  } catch (error) {
+    console.error('AI immersive experience generation failed:', error)
+    // Return fallback experience
+    return {
+      environment_data: {
+        "3d_scene": "A welcoming 3D learning environment with interactive elements",
+        "interactive_objects": ["Learning stations", "Interactive displays", "Practice areas"],
+        "learning_activities": ["Guided exploration", "Hands-on practice", "Knowledge challenges"],
+        "physics_settings": {
+          "gravity": "earth-like",
+          "lighting": "bright and clear",
+          "weather": "calm"
+        },
+        "audio_ambience": "Soft background music and environmental sounds",
+        "visual_effects": ["Particle effects", "Dynamic lighting", "Smooth transitions"]
+      },
+      ai_avatars: [
+        {
+          id: "tutor_avatar",
+          name: "AI Learning Companion",
+          personality: "helpful and encouraging",
+          capabilities: ["teaching", "guidance", "motivation"],
+          appearance: "Friendly humanoid figure with approachable demeanor",
+          interaction_style: "conversational and supportive"
+        }
+      ],
+      learning_pathway: {
+        objectives: ["Master key concepts", "Apply knowledge practically", "Build confidence"],
+        challenges: ["Progressive difficulty levels", "Real-world applications", "Creative problem solving"],
+        rewards: ["Achievement badges", "Knowledge points", "Progress unlocks"],
+        progression_gates: ["Concept mastery checkpoints", "Skill demonstration points"]
+      },
+      accessibility: {
+        motion_sickness_prevention: true,
+        audio_descriptions: true,
+        text_size_options: true,
+        color_blind_friendly: true
+      }
+    }
+  }
 }
