@@ -8,6 +8,21 @@ import { KnowledgeGraph } from '../components/features/KnowledgeGraph'
 import { Gamification } from '../components/features/Gamification'
 import { VREnvironments } from '../components/features/VREnvironments'
 
+// Ultra-Intelligent Learning Engine
+import { PersonalizedLearningPath } from '../components/learning/engine/PersonalizedLearningPath'
+import { AdaptiveDifficultyEngine } from '../components/learning/adaptive/AdaptiveDifficultyEngine'
+
+// Human-Like Interaction Layer
+import { VoiceTutor } from '../components/interaction/voice/VoiceTutor'
+import { AITutorPersonalities } from '../components/interaction/personalities/AITutorPersonalities'
+
+// Immersive Learning Tools
+import { NoteSummarizer } from '../components/tools/summarizer/NoteSummarizer'
+import { AIFlashcards } from '../components/tools/flashcards/AIFlashcards'
+
+// Premium Differentiators
+import { CollaborativeStudyRooms } from '../components/premium/collaborative/CollaborativeStudyRooms'
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(true)
@@ -35,15 +50,15 @@ export default function Dashboard() {
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: '🏠' },
-    { id: 'learning', name: 'Learning', icon: '📚' },
+    { id: 'learning', name: 'Learning Engine', icon: '🧠' },
     { id: 'ai-tutor', name: 'AI Tutor', icon: '🤖' },
-    { id: 'knowledge', name: 'Knowledge', icon: '🧩' },
+    { id: 'interaction', name: 'Voice & Personalities', icon: '🎭' },
+    { id: 'tools', name: 'Learning Tools', icon: '🛠️' },
+    { id: 'collaborative', name: 'Study Rooms', icon: '👥' },
+    { id: 'knowledge', name: 'Knowledge Graph', icon: '🔗' },
     { id: 'gamification', name: 'Gamification', icon: '🎮' },
     { id: 'vr', name: 'VR Learning', icon: '🥽' },
-    { id: 'tokens', name: 'Tokens', icon: '💰' },
-    { id: 'security', name: 'Security', icon: '🔒' },
-    { id: 'developer', name: 'Developer', icon: '🛠️' },
-    { id: 'analytics', name: 'Analytics', icon: '📊' }
+    { id: 'premium', name: 'Premium Features', icon: '💎' }
   ]
 
   if (isLoading) {
@@ -207,48 +222,183 @@ export default function Dashboard() {
                 <h3 className="text-lg font-semibold text-blue-900 mb-4">⚡ Quick Actions</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <button
-                    onClick={() => setActiveTab('ai-tutor')}
+                    onClick={() => setActiveTab('learning')}
                     className="bg-white text-blue-600 px-4 py-3 rounded-lg hover:bg-blue-50 transition-colors text-center"
                   >
-                    <div className="text-2xl mb-1">🤖</div>
-                    <div className="text-sm font-medium">AI Tutor</div>
+                    <div className="text-2xl mb-1">🧠</div>
+                    <div className="text-sm font-medium">Learning Engine</div>
                   </button>
                   <button
-                    onClick={() => setActiveTab('learning')}
+                    onClick={() => setActiveTab('interaction')}
                     className="bg-white text-green-600 px-4 py-3 rounded-lg hover:bg-green-50 transition-colors text-center"
                   >
-                    <div className="text-2xl mb-1">📚</div>
-                    <div className="text-sm font-medium">Learning Paths</div>
+                    <div className="text-2xl mb-1">🎭</div>
+                    <div className="text-sm font-medium">Voice & AI</div>
                   </button>
                   <button
-                    onClick={() => setActiveTab('knowledge')}
+                    onClick={() => setActiveTab('tools')}
                     className="bg-white text-purple-600 px-4 py-3 rounded-lg hover:bg-purple-50 transition-colors text-center"
                   >
-                    <div className="text-2xl mb-1">🧩</div>
-                    <div className="text-sm font-medium">Knowledge Graph</div>
+                    <div className="text-2xl mb-1">🛠️</div>
+                    <div className="text-sm font-medium">Learning Tools</div>
                   </button>
                   <button
-                    onClick={() => setActiveTab('vr')}
-                    className="bg-white text-indigo-600 px-4 py-3 rounded-lg hover:bg-indigo-50 transition-colors text-center"
+                    onClick={() => setActiveTab('collaborative')}
+                    className="bg-white text-orange-600 px-4 py-3 rounded-lg hover:bg-orange-50 transition-colors text-center"
                   >
-                    <div className="text-2xl mb-1">🥽</div>
-                    <div className="text-sm font-medium">VR Learning</div>
+                    <div className="text-2xl mb-1">👥</div>
+                    <div className="text-sm font-medium">Study Rooms</div>
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'learning' && <LearningPaths userId={userId} />}
+          {/* Ultra-Intelligent Learning Engine */}
+          {activeTab === 'learning' && (
+            <div className="space-y-6">
+              <PersonalizedLearningPath userId={userId} />
+              <AdaptiveDifficultyEngine userId={userId} />
+            </div>
+          )}
+
+          {/* AI Tutor Features */}
           {activeTab === 'ai-tutor' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <EmotionalTutor userId={userId} />
               <QuizGenerator userId={userId} />
             </div>
           )}
+
+          {/* Human-Like Interaction Layer */}
+          {activeTab === 'interaction' && (
+            <div className="space-y-6">
+              <VoiceTutor userId={userId} />
+              <AITutorPersonalities userId={userId} />
+            </div>
+          )}
+
+          {/* Immersive Learning Tools */}
+          {activeTab === 'tools' && (
+            <div className="space-y-6">
+              <NoteSummarizer userId={userId} />
+              <AIFlashcards userId={userId} />
+            </div>
+          )}
+
+          {/* Collaborative Study Rooms */}
+          {activeTab === 'collaborative' && <CollaborativeStudyRooms userId={userId} />}
+
+          {/* Knowledge Graph */}
           {activeTab === 'knowledge' && <KnowledgeGraph userId={userId} />}
+
+          {/* Gamification */}
           {activeTab === 'gamification' && <Gamification userId={userId} />}
+
+          {/* VR Learning */}
           {activeTab === 'vr' && <VREnvironments userId={userId} />}
+
+          {/* Premium Differentiators */}
+          {activeTab === 'premium' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-6 text-white">
+                <h2 className="text-2xl font-bold mb-2">💎 Premium Features</h2>
+                <p className="text-purple-100">Advanced features that go beyond ChatGPT</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Offline Mode */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">📱</div>
+                  <h3 className="text-lg font-semibold mb-2">Offline Mode</h3>
+                  <p className="text-gray-600 mb-4">Learn even without internet connection using on-device AI</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• On-device AI models</div>
+                    <div>• Cached content access</div>
+                    <div>• Sync when online</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
+                    Enable Offline Mode
+                  </button>
+                </div>
+
+                {/* ELI5 + Expert Toggle */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🎯</div>
+                  <h3 className="text-lg font-semibold mb-2">ELI5 + Expert Toggle</h3>
+                  <p className="text-gray-600 mb-4">Switch between simple and expert explanations instantly</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Explain Like I'm 5</div>
+                    <div>• Expert-level detail</div>
+                    <div>• Adaptive complexity</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    Try ELI5 Mode
+                  </button>
+                </div>
+
+                {/* Career Advisor */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🎓</div>
+                  <h3 className="text-lg font-semibold mb-2">Career Advisor</h3>
+                  <p className="text-gray-600 mb-4">AI-powered career guidance and path recommendations</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Career path analysis</div>
+                    <div>• Skill gap identification</div>
+                    <div>• Industry insights</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                    Get Career Advice
+                  </button>
+                </div>
+
+                {/* Homework Feedback */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">📝</div>
+                  <h3 className="text-lg font-semibold mb-2">Homework Feedback</h3>
+                  <p className="text-gray-600 mb-4">AI evaluates and provides structured feedback on assignments</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Essay evaluation</div>
+                    <div>• Math problem checking</div>
+                    <div>• Improvement suggestions</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                    Upload Assignment
+                  </button>
+                </div>
+
+                {/* Multi-language Tutor */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🌍</div>
+                  <h3 className="text-lg font-semibold mb-2">Multi-language Tutor</h3>
+                  <p className="text-gray-600 mb-4">Learn in your native language with real-time translation</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• 50+ languages supported</div>
+                    <div>• Real-time translation</div>
+                    <div>• Cultural context</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
+                    Select Language
+                  </button>
+                </div>
+
+                {/* Integration Tools */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🔗</div>
+                  <h3 className="text-lg font-semibold mb-2">Integration Tools</h3>
+                  <p className="text-gray-600 mb-4">Export to Google Docs, Quizlet, and generate YouTube lessons</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Google Docs export</div>
+                    <div>• Quizlet integration</div>
+                    <div>• YouTube lesson generation</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                    View Integrations
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           
           {activeTab === 'tokens' && (
             <div className="bg-white rounded-lg shadow-lg p-6">
