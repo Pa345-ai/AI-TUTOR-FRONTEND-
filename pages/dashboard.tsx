@@ -23,6 +23,10 @@ import { AIFlashcards } from '../components/tools/flashcards/AIFlashcards'
 // Premium Differentiators
 import { CollaborativeStudyRooms } from '../components/premium/collaborative/CollaborativeStudyRooms'
 
+// Billion-Dollar Features
+import { MetaLearningCore } from '../components/billion-dollar/MetaLearningCore'
+import { NeuroVerseMetaverse } from '../components/billion-dollar/NeuroVerseMetaverse'
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(true)
@@ -50,15 +54,15 @@ export default function Dashboard() {
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: '🏠' },
-    { id: 'learning', name: 'Learning Engine', icon: '🧠' },
+    { id: 'meta-learning', name: 'Meta-Learning Core', icon: '🧠' },
+    { id: 'neuroverse', name: 'NeuroVerse Metaverse', icon: '🌍' },
+    { id: 'learning', name: 'Learning Engine', icon: '🎯' },
     { id: 'ai-tutor', name: 'AI Tutor', icon: '🤖' },
     { id: 'interaction', name: 'Voice & Personalities', icon: '🎭' },
     { id: 'tools', name: 'Learning Tools', icon: '🛠️' },
     { id: 'collaborative', name: 'Study Rooms', icon: '👥' },
     { id: 'knowledge', name: 'Knowledge Graph', icon: '🔗' },
-    { id: 'gamification', name: 'Gamification', icon: '🎮' },
-    { id: 'vr', name: 'VR Learning', icon: '🥽' },
-    { id: 'premium', name: 'Premium Features', icon: '💎' }
+    { id: 'premium', name: 'Billion-Dollar Features', icon: '💎' }
   ]
 
   if (isLoading) {
@@ -222,11 +226,18 @@ export default function Dashboard() {
                 <h3 className="text-lg font-semibold text-blue-900 mb-4">⚡ Quick Actions</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <button
-                    onClick={() => setActiveTab('learning')}
-                    className="bg-white text-blue-600 px-4 py-3 rounded-lg hover:bg-blue-50 transition-colors text-center"
+                    onClick={() => setActiveTab('meta-learning')}
+                    className="bg-white text-purple-600 px-4 py-3 rounded-lg hover:bg-purple-50 transition-colors text-center"
                   >
                     <div className="text-2xl mb-1">🧠</div>
-                    <div className="text-sm font-medium">Learning Engine</div>
+                    <div className="text-sm font-medium">Meta-Learning</div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('neuroverse')}
+                    className="bg-white text-cyan-600 px-4 py-3 rounded-lg hover:bg-cyan-50 transition-colors text-center"
+                  >
+                    <div className="text-2xl mb-1">🌍</div>
+                    <div className="text-sm font-medium">NeuroVerse</div>
                   </button>
                   <button
                     onClick={() => setActiveTab('interaction')}
@@ -236,23 +247,22 @@ export default function Dashboard() {
                     <div className="text-sm font-medium">Voice & AI</div>
                   </button>
                   <button
-                    onClick={() => setActiveTab('tools')}
-                    className="bg-white text-purple-600 px-4 py-3 rounded-lg hover:bg-purple-50 transition-colors text-center"
+                    onClick={() => setActiveTab('premium')}
+                    className="bg-white text-pink-600 px-4 py-3 rounded-lg hover:bg-pink-50 transition-colors text-center"
                   >
-                    <div className="text-2xl mb-1">🛠️</div>
-                    <div className="text-sm font-medium">Learning Tools</div>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('collaborative')}
-                    className="bg-white text-orange-600 px-4 py-3 rounded-lg hover:bg-orange-50 transition-colors text-center"
-                  >
-                    <div className="text-2xl mb-1">👥</div>
-                    <div className="text-sm font-medium">Study Rooms</div>
+                    <div className="text-2xl mb-1">💎</div>
+                    <div className="text-sm font-medium">Billion-Dollar</div>
                   </button>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Meta-Learning Core */}
+          {activeTab === 'meta-learning' && <MetaLearningCore userId={userId} />}
+
+          {/* NeuroVerse Metaverse */}
+          {activeTab === 'neuroverse' && <NeuroVerseMetaverse userId={userId} />}
 
           {/* Ultra-Intelligent Learning Engine */}
           {activeTab === 'learning' && (
@@ -298,15 +308,133 @@ export default function Dashboard() {
           {/* VR Learning */}
           {activeTab === 'vr' && <VREnvironments userId={userId} />}
 
-          {/* Premium Differentiators */}
+          {/* Billion-Dollar Features */}
           {activeTab === 'premium' && (
             <div className="space-y-6">
               <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-6 text-white">
-                <h2 className="text-2xl font-bold mb-2">💎 Premium Features</h2>
-                <p className="text-purple-100">Advanced features that go beyond ChatGPT</p>
+                <h2 className="text-2xl font-bold mb-2">💎 Billion-Dollar Features</h2>
+                <p className="text-purple-100">Advanced features that push OmniMind beyond $1B valuation potential</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Meta-Learning Core */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🧠</div>
+                  <h3 className="text-lg font-semibold mb-2">Meta-Learning Core</h3>
+                  <p className="text-gray-600 mb-4">AI that learns how to teach itself by analyzing millions of interactions</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Teaching optimization engine</div>
+                    <div>• Self-improving curriculum AI</div>
+                    <div>• Federated learning network</div>
+                    <div>• $500M–$1B+ valuation potential</div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('meta-learning')}
+                    className="w-full mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    Explore Meta-Learning
+                  </button>
+                </div>
+
+                {/* NeuroVerse Metaverse */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🌍</div>
+                  <h3 className="text-lg font-semibold mb-2">NeuroVerse Metaverse</h3>
+                  <p className="text-gray-600 mb-4">Immersive 3D learning environments with AI avatars</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• 3D virtual classrooms</div>
+                    <div>• AI companion avatars</div>
+                    <div>• Mixed-reality labs</div>
+                    <div>• $1B+ hardware partnerships</div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('neuroverse')}
+                    className="w-full mt-4 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors"
+                  >
+                    Enter NeuroVerse
+                  </button>
+                </div>
+
+                {/* AI Ecosystem Infrastructure */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🧩</div>
+                  <h3 className="text-lg font-semibold mb-2">AI Ecosystem Infrastructure</h3>
+                  <p className="text-gray-600 mb-4">Transform from product to platform with developer SDK</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• AI plugin ecosystem</div>
+                    <div>• Open API hub</div>
+                    <div>• NeuroCloud workspace</div>
+                    <div>• Infrastructure company model</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    View Ecosystem
+                  </button>
+                </div>
+
+                {/* Cognitive Digital Twin */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🧬</div>
+                  <h3 className="text-lg font-semibold mb-2">Cognitive Digital Twin</h3>
+                  <p className="text-gray-600 mb-4">Each student gets a "digital brain clone"</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Personal cognitive twin</div>
+                    <div>• Predictive learning engine</div>
+                    <div>• Memory replay tool</div>
+                    <div>• Academic analytics</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                    Create Digital Twin
+                  </button>
+                </div>
+
+                {/* Cross-Domain Applications */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🚀</div>
+                  <h3 className="text-lg font-semibold mb-2">Cross-Domain Applications</h3>
+                  <p className="text-gray-600 mb-4">OmniMind beyond education - health, code, business</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• OmniMind Health</div>
+                    <div>• OmniMind Code</div>
+                    <div>• OmniMind Business</div>
+                    <div>• $1 trillion+ AI economy</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                    Explore Domains
+                  </button>
+                </div>
+
+                {/* Tokenized Learning Economy */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">💸</div>
+                  <h3 className="text-lg font-semibold mb-2">Tokenized Learning Economy</h3>
+                  <p className="text-gray-600 mb-4">Turn learning progress into digital value</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Learn-to-earn model</div>
+                    <div>• AI credential blockchain</div>
+                    <div>• Global scholarship pool</div>
+                    <div>• Web3 integration</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">
+                    Enter Economy
+                  </button>
+                </div>
+
+                {/* Ethical Intelligence */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <div className="text-4xl mb-4">🔒</div>
+                  <h3 className="text-lg font-semibold mb-2">Ethical Intelligence</h3>
+                  <p className="text-gray-600 mb-4">Required for global adoption and trust</p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>• Privacy-preserving AI</div>
+                    <div>• Transparent reasoning reports</div>
+                    <div>• AI fairness engine</div>
+                    <div>• Institutional compliance</div>
+                  </div>
+                  <button className="w-full mt-4 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
+                    View Ethics
+                  </button>
+                </div>
+
                 {/* Offline Mode */}
                 <div className="bg-white rounded-lg shadow-lg p-6">
                   <div className="text-4xl mb-4">📱</div>
@@ -316,8 +444,9 @@ export default function Dashboard() {
                     <div>• On-device AI models</div>
                     <div>• Cached content access</div>
                     <div>• Sync when online</div>
+                    <div>• Perfect for developing regions</div>
                   </div>
-                  <button className="w-full mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
+                  <button className="w-full mt-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
                     Enable Offline Mode
                   </button>
                 </div>
@@ -331,69 +460,10 @@ export default function Dashboard() {
                     <div>• Explain Like I'm 5</div>
                     <div>• Expert-level detail</div>
                     <div>• Adaptive complexity</div>
+                    <div>• Instant switching</div>
                   </div>
-                  <button className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  <button className="w-full mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors">
                     Try ELI5 Mode
-                  </button>
-                </div>
-
-                {/* Career Advisor */}
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <div className="text-4xl mb-4">🎓</div>
-                  <h3 className="text-lg font-semibold mb-2">Career Advisor</h3>
-                  <p className="text-gray-600 mb-4">AI-powered career guidance and path recommendations</p>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div>• Career path analysis</div>
-                    <div>• Skill gap identification</div>
-                    <div>• Industry insights</div>
-                  </div>
-                  <button className="w-full mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-                    Get Career Advice
-                  </button>
-                </div>
-
-                {/* Homework Feedback */}
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <div className="text-4xl mb-4">📝</div>
-                  <h3 className="text-lg font-semibold mb-2">Homework Feedback</h3>
-                  <p className="text-gray-600 mb-4">AI evaluates and provides structured feedback on assignments</p>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div>• Essay evaluation</div>
-                    <div>• Math problem checking</div>
-                    <div>• Improvement suggestions</div>
-                  </div>
-                  <button className="w-full mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
-                    Upload Assignment
-                  </button>
-                </div>
-
-                {/* Multi-language Tutor */}
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <div className="text-4xl mb-4">🌍</div>
-                  <h3 className="text-lg font-semibold mb-2">Multi-language Tutor</h3>
-                  <p className="text-gray-600 mb-4">Learn in your native language with real-time translation</p>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div>• 50+ languages supported</div>
-                    <div>• Real-time translation</div>
-                    <div>• Cultural context</div>
-                  </div>
-                  <button className="w-full mt-4 px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
-                    Select Language
-                  </button>
-                </div>
-
-                {/* Integration Tools */}
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <div className="text-4xl mb-4">🔗</div>
-                  <h3 className="text-lg font-semibold mb-2">Integration Tools</h3>
-                  <p className="text-gray-600 mb-4">Export to Google Docs, Quizlet, and generate YouTube lessons</p>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div>• Google Docs export</div>
-                    <div>• Quizlet integration</div>
-                    <div>• YouTube lesson generation</div>
-                  </div>
-                  <button className="w-full mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                    View Integrations
                   </button>
                 </div>
               </div>
