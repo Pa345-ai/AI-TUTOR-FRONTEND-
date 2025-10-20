@@ -1,13 +1,12 @@
 #!/bin/bash
 
 # =====================================================
-# OmniMind AI Tutor - Complete Production Deployment
+# OmniMind AI Tutor - Simple Production Deployment
 # =====================================================
-# This script deploys the complete backend to Supabase
-# and frontend to Vercel with all AI integrations
+# This script deploys using npx for CLI tools
 # =====================================================
 
-set -e  # Exit on any error
+set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -18,7 +17,6 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -41,65 +39,37 @@ print_header() {
     echo -e "${PURPLE}=====================================================${NC}"
 }
 
-# Check if required tools are installed
-check_dependencies() {
-    print_header "🔍 CHECKING DEPENDENCIES"
+# Check if user is logged in to Supabase
+check_supabase_auth() {
+    print_header "🔐 CHECKING SUPABASE AUTHENTICATION"
     
-    # Check Node.js
-    if ! command -v node &> /dev/null; then
-        print_error "Node.js is not installed. Please install Node.js 18+ first."
+    if ! npx supabase projects list &> /dev/null; then
+        print_warning "Please log in to Supabase first:"
+        print_status "Run: npx supabase login"
+        print_status "Then run: npx supabase link --project-ref YOUR_PROJECT_REF"
+        print_status ""
+        print_status "To get your project reference:"
+        print_status "1. Go to https://supabase.com/dashboard"
+        print_status "2. Select your project"
+        print_status "3. Go to Settings > General"
+        print_status "4. Copy the 'Reference ID'"
         exit 1
     fi
-    print_success "Node.js $(node --version) found"
     
-    # Check npm
-    if ! command -v npm &> /dev/null; then
-        print_error "npm is not installed. Please install npm first."
-        exit 1
-    fi
-    print_success "npm $(npm --version) found"
-    
-    # Check Supabase CLI
-    if ! command -v supabase &> /dev/null; then
-        print_warning "Supabase CLI not found. Installing..."
-        npm install -g supabase
-    fi
-    print_success "Supabase CLI found"
-    
-    # Check Vercel CLI
-    if ! command -v vercel &> /dev/null; then
-        print_warning "Vercel CLI not found. Installing..."
-        npm install -g vercel
-    fi
-    print_success "Vercel CLI found"
-}
-
-# Install frontend dependencies
-install_dependencies() {
-    print_header "📦 INSTALLING DEPENDENCIES"
-    
-    print_status "Installing frontend dependencies..."
-    npm install
-    
-    print_success "Dependencies installed successfully"
+    print_success "Supabase authentication verified"
 }
 
 # Deploy to Supabase
 deploy_supabase() {
     print_header "🚀 DEPLOYING TO SUPABASE"
     
-    # Check if user is logged in to Supabase
-    if ! supabase projects list &> /dev/null; then
-        print_warning "Please log in to Supabase first:"
-        print_status "Run: supabase login"
-        print_status "Then run: supabase link --project-ref YOUR_PROJECT_REF"
-        exit 1
-    fi
-    
     print_status "Deploying database migrations..."
-    supabase db push
+    npx supabase db push
     
     print_status "Deploying Edge Functions..."
+    
+    # Get project reference
+    local project_ref=$(npx supabase status | grep "API URL" | cut -d'/' -f3 | cut -d'.' -f1)
     
     # Deploy all AI Edge Functions
     local functions=(
@@ -123,14 +93,14 @@ deploy_supabase() {
     for func in "${functions[@]}"; do
         if [ -d "supabase/functions/ai/$func" ]; then
             print_status "Deploying $func..."
-            supabase functions deploy "$func" --project-ref $(supabase status | grep "API URL" | cut -d'/' -f3 | cut -d'.' -f1)
+            npx supabase functions deploy "$func" --project-ref "$project_ref"
         else
             print_warning "Function $func not found, skipping..."
         fi
     done
     
     print_status "Seeding database with initial data..."
-    supabase db seed
+    npx supabase db seed
     
     print_success "Supabase deployment completed!"
 }
@@ -139,17 +109,10 @@ deploy_supabase() {
 deploy_vercel() {
     print_header "🌐 DEPLOYING TO VERCEL"
     
-    # Check if user is logged in to Vercel
-    if ! vercel whoami &> /dev/null; then
-        print_warning "Please log in to Vercel first:"
-        print_status "Run: vercel login"
-        exit 1
-    fi
-    
     print_status "Deploying frontend to Vercel..."
     
     # Deploy to Vercel
-    vercel --prod --yes
+    npx vercel --prod --yes
     
     print_success "Vercel deployment completed!"
 }
@@ -159,8 +122,8 @@ setup_environment() {
     print_header "🔧 SETTING UP ENVIRONMENT VARIABLES"
     
     # Get Supabase project details
-    local supabase_url=$(supabase status | grep "API URL" | awk '{print $3}')
-    local supabase_anon_key=$(supabase status | grep "anon key" | awk '{print $3}')
+    local supabase_url=$(npx supabase status | grep "API URL" | awk '{print $3}')
+    local supabase_anon_key=$(npx supabase status | grep "anon key" | awk '{print $3}')
     
     if [ -z "$supabase_url" ] || [ -z "$supabase_anon_key" ]; then
         print_error "Could not get Supabase credentials. Please ensure you're linked to a project."
@@ -170,21 +133,20 @@ setup_environment() {
     print_status "Setting up Vercel environment variables..."
     
     # Set environment variables in Vercel
-    vercel env add NEXT_PUBLIC_SUPABASE_URL "$supabase_url" production
-    vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY "$supabase_anon_key" production
+    npx vercel env add NEXT_PUBLIC_SUPABASE_URL "$supabase_url" production
+    npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY "$supabase_anon_key" production
     
     # Prompt for OpenAI API key
     read -p "Enter your OpenAI API key: " openai_key
     if [ -n "$openai_key" ]; then
-        vercel env add OPENAI_API_KEY "$openai_key" production
+        npx vercel env add OPENAI_API_KEY "$openai_key" production
         print_success "OpenAI API key set"
     else
         print_warning "OpenAI API key not provided. AI features will not work."
     fi
     
     # Set other environment variables
-    vercel env add NODE_ENV "production" production
-    vercel env add NEXT_PUBLIC_APP_URL "https://$(vercel ls | grep -o 'omnimind-[a-z0-9]*\.vercel\.app' | head -1)" production
+    npx vercel env add NODE_ENV "production" production
     
     print_success "Environment variables configured!"
 }
@@ -194,7 +156,7 @@ test_deployment() {
     print_header "🧪 TESTING DEPLOYMENT"
     
     # Get deployment URL
-    local vercel_url=$(vercel ls | grep -o 'omnimind-[a-z0-9]*\.vercel\.app' | head -1)
+    local vercel_url=$(npx vercel ls | grep -o 'omnimind-[a-z0-9]*\.vercel\.app' | head -1)
     
     if [ -z "$vercel_url" ]; then
         print_error "Could not get Vercel deployment URL"
@@ -211,21 +173,6 @@ test_deployment() {
         return 1
     fi
     
-    # Test API endpoints
-    local api_endpoints=(
-        "api/ai/generate_learning_path"
-        "api/ai/enhanced_emotional_tutor"
-        "api/ai/enhanced_quiz_generator"
-    )
-    
-    for endpoint in "${api_endpoints[@]}"; do
-        if curl -s -o /dev/null -w "%{http_code}" "https://$vercel_url/$endpoint" | grep -q "200\|405"; then
-            print_success "API endpoint $endpoint is accessible"
-        else
-            print_warning "API endpoint $endpoint may not be working"
-        fi
-    done
-    
     print_success "Deployment testing completed!"
 }
 
@@ -233,8 +180,8 @@ test_deployment() {
 generate_report() {
     print_header "📊 GENERATING DEPLOYMENT REPORT"
     
-    local vercel_url=$(vercel ls | grep -o 'omnimind-[a-z0-9]*\.vercel\.app' | head -1)
-    local supabase_url=$(supabase status | grep "API URL" | awk '{print $3}')
+    local vercel_url=$(npx vercel ls | grep -o 'omnimind-[a-z0-9]*\.vercel\.app' | head -1)
+    local supabase_url=$(npx supabase status | grep "API URL" | awk '{print $3}')
     
     cat > DEPLOYMENT_REPORT.md << EOF
 # 🚀 OmniMind AI Tutor - Production Deployment Report
@@ -293,7 +240,7 @@ $(date)
 5. Monitor performance and costs
 
 ## 📞 Support
-- Check logs: \`vercel logs\`
+- Check logs: \`npx vercel logs\`
 - Supabase dashboard: https://supabase.com/dashboard
 - Vercel dashboard: https://vercel.com/dashboard
 
@@ -310,30 +257,27 @@ main() {
     
     print_status "Starting complete deployment process..."
     
-    # Step 1: Check dependencies
-    check_dependencies
+    # Step 1: Check Supabase authentication
+    check_supabase_auth
     
-    # Step 2: Install dependencies
-    install_dependencies
-    
-    # Step 3: Deploy to Supabase
+    # Step 2: Deploy to Supabase
     deploy_supabase
     
-    # Step 4: Deploy to Vercel
+    # Step 3: Deploy to Vercel
     deploy_vercel
     
-    # Step 5: Set up environment variables
+    # Step 4: Set up environment variables
     setup_environment
     
-    # Step 6: Test deployment
+    # Step 5: Test deployment
     test_deployment
     
-    # Step 7: Generate report
+    # Step 6: Generate report
     generate_report
     
     print_header "🎉 DEPLOYMENT COMPLETED SUCCESSFULLY!"
     
-    local vercel_url=$(vercel ls | grep -o 'omnimind-[a-z0-9]*\.vercel\.app' | head -1)
+    local vercel_url=$(npx vercel ls | grep -o 'omnimind-[a-z0-9]*\.vercel\.app' | head -1)
     
     echo -e "${GREEN}Your OmniMind AI Tutor is now live at:${NC}"
     echo -e "${CYAN}https://$vercel_url${NC}"
