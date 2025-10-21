@@ -1,150 +1,172 @@
-import React, { useState } from 'react'
-import { useOmniMind } from '../../hooks/useOmniMind'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { Brain, Heart, Smile, Frown, Meh, MessageCircle, Send } from 'lucide-react'
 
 interface EmotionalTutorProps {
-  userId: string
+  onEmotionDetected?: (emotion: string) => void
+  onResponse?: (response: string) => void
 }
 
-export const EmotionalTutor: React.FC<EmotionalTutorProps> = ({ userId }) => {
-  const [userInput, setUserInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [response, setResponse] = useState<any>(null)
-  const [sessionType, setSessionType] = useState('tutoring')
-  const [subject, setSubject] = useState('general')
-  const { getEmotionalTutorResponse } = useOmniMind(userId)
+export default function EmotionalTutor({ onEmotionDetected, onResponse }: EmotionalTutorProps) {
+  const [currentEmotion, setCurrentEmotion] = useState<string>('neutral')
+  const [message, setMessage] = useState('')
+  const [responses, setResponses] = useState<Array<{ type: 'user' | 'ai', content: string, emotion?: string }>>([])
+  const [isTyping, setIsTyping] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!userInput.trim()) return
+  const emotions = [
+    { id: 'happy', icon: Smile, color: 'text-yellow-400', bg: 'bg-yellow-400/20' },
+    { id: 'sad', icon: Frown, color: 'text-blue-400', bg: 'bg-blue-400/20' },
+    { id: 'neutral', icon: Meh, color: 'text-gray-400', bg: 'bg-gray-400/20' },
+    { id: 'excited', icon: Heart, color: 'text-red-400', bg: 'bg-red-400/20' }
+  ]
 
-    setIsLoading(true)
+  const handleEmotionSelect = (emotion: string) => {
+    setCurrentEmotion(emotion)
+    onEmotionDetected?.(emotion)
+  }
+
+  const handleSendMessage = async () => {
+    if (!message.trim()) return
+
+    const userMessage = { type: 'user' as const, content: message, emotion: currentEmotion }
+    setResponses(prev => [...prev, userMessage])
+    setMessage('')
+    setIsTyping(true)
+
     try {
-      const result = await getEmotionalTutorResponse({
-        user_input: userInput,
-        session_type: sessionType,
-        subject: subject
-      })
-      setResponse(result)
+      // Simulate AI response based on emotion
+      const response = await generateEmotionalResponse(message, currentEmotion)
+      const aiMessage = { type: 'ai' as const, content: response, emotion: currentEmotion }
+      
+      setTimeout(() => {
+        setResponses(prev => [...prev, aiMessage])
+        setIsTyping(false)
+        onResponse?.(response)
+      }, 1500)
     } catch (error) {
-      console.error('Error getting AI response:', error)
-    } finally {
-      setIsLoading(false)
+      console.error('Error generating response:', error)
+      setIsTyping(false)
     }
   }
 
+  const generateEmotionalResponse = async (message: string, emotion: string): Promise<string> => {
+    // This would typically call your AI API
+    const responses = {
+      happy: [
+        "I'm so glad you're feeling positive! Let's keep that energy going! 🌟",
+        "Your enthusiasm is contagious! What would you like to learn about next?",
+        "That's wonderful! I love seeing students excited about learning!"
+      ],
+      sad: [
+        "I understand you might be feeling down. Learning can be challenging, but I'm here to help! 💙",
+        "Don't worry, we all have tough days. Let's take it one step at a time.",
+        "I'm here to support you. What specific topic would you like to work on together?"
+      ],
+      neutral: [
+        "I'm here to help you learn! What would you like to explore today?",
+        "Let's dive into some interesting content together. What catches your interest?",
+        "Ready to learn something new? I'm excited to help you grow!"
+      ],
+      excited: [
+        "I love your excitement! Let's channel that energy into some amazing learning! 🚀",
+        "Your passion is inspiring! What topic are you most excited to explore?",
+        "That's the spirit! Let's make this learning session incredible!"
+      ]
+    }
+
+    const emotionResponses = responses[emotion as keyof typeof responses] || responses.neutral
+    return emotionResponses[Math.floor(Math.random() * emotionResponses.length)]
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h3 className="text-xl font-semibold mb-4 flex items-center">
-        💝 Enhanced Emotional Tutor
-        <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-          ChatGPT-Quality
-        </span>
-      </h3>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Session Type
-            </label>
-            <select
-              value={sessionType}
-              onChange={(e) => setSessionType(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="tutoring">Tutoring</option>
-              <option value="mentoring">Mentoring</option>
-              <option value="counseling">Counseling</option>
-              <option value="coaching">Coaching</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Subject
-            </label>
-            <select
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="general">General</option>
-              <option value="mathematics">Mathematics</option>
-              <option value="programming">Programming</option>
-              <option value="science">Science</option>
-              <option value="language">Language</option>
-            </select>
-          </div>
+    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 h-full">
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+          <Brain className="w-6 h-6 text-white" />
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Your Message
-          </label>
-          <textarea
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Share your thoughts, questions, or feelings..."
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-            rows={4}
-          />
+          <h3 className="text-xl font-semibold text-white">Emotional AI Tutor</h3>
+          <p className="text-gray-400">I understand your feelings and adapt to help you learn</p>
         </div>
+      </div>
 
-        <button
-          type="submit"
-          disabled={isLoading || !userInput.trim()}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading ? (
-            <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              AI is thinking...
-            </div>
-          ) : (
-            'Get AI Response'
+      {/* Emotion Selector */}
+      <div className="mb-6">
+        <p className="text-white font-medium mb-3">How are you feeling today?</p>
+        <div className="flex space-x-3">
+          {emotions.map((emotion) => (
+            <button
+              key={emotion.id}
+              onClick={() => handleEmotionSelect(emotion.id)}
+              className={`p-3 rounded-xl transition-all duration-300 ${
+                currentEmotion === emotion.id
+                  ? `${emotion.bg} ${emotion.color} border-2 border-current`
+                  : 'bg-white/10 text-gray-400 hover:bg-white/20'
+              }`}
+            >
+              <emotion.icon className="w-6 h-6" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Chat Interface */}
+      <div className="space-y-4 mb-6">
+        <div className="h-64 overflow-y-auto space-y-3">
+          {responses.map((response, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`flex ${response.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`max-w-xs p-3 rounded-2xl ${
+                response.type === 'user'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                  : 'bg-white/20 text-white'
+              }`}>
+                <p className="text-sm">{response.content}</p>
+              </div>
+            </motion.div>
+          ))}
+          
+          {isTyping && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-start"
+            >
+              <div className="bg-white/20 text-white p-3 rounded-2xl">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            </motion.div>
           )}
-        </button>
-      </form>
-
-      {response && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-semibold text-gray-800 mb-2">AI Response:</h4>
-          <div className="space-y-3">
-            {response.ai_response && (
-              <div>
-                <p className="text-gray-700 whitespace-pre-wrap">{response.ai_response}</p>
-              </div>
-            )}
-            
-            {response.emotional_tone && (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-gray-600">Emotional Tone:</span>
-                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                  {response.emotional_tone}
-                </span>
-              </div>
-            )}
-            
-            {response.learning_insights && (
-              <div>
-                <h5 className="font-medium text-gray-800 mb-1">Learning Insights:</h5>
-                <p className="text-sm text-gray-600">{response.learning_insights}</p>
-              </div>
-            )}
-            
-            {response.suggested_actions && (
-              <div>
-                <h5 className="font-medium text-gray-800 mb-1">Suggested Actions:</h5>
-                <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                  {response.suggested_actions.map((action: string, index: number) => (
-                    <li key={index}>{action}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
         </div>
-      )}
+      </div>
+
+      {/* Message Input */}
+      <div className="flex space-x-3">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          placeholder="Ask me anything about your learning..."
+          className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          onClick={handleSendMessage}
+          disabled={!message.trim() || isTyping}
+          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 rounded-xl hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Send className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   )
 }

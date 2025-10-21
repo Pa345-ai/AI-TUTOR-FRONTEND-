@@ -1,220 +1,333 @@
-import React, { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import { useAuth } from '../components/auth/AuthProvider'
-import { useRouter } from 'next/router'
+import { motion } from 'framer-motion'
+import { 
+  Brain, 
+  Zap, 
+  Users, 
+  Globe, 
+  Shield, 
+  Star,
+  ArrowRight,
+  Play,
+  CheckCircle,
+  Sparkles,
+  Rocket,
+  Target,
+  Award,
+  Lightbulb
+} from 'lucide-react'
 
 export default function Home() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    if (!loading && user) {
-      // Check if user has completed onboarding
-      router.push('/dashboard')
+    setIsLoaded(true)
+  }, [])
+
+  const coreFeatures = [
+    {
+      icon: Brain,
+      title: "AI-Powered Learning",
+      description: "Personalized education with advanced AI tutoring",
+      color: "text-blue-500"
+    },
+    {
+      icon: Zap,
+      title: "Real-Time Adaptation",
+      description: "Dynamic content that adapts to your learning style",
+      color: "text-yellow-500"
+    },
+    {
+      icon: Users,
+      title: "Collaborative Learning",
+      description: "Study with others in real-time virtual rooms",
+      color: "text-green-500"
+    },
+    {
+      icon: Globe,
+      title: "Multilingual Support",
+      description: "Learn in any language with AI translation",
+      color: "text-purple-500"
+    },
+    {
+      icon: Shield,
+      title: "Privacy First",
+      description: "Your data is protected with enterprise security",
+      color: "text-red-500"
+    },
+    {
+      icon: Star,
+      title: "Gamified Experience",
+      description: "Earn tokens and achievements as you learn",
+      color: "text-orange-500"
     }
-  }, [user, loading, router])
-  const features = [
+  ]
+
+  const billionDollarFeatures = [
     {
-      category: "🧠 Ultra-Intelligent Learning Engine",
-      items: [
-        { name: "Personalized Learning Paths", desc: "AI generates custom learning journeys", icon: "🎯" },
-        { name: "Adaptive Difficulty", desc: "Adjusts based on your performance", icon: "⚡" },
-        { name: "Knowledge Graph Mapping", desc: "Visual mapping of your strengths/weaknesses", icon: "🧩" },
-        { name: "Real-Time Multi-Modal Support", desc: "Text, voice, drawing, and code learning", icon: "🎨" },
-        { name: "Memory & Long-Term Context", desc: "Remembers your learning history", icon: "🧠" }
-      ]
+      title: "Meta-Learning Core",
+      description: "AI that learns to teach itself",
+      icon: Lightbulb,
+      color: "bg-gradient-to-r from-blue-500 to-purple-600"
     },
     {
-      category: "💝 Human-Like Interaction Layer",
-      items: [
-        { name: "AI Voice Tutor", desc: "Speech + text tutoring with emotion", icon: "🎙️" },
-        { name: "Emotion Recognition", desc: "Detects and reacts to your feelings", icon: "😊" },
-        { name: "Tutor Personalities", desc: "Socratic, Friendly, Exam, Motivational", icon: "👨‍🏫" },
-        { name: "ChatGPT-Quality Responses", desc: "Sophisticated, context-aware AI", icon: "✨" }
-      ]
+      title: "NeuroVerse Metaverse",
+      description: "3D AI learning worlds",
+      icon: Globe,
+      color: "bg-gradient-to-r from-green-500 to-blue-600"
     },
     {
-      category: "📚 Immersive Learning Tools",
-      items: [
-        { name: "Note Summarizer", desc: "Summarizes PDFs and text files", icon: "📝" },
-        { name: "Quiz Generator", desc: "Creates intelligent assessments", icon: "🧩" },
-        { name: "Lesson Builder", desc: "Builds structured learning content", icon: "📖" },
-        { name: "Flashcard Creator", desc: "AI-powered spaced repetition", icon: "🃏" },
-        { name: "Gamification", desc: "XP, badges, streaks, leaderboards", icon: "🎮" }
-      ]
+      title: "Cognitive Digital Twin",
+      description: "Personal AI learning companions",
+      icon: Brain,
+      color: "bg-gradient-to-r from-purple-500 to-pink-600"
     },
     {
-      category: "💎 Premium Differentiators",
-      items: [
-        { name: "Offline Mode", desc: "AI works with cached results", icon: "📱" },
-        { name: "Collaborative Rooms", desc: "Group sessions with AI", icon: "👥" },
-        { name: "ELI5 / Expert Toggle", desc: "Adjustable explanation depth", icon: "🎚️" },
-        { name: "Career & Goal Advisor", desc: "Suggests subjects and careers", icon: "🎯" },
-        { name: "Homework Feedback", desc: "Evaluates essays and answers", icon: "📝" },
-        { name: "Multi-Language Tutor", desc: "Real-time translation support", icon: "🌍" }
-      ]
+      title: "AI Ecosystem Infrastructure",
+      description: "Complete AI development platform",
+      icon: Rocket,
+      color: "bg-gradient-to-r from-orange-500 to-red-600"
     },
     {
-      category: "🧩 Billion-Dollar Ecosystem Features",
-      items: [
-        { name: "Meta-Learning Core", desc: "Self-teaching AI that improves", icon: "🚀" },
-        { name: "NeuroVerse", desc: "VR/AR environment with AI avatars", icon: "🥽" },
-        { name: "AI Ecosystem SDK", desc: "Developer plugin architecture", icon: "🛠️" },
-        { name: "Cognitive Digital Twin", desc: "Predictive model per learner", icon: "👤" },
-        { name: "Cross-Domain Apps", desc: "Code, Health, Business tutors", icon: "🌐" },
-        { name: "Tokenized Learning", desc: "Learn-to-Earn credits system", icon: "💰" },
-        { name: "Ethical AI Layer", desc: "Transparent AI reasoning logs", icon: "🔒" }
-      ]
+      title: "Cross-Domain OmniMind",
+      description: "Universal AI applications",
+      icon: Target,
+      color: "bg-gradient-to-r from-teal-500 to-green-600"
+    },
+    {
+      title: "AI Tokenized Economy",
+      description: "Learn-to-earn token system",
+      icon: Award,
+      color: "bg-gradient-to-r from-yellow-500 to-orange-600"
+    },
+    {
+      title: "Ethical Intelligence",
+      description: "Transparent and fair AI",
+      icon: Shield,
+      color: "bg-gradient-to-r from-indigo-500 to-purple-600"
     }
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <>
       <Head>
-        <title>OmniMind AI Tutor - Super-Intelligent Learning Platform</title>
-        <meta name="description" content="Transform education with AI-powered personalized learning, emotional intelligence, and immersive tutoring experiences." />
+        <title>OmniMind AI Tutor - Complete AI Learning Platform</title>
+        <meta name="description" content="The most advanced AI tutoring platform with 30+ features and 7 billion-dollar AI capabilities" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="container mx-auto px-4 py-16">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         {/* Hero Section */}
-        <div className="text-center mb-20">
-          <h1 className="text-7xl font-bold text-gray-900 mb-6">
-            🧠 OmniMind AI Tutor
-          </h1>
-          <p className="text-2xl text-gray-600 mb-8 max-w-4xl mx-auto">
-            Super-Intelligent AI tutoring platform with <strong>30+ advanced features</strong> that adapts to your learning style, 
-            understands your emotions, and creates personalized learning journeys.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/dashboard">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg text-xl transition-colors shadow-lg">
-                Start Learning Now
-              </button>
-            </Link>
-            <Link href="/auth/login">
-              <button className="bg-white hover:bg-gray-50 text-blue-600 font-bold py-4 px-8 rounded-lg text-xl border-2 border-blue-600 transition-colors shadow-lg">
-                Sign In
-              </button>
-            </Link>
-          </div>
-        </div>
-
-        {/* Features Showcase */}
-        <div className="space-y-16">
-          {features.map((category, categoryIndex) => (
-            <div key={categoryIndex} className="bg-white rounded-2xl shadow-xl p-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-                {category.category}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {category.items.map((feature, featureIndex) => (
-                  <div key={featureIndex} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-                    <div className="text-4xl mb-4">{feature.icon}</div>
-                    <h3 className="text-xl font-semibold mb-2 text-gray-900">{feature.name}</h3>
-                    <p className="text-gray-600">{feature.desc}</p>
-                  </div>
-                ))}
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-black/20"></div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 20 }}
+              transition={{ duration: 0.8 }}
+              className="text-center"
+            >
+              <div className="flex justify-center mb-8">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                  className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center"
+                >
+                  <Sparkles className="w-10 h-10 text-white" />
+                </motion.div>
               </div>
-            </div>
-          ))}
-        </div>
+              
+              <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+                OmniMind
+                <span className="block bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  AI Tutor
+                </span>
+              </h1>
+              
+              <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+                The world's most advanced AI tutoring platform with 30+ features and 7 billion-dollar AI capabilities
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/dashboard">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-full text-lg font-semibold flex items-center gap-2 hover:shadow-lg transition-all duration-300"
+                  >
+                    Start Learning
+                    <ArrowRight className="w-5 h-5" />
+                  </motion.button>
+                </Link>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="border-2 border-white/30 text-white px-8 py-4 rounded-full text-lg font-semibold flex items-center gap-2 hover:bg-white/10 transition-all duration-300"
+                >
+                  <Play className="w-5 h-5" />
+                  Watch Demo
+                </motion.button>
+              </div>
+            </motion.div>
+          </div>
+        </section>
 
-        {/* Backend Status */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mt-16">
-          <h2 className="text-3xl font-semibold mb-8 text-center">🚀 Backend Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="text-green-500 text-4xl mb-4">✅</div>
-              <p className="font-medium text-lg">Database Schema</p>
-              <p className="text-sm text-gray-600">18+ tables with RLS</p>
-            </div>
-            <div className="text-center">
-              <div className="text-green-500 text-4xl mb-4">✅</div>
-              <p className="font-medium text-lg">Edge Functions</p>
-              <p className="text-sm text-gray-600">8 AI functions deployed</p>
-            </div>
-            <div className="text-center">
-              <div className="text-green-500 text-4xl mb-4">✅</div>
-              <p className="font-medium text-lg">Security</p>
-              <p className="text-sm text-gray-600">Audit logs & monitoring</p>
-            </div>
-            <div className="text-center">
-              <div className="text-green-500 text-4xl mb-4">✅</div>
-              <p className="font-medium text-lg">AI Integration</p>
-              <p className="text-sm text-gray-600">OpenAI GPT models</p>
+        {/* Core Features Section */}
+        <section className="py-20 bg-white/5 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                Core Learning Features
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                30+ powerful features designed to revolutionize how you learn
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {coreFeatures.map((feature, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300"
+                >
+                  <feature.icon className={`w-12 h-12 ${feature.color} mb-4`} />
+                  <h3 className="text-xl font-semibold text-white mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-300">
+                    {feature.description}
+                  </p>
+                </motion.div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Technology Stack */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-xl p-8 mt-16 text-white">
-          <h2 className="text-3xl font-bold mb-8 text-center">🛠️ Technology Stack</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-4xl mb-2">⚛️</div>
-              <div className="font-semibold">Next.js + React</div>
-              <div className="text-sm opacity-90">Frontend Framework</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl mb-2">🗄️</div>
-              <div className="font-semibold">Supabase</div>
-              <div className="text-sm opacity-90">Database & Auth</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl mb-2">🤖</div>
-              <div className="font-semibold">OpenAI GPT</div>
-              <div className="text-sm opacity-90">AI Intelligence</div>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl mb-2">🚀</div>
-              <div className="font-semibold">Vercel</div>
-              <div className="text-sm opacity-90">Deployment</div>
+        {/* Billion Dollar Features Section */}
+        <section className="py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                7 Billion-Dollar AI Features
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                Revolutionary AI capabilities that will transform education
+              </p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {billionDollarFeatures.map((feature, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="group relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-300"
+                >
+                  <div className={`absolute inset-0 ${feature.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
+                  <div className="relative p-8">
+                    <feature.icon className="w-16 h-16 text-white mb-6" />
+                    <h3 className="text-2xl font-bold text-white mb-4">
+                      {feature.title}
+                    </h3>
+                    <p className="text-gray-300 text-lg">
+                      {feature.description}
+                    </p>
+                    <div className="mt-6 flex items-center text-blue-400 font-semibold">
+                      Learn More
+                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
         {/* CTA Section */}
-        <div className="text-center bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl p-12 text-white mt-16">
-          <h2 className="text-4xl font-bold mb-4">Ready to Transform Your Learning?</h2>
-          <p className="text-xl mb-8 opacity-90">
-            Join thousands of learners using AI-powered education to achieve their goals.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/dashboard">
-              <button className="bg-white text-green-600 font-bold py-4 px-8 rounded-lg text-xl hover:bg-gray-100 transition-colors shadow-lg">
-                Get Started Now
-              </button>
-            </Link>
-            <button className="border-2 border-white text-white font-bold py-4 px-8 rounded-lg text-xl hover:bg-white hover:text-green-600 transition-colors">
-              Watch Demo
-            </button>
+        <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                Ready to Transform Your Learning?
+              </h2>
+              <p className="text-xl text-blue-100 mb-8">
+                Join thousands of learners already using OmniMind AI Tutor
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/onboarding">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="bg-white text-blue-600 px-8 py-4 rounded-full text-lg font-semibold flex items-center gap-2 hover:shadow-lg transition-all duration-300"
+                  >
+                    Get Started Free
+                    <ArrowRight className="w-5 h-5" />
+                  </motion.button>
+                </Link>
+                <Link href="/dashboard">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="border-2 border-white text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/10 transition-all duration-300"
+                  >
+                    View Dashboard
+                  </motion.button>
+                </Link>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      </main>
+        </section>
 
-      <footer className="bg-gray-800 text-white py-12 mt-20">
-        <div className="container mx-auto px-4 text-center">
-          <div className="text-4xl font-bold mb-4">🧠 OmniMind AI Tutor</div>
-          <p className="text-gray-400 mb-6">
-            Super-Intelligent AI tutoring platform with 30+ advanced features
-          </p>
-          <div className="flex justify-center space-x-8 text-sm text-gray-400">
-            <span>Powered by Next.js</span>
-            <span>•</span>
-            <span>Supabase</span>
-            <span>•</span>
-            <span>OpenAI</span>
-            <span>•</span>
-            <span>Vercel</span>
+        {/* Footer */}
+        <footer className="bg-black/50 py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <div className="flex justify-center mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-4">OmniMind AI Tutor</h3>
+              <p className="text-gray-400 mb-6">
+                The future of AI-powered education is here
+              </p>
+              <div className="flex justify-center space-x-6">
+                <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">
+                  Terms of Service
+                </Link>
+                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                  Contact
+                </Link>
+              </div>
+            </div>
           </div>
-          <p className="text-sm text-gray-500 mt-6">
-            &copy; 2024 OmniMind AI Tutor. All rights reserved.
-          </p>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </>
   )
 }

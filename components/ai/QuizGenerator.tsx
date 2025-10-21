@@ -1,240 +1,319 @@
-import React, { useState } from 'react'
-import { useOmniMind } from '../../hooks/useOmniMind'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { BookOpen, Clock, CheckCircle, XCircle, RotateCcw, Trophy } from 'lucide-react'
 
-interface QuizGeneratorProps {
-  userId: string
+interface Question {
+  id: string
+  question: string
+  options: string[]
+  correctAnswer: number
+  explanation: string
+  difficulty: 'easy' | 'medium' | 'hard'
 }
 
-export const QuizGenerator: React.FC<QuizGeneratorProps> = ({ userId }) => {
-  const [quizData, setQuizData] = useState({
-    subject: 'mathematics',
-    topic: 'algebra',
-    difficulty_level: 'beginner',
-    question_count: 5,
-    quiz_type: 'multiple_choice'
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [quiz, setQuiz] = useState<any>(null)
-  const [answers, setAnswers] = useState<{ [key: number]: string }>({})
-  const [score, setScore] = useState<number | null>(null)
-  const { generateQuiz } = useOmniMind(userId)
+interface QuizGeneratorProps {
+  subject?: string
+  difficulty?: 'easy' | 'medium' | 'hard'
+  onQuizComplete?: (score: number, total: number) => void
+}
 
-  const handleGenerateQuiz = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
+export default function QuizGenerator({ subject = 'General', difficulty = 'medium', onQuizComplete }: QuizGeneratorProps) {
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [showResult, setShowResult] = useState(false)
+  const [score, setScore] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(30)
+  const [quizComplete, setQuizComplete] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  useEffect(() => {
+    generateQuiz()
+  }, [subject, difficulty])
+
+  useEffect(() => {
+    if (timeLeft > 0 && !showResult && !quizComplete) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
+      return () => clearTimeout(timer)
+    } else if (timeLeft === 0 && !showResult) {
+      handleAnswerSubmit()
+    }
+  }, [timeLeft, showResult, quizComplete])
+
+  const generateQuiz = async () => {
+    setIsGenerating(true)
     try {
-      const result = await generateQuiz(quizData)
-      setQuiz(result)
-      setAnswers({})
-      setScore(null)
+      // Simulate AI quiz generation
+      const generatedQuestions = await generateAIQuestions(subject, difficulty)
+      setQuestions(generatedQuestions)
+      setCurrentQuestion(0)
+      setSelectedAnswer(null)
+      setShowResult(false)
+      setScore(0)
+      setTimeLeft(30)
+      setQuizComplete(false)
     } catch (error) {
       console.error('Error generating quiz:', error)
     } finally {
-      setIsLoading(false)
+      setIsGenerating(false)
     }
   }
 
-  const handleAnswerChange = (questionIndex: number, answer: string) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionIndex]: answer
-    }))
-  }
-
-  const calculateScore = () => {
-    if (!quiz?.quiz?.questions) return
-
-    let correct = 0
-    quiz.quiz.questions.forEach((question: any, index: number) => {
-      if (answers[index] === question.correct_answer) {
-        correct++
+  const generateAIQuestions = async (subject: string, difficulty: string): Promise<Question[]> => {
+    // This would typically call your AI API
+    const sampleQuestions: Question[] = [
+      {
+        id: '1',
+        question: `What is the primary focus of ${subject}?`,
+        options: [
+          'Theoretical concepts',
+          'Practical applications',
+          'Historical context',
+          'Future predictions'
+        ],
+        correctAnswer: 1,
+        explanation: 'This subject primarily focuses on practical applications and real-world usage.',
+        difficulty: difficulty as 'easy' | 'medium' | 'hard'
+      },
+      {
+        id: '2',
+        question: `Which of the following is most important in ${subject}?`,
+        options: [
+          'Memorization',
+          'Understanding concepts',
+          'Following procedures',
+          'Creative thinking'
+        ],
+        correctAnswer: 1,
+        explanation: 'Understanding the underlying concepts is crucial for mastery in this subject.',
+        difficulty: difficulty as 'easy' | 'medium' | 'hard'
+      },
+      {
+        id: '3',
+        question: `How does ${subject} relate to everyday life?`,
+        options: [
+          'It has no practical use',
+          'It only applies to professionals',
+          'It affects many daily activities',
+          'It is purely academic'
+        ],
+        correctAnswer: 2,
+        explanation: 'This subject has wide-ranging applications in daily life and various fields.',
+        difficulty: difficulty as 'easy' | 'medium' | 'hard'
       }
-    })
-    
-    const percentage = Math.round((correct / quiz.quiz.questions.length) * 100)
-    setScore(percentage)
+    ]
+    return sampleQuestions
   }
 
-  return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h3 className="text-xl font-semibold mb-4 flex items-center">
-        🧩 Enhanced Quiz Generator
-        <span className="ml-2 text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
-          AI-Powered
-        </span>
-      </h3>
+  const handleAnswerSelect = (index: number) => {
+    if (showResult || quizComplete) return
+    setSelectedAnswer(index)
+  }
 
-      {!quiz ? (
-        <form onSubmit={handleGenerateQuiz} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Subject
-              </label>
-              <select
-                value={quizData.subject}
-                onChange={(e) => setQuizData(prev => ({ ...prev, subject: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              >
-                <option value="mathematics">Mathematics</option>
-                <option value="programming">Programming</option>
-                <option value="science">Science</option>
-                <option value="language">Language</option>
-                <option value="history">History</option>
-              </select>
-            </div>
+  const handleAnswerSubmit = () => {
+    if (selectedAnswer === null) return
+    
+    setShowResult(true)
+    if (selectedAnswer === questions[currentQuestion].correctAnswer) {
+      setScore(score + 1)
+    }
+  }
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Topic
-              </label>
-              <input
-                type="text"
-                value={quizData.topic}
-                onChange={(e) => setQuizData(prev => ({ ...prev, topic: e.target.value }))}
-                placeholder="e.g., algebra, functions, loops"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
+  const handleNextQuestion = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1)
+      setSelectedAnswer(null)
+      setShowResult(false)
+      setTimeLeft(30)
+    } else {
+      setQuizComplete(true)
+      onQuizComplete?.(score + (selectedAnswer === questions[currentQuestion].correctAnswer ? 1 : 0), questions.length)
+    }
+  }
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Difficulty
-              </label>
-              <select
-                value={quizData.difficulty_level}
-                onChange={(e) => setQuizData(prev => ({ ...prev, difficulty_level: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              >
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
-            </div>
+  const handleRestart = () => {
+    generateQuiz()
+  }
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Question Count
-              </label>
-              <select
-                value={quizData.question_count}
-                onChange={(e) => setQuizData(prev => ({ ...prev, question_count: parseInt(e.target.value) }))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              >
-                <option value={3}>3 Questions</option>
-                <option value={5}>5 Questions</option>
-                <option value={10}>10 Questions</option>
-                <option value={15}>15 Questions</option>
-              </select>
-            </div>
-          </div>
+  if (isGenerating) {
+    return (
+      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg">Generating your personalized quiz...</p>
+        </div>
+      </div>
+    )
+  }
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quiz Type
-            </label>
-            <select
-              value={quizData.quiz_type}
-              onChange={(e) => setQuizData(prev => ({ ...prev, quiz_type: e.target.value }))}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            >
-              <option value="multiple_choice">Multiple Choice</option>
-              <option value="true_false">True/False</option>
-              <option value="fill_blank">Fill in the Blank</option>
-              <option value="short_answer">Short Answer</option>
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+  if (quizComplete) {
+    const percentage = Math.round((score / questions.length) * 100)
+    return (
+      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 h-full">
+        <div className="text-center">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-20 h-20 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6"
           >
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Generating Quiz...
-              </div>
-            ) : (
-              'Generate Quiz'
-            )}
-          </button>
-        </form>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h4 className="text-lg font-semibold">{quiz.quiz?.title || 'Generated Quiz'}</h4>
-            <button
-              onClick={() => setQuiz(null)}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              Generate New Quiz
-            </button>
-          </div>
-
-          {quiz.quiz?.questions?.map((question: any, index: number) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4">
-              <h5 className="font-medium text-gray-800 mb-3">
-                {index + 1}. {question.question}
-              </h5>
-              
-              {question.hint && (
-                <p className="text-sm text-blue-600 mb-3 italic">💡 Hint: {question.hint}</p>
-              )}
-
-              <div className="space-y-2">
-                {question.options?.map((option: string, optionIndex: number) => (
-                  <label key={optionIndex} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name={`question-${index}`}
-                      value={option}
-                      checked={answers[index] === option}
-                      onChange={(e) => handleAnswerChange(index, e.target.value)}
-                      className="text-green-600 focus:ring-green-500"
-                    />
-                    <span className="text-gray-700">{option}</span>
-                  </label>
-                ))}
-              </div>
-
-              {question.reasoning_steps && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                  <h6 className="text-sm font-medium text-gray-700 mb-1">Reasoning Steps:</h6>
-                  <p className="text-sm text-gray-600">{question.reasoning_steps}</p>
-                </div>
-              )}
+            <Trophy className="w-10 h-10 text-white" />
+          </motion.div>
+          
+          <h3 className="text-2xl font-bold text-white mb-2">Quiz Complete!</h3>
+          <p className="text-gray-300 mb-6">Great job on finishing the quiz</p>
+          
+          <div className="bg-white/20 rounded-2xl p-6 mb-6">
+            <div className="text-4xl font-bold text-white mb-2">{score}/{questions.length}</div>
+            <div className="text-lg text-gray-300 mb-4">{percentage}% Correct</div>
+            <div className="w-full bg-white/20 rounded-full h-3">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${percentage}%` }}
+                transition={{ duration: 1, delay: 0.5 }}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full"
+              ></motion.div>
             </div>
-          ))}
-
+          </div>
+          
           <div className="flex space-x-4">
             <button
-              onClick={calculateScore}
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={handleRestart}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2"
             >
-              Submit Answers
-            </button>
-            <button
-              onClick={() => setQuiz(null)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
+              <RotateCcw className="w-5 h-5" />
+              <span>Try Again</span>
             </button>
           </div>
+        </div>
+      </div>
+    )
+  }
 
-          {score !== null && (
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <h5 className="text-lg font-semibold mb-2">Quiz Results</h5>
-              <div className="text-3xl font-bold text-blue-600 mb-2">{score}%</div>
-              <p className="text-gray-600">
-                {score >= 80 ? 'Excellent work! 🎉' : 
-                 score >= 60 ? 'Good job! Keep practicing! 👍' : 
-                 'Keep studying! You can do better! 💪'}
-              </p>
+  if (questions.length === 0) {
+    return (
+      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 h-full flex items-center justify-center">
+        <div className="text-center">
+          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-white text-lg">No questions available</p>
+        </div>
+      </div>
+    )
+  }
+
+  const question = questions[currentQuestion]
+
+  return (
+    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 h-full">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-600 rounded-xl flex items-center justify-center">
+            <BookOpen className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-white">AI Quiz Generator</h3>
+            <p className="text-gray-400">{subject} • {difficulty}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <div className="text-sm text-gray-400">Question {currentQuestion + 1} of {questions.length}</div>
+            <div className="text-lg font-semibold text-white">{score} correct</div>
+          </div>
+          <div className="flex items-center space-x-2 bg-white/20 px-3 py-2 rounded-xl">
+            <Clock className="w-4 h-4 text-white" />
+            <span className="text-white font-semibold">{timeLeft}s</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="bg-white/20 rounded-2xl p-6">
+          <h4 className="text-lg font-semibold text-white mb-4">{question.question}</h4>
+          <div className="space-y-3">
+            {question.options.map((option, index) => (
+              <button
+                key={index}
+                onClick={() => handleAnswerSelect(index)}
+                disabled={showResult}
+                className={`w-full text-left p-4 rounded-xl transition-all duration-300 ${
+                  selectedAnswer === index
+                    ? showResult
+                      ? index === question.correctAnswer
+                        ? 'bg-green-500/20 border-2 border-green-500 text-green-400'
+                        : 'bg-red-500/20 border-2 border-red-500 text-red-400'
+                      : 'bg-blue-500/20 border-2 border-blue-500 text-blue-400'
+                    : showResult && index === question.correctAnswer
+                    ? 'bg-green-500/20 border-2 border-green-500 text-green-400'
+                    : 'bg-white/10 border border-white/20 text-white hover:bg-white/20'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                    selectedAnswer === index
+                      ? showResult
+                        ? index === question.correctAnswer
+                          ? 'border-green-500 bg-green-500'
+                          : 'border-red-500 bg-red-500'
+                        : 'border-blue-500 bg-blue-500'
+                      : showResult && index === question.correctAnswer
+                      ? 'border-green-500 bg-green-500'
+                      : 'border-white/40'
+                  }`}>
+                    {selectedAnswer === index && (
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    )}
+                    {showResult && index === question.correctAnswer && selectedAnswer !== index && (
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                  <span>{option}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {showResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/20 rounded-2xl p-6"
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              {selectedAnswer === question.correctAnswer ? (
+                <CheckCircle className="w-6 h-6 text-green-400" />
+              ) : (
+                <XCircle className="w-6 h-6 text-red-400" />
+              )}
+              <h5 className="text-lg font-semibold text-white">
+                {selectedAnswer === question.correctAnswer ? 'Correct!' : 'Incorrect'}
+              </h5>
             </div>
+            <p className="text-gray-300">{question.explanation}</p>
+          </motion.div>
+        )}
+
+        <div className="flex justify-end">
+          {!showResult ? (
+            <button
+              onClick={handleAnswerSubmit}
+              disabled={selectedAnswer === null}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-8 rounded-xl font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Submit Answer
+            </button>
+          ) : (
+            <button
+              onClick={handleNextQuestion}
+              className="bg-gradient-to-r from-green-500 to-blue-600 text-white py-3 px-8 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
+            >
+              {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+            </button>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
