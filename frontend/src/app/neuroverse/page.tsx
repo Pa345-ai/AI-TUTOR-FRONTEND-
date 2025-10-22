@@ -59,13 +59,13 @@ export default function NeuroVersePage() {
 
   const checkVRARSupport = () => {
     // Check for VR support
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported('immersive-vr').then(setVrSupported)
+    if ('xr' in navigator && navigator.xr) {
+      (navigator as any).xr.isSessionSupported('immersive-vr').then(setVrSupported)
     }
     
     // Check for AR support
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported('immersive-ar').then(setArSupported)
+    if ('xr' in navigator && navigator.xr) {
+      (navigator as any).xr.isSessionSupported('immersive-ar').then(setArSupported)
     }
   }
 
