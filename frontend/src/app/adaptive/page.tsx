@@ -1,0 +1,216 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { MathMarkdown } from "@/components/MathMarkdown";
+import { logLearningEvent, adaptiveNext, adaptiveGrade, fetchPrereqs, fetchNextTopics, setSubjectAbility } from "@/lib/api";
+import { updateLocalMastery, getWeakTopics } from "@/lib/mastery";
+
+type QuizQuestion = {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+};
+
+type Difficulty = "easy" | "medium" | "hard";
+
+export default function AdaptivePracticePage() {
+  return (
+    <Suspense>
+      <AdaptiveInner />
+    </Suspense>
+  );
+}
+
+function AdaptiveInner() {
+  const searchParams = useSearchParams();
+  const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [question, setQuestion] = useState<QuizQuestion | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [result, setResult] = useState<string>("");
+  const [history, setHistory] = useState<Array<{ q: string; correct: boolean }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [weakList, setWeakList] = useState<Array<{ topic: string; accuracy: number }>>([]);
+  const [prereqs, setPrereqs] = useState<string[]>([]);
+  const [nextTopics, setNextTopics] = useState<string[]>([]);
+  const [pCorrect, setPCorrect] = useState<number | null>(null);
+  const [calibrating, setCalibrating] = useState(false);
+  const [calCount, setCalCount] = useState(0);
+  const [calCorrect, setCalCorrect] = useState(0);
+
+  useEffect(() => {
+    const t = searchParams.get('topic');
+    if (t) setTopic(t);
+    // do not auto-start to let user control; could auto if desired
+  }, [searchParams]);
+
+  const nextQuestion = async () => {
+    if (!topic.trim()) return;
+    setLoading(true);
+    setResult("");
+    try {
+      const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+      const data = await adaptiveNext({ userId, topic });
+      const q = data?.question as QuizQuestion | null;
+      setQuestion(q ?? null);
+      if (typeof data?.pCorrect === 'number') setPCorrect(data.pCorrect);
+      else setPCorrect(null);
+      setSelected(null);
+      try {
+        const subj = topic;
+        const [p, n] = await Promise.all([
+          fetchPrereqs({ userId, subject: 'math', topic: subj }),
+          fetchNextTopics({ userId, subject: 'math', topic: subj }),
+        ]);
+        setPrereqs(p.prereqs || []);
+        setNextTopics(n.next || []);
+      } catch {
+        setPrereqs([]);
+        setNextTopics([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submit = async () => {
+    if (!question || selected == null) return;
+    const picked = question.options[selected];
+    const correct = picked === question.correctAnswer;
+    setResult(correct ? "Correct!" : `Incorrect. Answer: ${question.correctAnswer}`);
+    setHistory((prev) => [{ q: question.question, correct }, ...prev].slice(0, 10));
+    // Adjust difficulty adaptively
+    setDifficulty((prev) => {
+      if (correct) return prev === "medium" ? "hard" : prev === "easy" ? "medium" : "hard";
+      return prev === "medium" ? "easy" : prev === "hard" ? "medium" : "easy";
+    });
+    const userId = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+    const graded = await adaptiveGrade({ userId, topic: question.question, correct, difficulty });
+    if (!correct && Array.isArray((graded as any)?.hints) && (graded as any).hints.length > 0) {
+      const h = (graded as any).hints[0];
+      alert(`Hint: ${h.text}${h.source ? `\n(${h.source})` : ''}`);
+    }
+    if (typeof graded?.pCorrect === 'number') setPCorrect(graded.pCorrect);
+    await logLearningEvent({ userId, subject: topic, topic: question.question, correct, difficulty });
+    updateLocalMastery(userId, question.question, correct);
+    const weak = getWeakTopics(userId, 1).slice(0, 5).map(({ topic, accuracy }) => ({ topic, accuracy }));
+    setWeakList(weak);
+    if (calibrating) {
+      setCalCount((c)=>c+1);
+      if (correct) setCalCorrect((x)=>x+1);
+      if (calCount + 1 >= 5) {
+        setCalibrating(false);
+        // Simple baseline feedback
+        const rate = Math.round(((calCorrect + (correct?1:0)) / 5) * 100);
+        alert(`Calibration done. Baseline accuracy ~${rate}%`);
+      } else {
+        await nextQuestion();
+      }
+    }
+  };
+
+  const startCalibration = async () => {
+    if (!topic.trim()) return;
+    setCalibrating(true);
+    setCalCount(0);
+    setCalCorrect(0);
+    await nextQuestion();
+  };
+
+  useEffect(() => {
+    if (!calibrating) return;
+    if (calCount >= 5) {
+      const uid = (typeof window !== "undefined" ? window.localStorage.getItem("userId") : null) || "123";
+      const rate = Math.round((calCorrect / Math.max(1, calCount)) * 100);
+      const subj = topic || 'general';
+      // map accuracy to Elo baseline roughly
+      const rating = 800 + Math.round((rate / 100) * 1200);
+      void setSubjectAbility(uid, subj, rating).catch(()=>{});
+    }
+  }, [calibrating, calCount, calCorrect, topic]);
+
+  return (
+    <div className="mx-auto max-w-3xl w-full p-4 space-y-4">
+      <h1 className="text-xl font-semibold flex items-center gap-2">Adaptive Practice {(() => { try { const v = typeof window !== 'undefined' ? window.localStorage.getItem('ab:adaptive-strategy') : null; if (v === 'A' || v === 'B') return (<span className={`text-[10px] px-1.5 py-0.5 rounded border ${v==='A'?'bg-green-50 border-green-200 text-green-700':'bg-purple-50 border-purple-200 text-purple-700'}`}>Variant {v}</span>); } catch {} })()}</h1>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Topic</label>
+        <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Algebra" />
+      </div>
+      <div className="text-xs text-muted-foreground">Difficulty: {difficulty.toUpperCase()}</div>
+      <div className="flex items-center gap-2">
+        <Button onClick={nextQuestion} disabled={!topic.trim() || loading}>{loading ? "Loading..." : (question ? "Next" : "Start")}</Button>
+        <div className="flex items-center gap-1 ml-1">
+          <span className="text-xs text-muted-foreground">A/B</span>
+          {(['A','B'] as const).map((b) => (
+            <button key={b} className={`h-8 px-2 border rounded-md text-xs ${typeof window!=='undefined' && window.localStorage.getItem('ab:adaptive-strategy')===b ? 'bg-accent' : ''}`} onClick={()=>{ try { if (typeof window !== 'undefined') window.localStorage.setItem('ab:adaptive-strategy', b); } catch {} }}>{b}</button>
+          ))}
+        </div>
+        <Button variant="outline" onClick={startCalibration} disabled={!topic.trim() || calibrating}>Calibrate (5)</Button>
+        {question && <Button variant="outline" onClick={submit} disabled={selected == null}>Submit</Button>}
+      </div>
+      {question && (
+        <div className="space-y-2 border rounded-md p-3">
+          <div className="font-medium prose prose-sm dark:prose-invert max-w-none"><MathMarkdown content={question.question} /></div>
+          {pCorrect !== null && (
+            <div className="text-xs text-muted-foreground">Model p(correct): {(pCorrect * 100).toFixed(0)}%</div>
+          )}
+          <div className="space-y-2">
+            {question.options.map((c, i) => (
+              <label key={i} className="flex items-center gap-2 text-sm">
+                <input type="radio" name="opt" checked={selected === i} onChange={() => setSelected(i)} />
+                <span className="inline-block prose prose-sm dark:prose-invert max-w-none"><MathMarkdown content={c} /></span>
+              </label>
+            ))}
+          </div>
+          {result && <Textarea value={result} readOnly />}
+        </div>
+      )}
+      {(prereqs.length > 0 || nextTopics.length > 0) && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Knowledge Graph</div>
+          {prereqs.length > 0 && (
+            <div className="text-xs">
+              Prerequisites: {prereqs.map((t, i) => (
+                <a key={i} href={`/adaptive?topic=${encodeURIComponent(t)}`} className="underline mr-2">{t}</a>
+              ))}
+            </div>
+          )}
+          {nextTopics.length > 0 && (
+            <div className="text-xs">
+              Next: {nextTopics.map((t, i) => (
+                <a key={i} href={`/adaptive?topic=${encodeURIComponent(t)}`} className="underline mr-2">{t}</a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {history.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Recent</div>
+          <ul className="text-sm space-y-1">
+            {history.map((h, i) => (
+              <li key={i} className={h.correct ? "text-green-600" : "text-red-600"}>
+                {h.correct ? "✓" : "✗"} {h.q}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {weakList.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium">Weak Topics (lowest accuracy)</div>
+          <ul className="text-sm space-y-1">
+            {weakList.map((w, i) => (
+              <li key={i}>{w.topic} — {(w.accuracy * 100).toFixed(0)}%</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

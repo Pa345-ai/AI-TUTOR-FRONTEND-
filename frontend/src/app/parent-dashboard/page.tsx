@@ -1,0 +1,181 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { fetchParentDashboard, generateHomeActivities } from "@/lib/api";
+
+export default function ParentDashboardPage() {
+  const [parentId, setParentId] = useState<string>("p-1");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<{ children: Array<{ userId: string; name?: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> } | null>(null);
+  const [authorized, setAuthorized] = useState(true);
+  const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
+  const [email, setEmail] = useState<string>("");
+  const [digesting, setDigesting] = useState(false);
+  const [activities, setActivities] = useState<Array<{ title: string; description: string; steps: string[]; materials?: string[] }>>([]);
+  const [childForActivities, setChildForActivities] = useState<string>("");
+  const addToast = useCallback((text: string) => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, text }]);
+    window.setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const pid = (typeof window !== 'undefined' ? window.localStorage.getItem('parentId') : null) || parentId;
+      const res = await fetchParentDashboard(pid);
+      setData(res);
+      setAuthorized(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      if (/\b(401|403)\b/.test(msg)) {
+        setAuthorized(false);
+        addToast('Please sign in as a parent to view this dashboard.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [parentId, addToast]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const exportCsv = useCallback(() => {
+    if (!data) return;
+    const rows: string[] = [];
+    rows.push(['userId','name','xp','level','streak','weakTopics','strongTopics'].join(','));
+    for (const s of data.children) {
+      const weak = (s.weak || []).map(w => `${w.topic}(${Math.round(w.accuracy*100)}%)`).join('; ');
+      const strong = (s.strong || []).map(w => `${w.topic}(${Math.round(w.accuracy*100)}%)`).join('; ');
+      rows.push([
+        s.userId,
+        '"' + String(s.name ?? '').replaceAll('"','""') + '"',
+        String(s.progress?.xp ?? 0),
+        String(s.progress?.level ?? 1),
+        String(s.progress?.streak ?? 0),
+        '"' + weak.replaceAll('"','""') + '"',
+        '"' + strong.replaceAll('"','""') + '"',
+      ].join(','));
+    }
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `parent-dashboard-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
+
+  return (
+    <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Parent Dashboard</h1>
+        {authorized && (
+          <div className="flex items-center gap-2">
+            <a className="h-9 px-3 border rounded-md text-sm inline-flex items-center" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/export/parent/${encodeURIComponent(parentId)}.pdf`} target="_blank" rel="noreferrer">Export PDF</a>
+            <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.children?.length ?? 0) === 0}>Export CSV</button>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <input className="h-9 px-2 border rounded-md text-sm" value={parentId} onChange={(e)=>setParentId(e.target.value)} placeholder="Parent ID" />
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Load'}</button>
+        <span className="mx-2">|</span>
+        <input className="h-9 px-2 border rounded-md text-sm" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="Email for weekly digest" />
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={async ()=>{
+          if (!email.trim()) return;
+          setDigesting(true);
+          try {
+            const children = data?.children || [];
+            const body = [
+              `Parent digest for ${new Date().toLocaleDateString()}`,
+              '',
+              ...children.map((c)=> `Child ${c.name || c.userId}: XP ${c.progress?.xp ?? 0}, Lv ${c.progress?.level ?? 1}, Streak ${c.progress?.streak ?? 0}. Weak: ${(c.weak||[]).map(w=>w.topic).join(', ') || '—'}. Strong: ${(c.strong||[]).map(s=>s.topic).join(', ') || '—'}.`)
+            ].join('\n');
+            // best-effort: open mailto with prefilled content; real email service can be wired
+            const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Weekly Learning Digest')}&body=${encodeURIComponent(body)}`;
+            window.location.href = mailto;
+          } finally {
+            setDigesting(false);
+          }
+        }} disabled={digesting || !data || (data.children?.length ?? 0) === 0}>{digesting ? 'Preparing…' : 'Send Weekly Digest'}</button>
+      </div>
+      {error && <div className="text-sm text-red-600">{error}</div>}
+      {data && (
+        <div className="grid gap-3">
+          {data.children.map((s) => (
+            <div key={s.userId} className="border rounded-md p-3">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">Child: {s.name || s.userId}</div>
+                <div className="text-xs text-muted-foreground">XP {s.progress?.xp ?? 0} • Lv {s.progress?.level ?? 1} • Streak {s.progress?.streak ?? 0}</div>
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                <button className="h-7 px-2 border rounded-md" onClick={async ()=>{
+                  setChildForActivities(s.userId);
+                  try {
+                    const lang = (typeof window !== 'undefined' ? window.localStorage.getItem('language') : null) as 'en'|'si'|'ta'|null;
+                    const r = await generateHomeActivities({ childId: s.userId, timeframe: 'weekly', language: lang ?? 'en', count: 3 });
+                    setActivities(r.items || []);
+                  } catch (e) { addToast(e instanceof Error ? e.message : String(e)); }
+                }}>Generate home activities</button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                <div>
+                  <div className="text-sm font-medium">Needs improvement</div>
+                  <ul className="text-sm space-y-1">
+                    {s.weak.length === 0 && <li className="text-xs text-muted-foreground">Not enough data</li>}
+                    {s.weak.map((w,i)=> (
+                      <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Strengths</div>
+                  <ul className="text-sm space-y-1">
+                    {s.strong.length === 0 && <li className="text-xs text-muted-foreground">Not enough data</li>}
+                    {s.strong.map((w,i)=> (
+                      <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              {childForActivities === s.userId && activities.length > 0 && (
+                <div className="mt-2 border rounded-md p-2">
+                  <div className="text-sm font-medium mb-1">At-home activities</div>
+                  <ul className="text-sm space-y-2">
+                    {activities.map((a,i)=> (
+                      <li key={i}>
+                        <div className="font-medium">{a.title}</div>
+                        <div className="text-xs text-muted-foreground">{a.description}</div>
+                        <ol className="list-decimal pl-5 text-xs mt-1 space-y-1">
+                          {a.steps.map((st,j)=> (<li key={j}>{st}</li>))}
+                        </ol>
+                        {a.materials && a.materials.length>0 && (
+                          <div className="text-[11px] mt-1">Materials: {a.materials.join(', ')}</div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {toasts.map((t) => (
+            <div key={t.id} className="max-w-sm text-sm bg-background border rounded-md shadow-md p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>{t.text}</div>
+                <button className="text-xs text-muted-foreground" onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}>Dismiss</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
