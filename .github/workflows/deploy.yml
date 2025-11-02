@@ -14,15 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
         cache: 'npm'
+
     - name: Install dependencies
       run: npm run install:all
+
     - name: Run tests
       run: npm run test
+
     - name: Run linting
       run: npm run lint
 
@@ -43,35 +47,48 @@ jobs:
     - name: Setup Supabase Environment
       env:
         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      run: |
-        echo "Connected to Supabase project"
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      run: echo "🔗 Connected to Supabase project $SUPABASE_PROJECT_REF"
 
     - name: Deploy SQL Schemas
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       run: |
-        for f in ./backend/*.sql; do
+        for f in $(find ./backend -type f -name "*.sql"); do
           echo "Applying schema: $f"
-          supabase db query < "$f"
+          supabase db query < "$f" --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
         done
 
     - name: Run Database Migrations
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       run: |
-        for f in ./supabase/migrations/*.sql; do
+        for f in $(find ./supabase/migrations -type f -name "*.sql"); do
           echo "Running migration: $f"
-          supabase db query < "$f"
+          supabase db query < "$f" --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
         done
 
     - name: Deploy Edge Functions
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       run: |
-        for f in ./supabase/functions/ai/*.ts; do
-          echo "Deploying edge function: $f"
-          supabase functions deploy $(basename "$f" .ts)
+        for f in $(find ./supabase/functions/ai -type f -name "*.ts"); do
+          func=$(basename "$f" .ts)
+          echo "Deploying edge function: $func"
+          supabase functions deploy "$func" --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
         done
 
     - name: Seed Mock Data
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       run: |
         if [ -f ./mock_data/seed.sql ]; then
-          supabase db query < ./mock_data/seed.sql
+          echo "Seeding mock data..."
+          supabase db query < ./mock_data/seed.sql --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
         fi
 
   # =========================================
@@ -81,6 +98,7 @@ jobs:
     needs: deploy-backend
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+
     steps:
     - uses: actions/checkout@v3
 
@@ -92,11 +110,19 @@ jobs:
     - name: Install Dependencies
       run: npm ci
 
-    - name: Deploy Backend API
+    - name: Package Backend API
       run: |
         echo "Packaging backend APIs..."
         zip -r backend-api.zip ./backend/api
-        echo "API endpoints ready for deployment."
+        echo "✅ Backend API packaged successfully."
+
+    - name: Deploy Backend API via Vercel
+      run: |
+        echo "🚀 Deploying Backend API..."
+        vercel deploy ./backend/api --prod --token ${{ secrets.VERCEL_TOKEN }}
+      env:
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
   # =========================================
   # 🚀 DEPLOY FRONTEND (VERCEL)
@@ -105,19 +131,25 @@ jobs:
     needs: [test, deploy-backend-api]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+
     steps:
     - uses: actions/checkout@v3
+
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
         cache: 'npm'
+
     - name: Install Vercel CLI
       run: npm install -g vercel
+
     - name: Install dependencies
       run: npm run install:all
+
     - name: Build application
       run: npm run build
+
     - name: Deploy to Vercel
       run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
       env:
@@ -136,15 +168,19 @@ jobs:
     needs: [test, deploy-backend-api]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+
     steps:
     - uses: actions/checkout@v3
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
+
     - name: Login to Docker Hub
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
+
     - name: Build and push frontend
       uses: docker/build-push-action@v4
       with:
@@ -152,6 +188,7 @@ jobs:
         push: true
         tags: |
           ${{ secrets.DOCKER_USERNAME }}/ai-tutoring-frontend:latest
+
     - name: Build and push backend
       uses: docker/build-push-action@v4
       with:
