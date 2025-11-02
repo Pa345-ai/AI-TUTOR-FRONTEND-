@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
+    "install:all": "npm install"
   },
   "dependencies": {
     "next": "^13.5.0",
