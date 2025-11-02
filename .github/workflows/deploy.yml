@@ -21,6 +21,9 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
+    - name: Set npm registry
+      run: npm config set registry https://registry.npmjs.org/
+
     - name: Install dependencies
       run: npm run install:all
 
@@ -107,6 +110,9 @@ jobs:
       with:
         node-version: '18'
 
+    - name: Set npm registry
+      run: npm config set registry https://registry.npmjs.org/
+
     - name: Install Dependencies
       run: npm ci
 
@@ -140,6 +146,9 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
+
+    - name: Set npm registry
+      run: npm config set registry https://registry.npmjs.org/
 
     - name: Install Vercel CLI
       run: npm install -g vercel
