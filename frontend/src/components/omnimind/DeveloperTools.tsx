@@ -658,8 +658,8 @@ export default function DeveloperTools() {
                 <div className="text-sm text-green-700 mb-2">Create a simple learning module</div>
                 <div className="bg-gray-100 p-3 rounded text-xs font-mono">
                   <div>from omnimind import Plugin</div>
-                  <div>plugin = Plugin("math-tutor")</div>
-                  <div>plugin.add_lesson("algebra")</div>
+                  <div>plugin = Plugin(&quot;math-tutor&quot;)</div>
+                  <div>plugin.add_lesson(&quot;algebra&quot;)</div>
                 </div>
               </div>
               <div className="bg-white p-4 rounded-lg border border-green-200">

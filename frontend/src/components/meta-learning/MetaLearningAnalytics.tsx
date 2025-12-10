@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { BarChart3, TrendingUp, Users, Target, Brain, RefreshCw, Download, Filter, Calendar } from 'lucide-react'
+import { ChartBar, TrendingUp, Users, Target, Brain, ArrowClockwise, Download, Filter, Calendar, Warning } from '@phosphor-icons/react'
 
 interface AnalyticsData {
   totalInsights: number
@@ -196,7 +196,7 @@ export default function MetaLearningAnalytics() {
   if (isLoading) {
     return (
       <div className="p-8 text-center">
-        <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
+        <ArrowClockwise className="w-8 h-8 animate-spin mx-auto mb-4 text-purple-600" />
         <p className="text-gray-600">Loading analytics data...</p>
       </div>
     )
@@ -205,7 +205,7 @@ export default function MetaLearningAnalytics() {
   if (!analyticsData) {
     return (
       <div className="p-8 text-center">
-        <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-500" />
+        <Warning className="w-8 h-8 mx-auto mb-4 text-red-500" />
         <p className="text-gray-600">Failed to load analytics data</p>
       </div>
     )
@@ -246,7 +246,7 @@ export default function MetaLearningAnalytics() {
               onClick={loadAnalyticsData}
               className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
-              <RefreshCw className="w-4 h-4" />
+              <ArrowClockwise className="w-4 h-4" />
               <span>Refresh</span>
             </button>
           </div>
@@ -256,7 +256,7 @@ export default function MetaLearningAnalytics() {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'overview', label: 'Overview', icon: ChartBar },
               { id: 'insights', label: 'Insights Analytics', icon: Brain },
               { id: 'experiments', label: 'Experiment Results', icon: Target },
               { id: 'performance', label: 'Performance Trends', icon: TrendingUp },
@@ -419,7 +419,7 @@ export default function MetaLearningAnalytics() {
             <h3 className="text-lg font-semibold mb-4">Performance Trends Over Time</h3>
             <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
               <div className="text-center text-gray-500">
-                <BarChart3 className="w-12 h-12 mx-auto mb-2" />
+                <ChartBar className="w-12 h-12 mx-auto mb-2" />
                 <p>Performance trend chart would be displayed here</p>
                 <p className="text-sm">Integration with charting library needed</p>
               </div>

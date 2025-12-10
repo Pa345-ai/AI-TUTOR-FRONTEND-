@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Brain, Target, TrendingUp, Clock, Star, Zap, BookOpen, CheckCircle } from 'lucide-react';
+import { Brain, Target, TrendingUp, Clock, Star, Lightning, BookOpen, CheckCircle } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 
@@ -243,7 +243,7 @@ export function AdaptiveLearningEngine({ userId, subject, onPathUpdate, onRecomm
       {insights.length > 0 && (
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg">
           <h3 className="font-semibold mb-2 flex items-center gap-2">
-            <Zap className="h-5 w-5 text-blue-600" />
+            <Lightning className="h-5 w-5 text-blue-600" />
             AI Insights
           </h3>
           <div className="space-y-2">

@@ -430,7 +430,7 @@ export default function MetaLearningInsights() {
 
                   <div>
                     <div className="text-sm font-medium text-gray-700 mb-1">Hypothesis</div>
-                    <p className="text-sm text-gray-600 italic">"{experiment.hypothesis}"</p>
+                    <p className="text-sm text-gray-600 italic">&quot;{experiment.hypothesis}&quot;</p>
                   </div>
 
                   {experiment.results && (
