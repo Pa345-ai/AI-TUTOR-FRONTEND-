@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Eye, Play, Users, Clock, Star, Filter, Search, Globe, Zap, BookOpen, Microscope, Atom, Calculator, Palette } from 'lucide-react'
+import { Eye, Play, Users, Clock, Star, Filter, Search, Globe, Zap, BookOpen, Microscope, Atom, Calculator, Palette, Gear } from '@phosphor-icons/react'
 
 interface VirtualEnvironment {
   id: string
@@ -431,7 +431,7 @@ export default function VirtualEnvironments() {
                       <span>Enter Environment</span>
                     </button>
                     <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                      <Settings className="w-4 h-4" />
+                      <Gear className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

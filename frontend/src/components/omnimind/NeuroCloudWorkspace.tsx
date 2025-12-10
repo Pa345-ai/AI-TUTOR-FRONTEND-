@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Cloud, Brain, Upload, Play, Pause, Settings, Plus, RefreshCw, BarChart3, Target, Database, Cpu, AlertCircle, CheckCircle } from 'lucide-react'
+import { Cloud, Brain, Upload, Play, Pause, Gear, Plus, ArrowClockwise, ChartBar, Target, Database, Cpu, AlertCircle, CheckCircle, Eye, Copy } from '@phosphor-icons/react'
 
 interface AIWorkspace {
   id: string
@@ -699,11 +699,11 @@ export default function NeuroCloudWorkspace() {
 
                   <div className="mt-4 flex space-x-2">
                     <button className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                      <Settings className="w-4 h-4" />
+                      <Gear className="w-4 h-4" />
                       <span>Manage</span>
                     </button>
                     <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                      <BarChart3 className="w-4 h-4" />
+                      <ChartBar className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -795,7 +795,7 @@ export default function NeuroCloudWorkspace() {
                     <span>View Details</span>
                   </button>
                   <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Settings className="w-4 h-4" />
+                    <Gear className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -910,7 +910,7 @@ export default function NeuroCloudWorkspace() {
                     </button>
                   )}
                   <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Settings className="w-4 h-4" />
+                    <Gear className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -1001,10 +1001,10 @@ export default function NeuroCloudWorkspace() {
                     <span>Test Model</span>
                   </button>
                   <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                    <BarChart3 className="w-4 h-4" />
+                    <ChartBar className="w-4 h-4" />
                   </button>
                   <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Settings className="w-4 h-4" />
+                    <Gear className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -1038,7 +1038,7 @@ export default function NeuroCloudWorkspace() {
             <h3 className="text-lg font-semibold mb-4">Training Performance Trends</h3>
             <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
               <div className="text-center text-gray-500">
-                <BarChart3 className="w-12 h-12 mx-auto mb-2" />
+                <ChartBar className="w-12 h-12 mx-auto mb-2" />
                 <p>Training performance charts would be displayed here</p>
                 <p className="text-sm">Integration with charting library needed</p>
               </div>
