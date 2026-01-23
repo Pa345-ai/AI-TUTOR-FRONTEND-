@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Viewer</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    #viewer { position: relative; width: 100%; height: 100%; overflow: auto; background: #F3F4F6; }
+    .canvasWrap { position: relative; margin: 8px auto; box-shadow: 0 1px 2px rgba(0,0,0,0.08); width: fit-content; }
+    .hl { position: absolute; background: rgba(255, 230, 0, 0.35); outline: 1px solid rgba(180, 150, 0, 0.7); pointer-events: none; }
+    #toolbar { position: sticky; top: 0; background: white; padding: 6px; border-bottom: 1px solid #E5E7EB; font: 12px system-ui; display: flex; gap: 8px; align-items: center; }
+    #pageInfo { margin-left: auto; color: #6B7280; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js"></script>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="prev">Prev</button>
+    <button id="next">Next</button>
+    <span id="pageInfo">-/-</span>
+  </div>
+  <div id="viewer"></div>
+  <script>
+    const url = decodeURIComponent(location.hash.slice(1));
+    const viewer = document.getElementById('viewer');
+    let pdfDoc = null; let pageNum = 1; let scale = 1.25; const canvases = [];
+
+    async function renderPage(num) {
+      const page = await pdfDoc.getPage(num);
+      const viewport = page.getViewport({ scale });
+      const wrap = document.createElement('div');
+      wrap.className = 'canvasWrap';
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width; canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      viewer.innerHTML = ''; wrap.appendChild(canvas); viewer.appendChild(wrap);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      canvases[num] = { wrap, canvas, viewport };
+      updateInfo();
+    }
+    function updateInfo() {
+      document.getElementById('pageInfo').textContent = pageNum + '/' + (pdfDoc ? pdfDoc.numPages : '-');
+    }
+    document.getElementById('prev').onclick = () => { if (pageNum > 1) { pageNum--; renderPage(pageNum); } };
+    document.getElementById('next').onclick = () => { if (pdfDoc && pageNum < pdfDoc.numPages) { pageNum++; renderPage(pageNum); } };
+
+    async function init() {
+      if (!url) return;
+      const loadingTask = window['pdfjsLib'].getDocument(url);
+      pdfDoc = await loadingTask.promise; pageNum = 1; renderPage(pageNum);
+    }
+    window.addEventListener('message', async (e) => {
+      const data = e.data || {};
+      if (data.type === 'pdf:setPage' && typeof data.page === 'number') {
+        pageNum = Math.max(1, Math.min(data.page, pdfDoc ? pdfDoc.numPages : data.page));
+        await renderPage(pageNum);
+        if (typeof data.quote === 'string') highlightQuote(data.quote);
+      }
+    });
+    function highlightQuote(quote) {
+      try {
+        const textLayer = document.querySelector('.textLayer');
+        // Fallback: naive overlay — scanning canvas for bounding boxes is complex; use full-width stripe
+        const { wrap, viewport } = canvases[pageNum] || {};
+        if (!wrap || !viewport) return;
+        const stripe = document.createElement('div');
+        stripe.className = 'hl';
+        stripe.style.left = '4px'; stripe.style.right = '4px'; stripe.style.top = '20px'; stripe.style.height = '24px';
+        wrap.appendChild(stripe);
+      } catch {}
+    }
+
+    init();
+  </script>
+</body>
+</html>

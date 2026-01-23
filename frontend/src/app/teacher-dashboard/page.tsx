@@ -1,0 +1,177 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { fetchTeacherDashboard, fetchStudentTrends, fetchStudentSummary, fetchClassGaps } from "@/lib/api";
+
+export default function TeacherDashboardPage() {
+  const [teacherId, setTeacherId] = useState<string>("t-1");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<{ students: Array<{ userId: string; progress?: { xp: number; level: number; streak: number }; weak: Array<{ topic: string; accuracy: number }>; strong: Array<{ topic: string; accuracy: number }> }> } | null>(null);
+  const [authorized, setAuthorized] = useState(true);
+  const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [studentTrend, setStudentTrend] = useState<Array<{ date: string; attempts: number; correct: number }>>([]);
+  const [classId, setClassId] = useState<string>("");
+  const [gaps, setGaps] = useState<Array<{ topic: string; accuracy: number; attempts: number }>>([]);
+
+  const addToast = useCallback((text: string) => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, text }]);
+    window.setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const tid = (typeof window !== 'undefined' ? window.localStorage.getItem('teacherId') : null) || teacherId;
+      const res = await fetchTeacherDashboard(tid);
+      setData(res);
+      setAuthorized(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      if (/\b(401|403)\b/.test(msg)) {
+        setAuthorized(false);
+        addToast('Please sign in as a teacher to view this dashboard.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [teacherId, addToast]);
+
+  const loadStudent = useCallback(async (uid: string) => {
+    try {
+      const t = await fetchStudentTrends(uid, 30);
+      setStudentTrend(t.trends || []);
+    } catch {}
+  }, []);
+
+  const loadGaps = useCallback(async () => {
+    if (!classId.trim()) return;
+    try {
+      const r = await fetchClassGaps(classId.trim());
+      setGaps(r.gaps || []);
+    } catch {}
+  }, [classId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const exportCsv = useCallback(() => {
+    if (!data) return;
+    const rows: string[] = [];
+    rows.push(['userId','xp','level','streak','weakTopics','strongTopics'].join(','));
+    for (const s of data.students) {
+      const weak = (s.weak || []).map(w => `${w.topic}(${Math.round(w.accuracy*100)}%)`).join('; ');
+      const strong = (s.strong || []).map(w => `${w.topic}(${Math.round(w.accuracy*100)}%)`).join('; ');
+      rows.push([
+        s.userId,
+        String(s.progress?.xp ?? 0),
+        String(s.progress?.level ?? 1),
+        String(s.progress?.streak ?? 0),
+        '"' + weak.replaceAll('"','""') + '"',
+        '"' + strong.replaceAll('"','""') + '"',
+      ].join(','));
+    }
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `teacher-dashboard-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
+
+  return (
+    <div className="mx-auto max-w-4xl w-full p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Teacher Dashboard</h1>
+        {authorized && (
+          <div className="flex items-center gap-2">
+            <a className="h-9 px-3 border rounded-md text-sm inline-flex items-center" href={`${process.env.NEXT_PUBLIC_BASE_URL}/api/export/teacher/${encodeURIComponent(teacherId)}.pdf`} target="_blank" rel="noreferrer">Export PDF</a>
+            <button className="h-9 px-3 border rounded-md text-sm" onClick={exportCsv} disabled={!data || (data.students?.length ?? 0) === 0}>Export CSV</button>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <input className="h-9 px-2 border rounded-md text-sm" value={teacherId} onChange={(e)=>setTeacherId(e.target.value)} placeholder="Teacher ID" />
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Load'}</button>
+        <input className="h-9 px-2 border rounded-md text-sm" value={classId} onChange={(e)=>setClassId(e.target.value)} placeholder="Class ID (optional)" />
+        <button className="h-9 px-3 border rounded-md text-sm" onClick={loadGaps}>Load class gaps</button>
+      </div>
+      {error && <div className="text-sm text-red-600">{error}</div>}
+      {data && (
+        <div className="grid gap-3">
+          {data.students.map((s) => (
+            <div key={s.userId} className="border rounded-md p-3">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">Student: {s.userId}</div>
+                <div className="text-xs text-muted-foreground">XP {s.progress?.xp ?? 0} • Lv {s.progress?.level ?? 1} • Streak {s.progress?.streak ?? 0}</div>
+              </div>
+              <div className="mt-1 text-xs"><button className="h-6 px-2 border rounded" onClick={()=>{ setSelectedStudent(s.userId); void loadStudent(s.userId); }}>Open drill‑down</button></div>
+              <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                <div>
+                  <div className="text-sm font-medium">Weak topics</div>
+                  <ul className="text-sm space-y-1">
+                    {s.weak.length === 0 && <li className="text-xs text-muted-foreground">Not enough data</li>}
+                    {s.weak.map((w,i)=> (
+                      <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Strong topics</div>
+                  <ul className="text-sm space-y-1">
+                    {s.strong.length === 0 && <li className="text-xs text-muted-foreground">Not enough data</li>}
+                    {s.strong.map((w,i)=> (
+                      <li key={i}>{w.topic} — {(w.accuracy*100).toFixed(0)}%</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              {selectedStudent===s.userId && (
+                <div className="mt-3 border rounded p-2">
+                  <div className="text-sm font-medium">Trend — {s.userId}</div>
+                  {studentTrend.length===0 ? (<div className="text-xs text-muted-foreground">No data</div>) : (
+                    <svg viewBox="0 0 320 120" className="w-full border rounded bg-white">
+                      <line x1="30" y1="100" x2="310" y2="100" stroke="#94a3b8" />
+                      <line x1="30" y1="20" x2="30" y2="100" stroke="#94a3b8" />
+                      {studentTrend.map((p,i)=>{
+                        const acc = Math.round((p.correct/Math.max(1,p.attempts))*100);
+                        if (i===0) return null; const x = 30 + (i/(studentTrend.length-1))*280; const y = 100 - (Math.min(100, Math.max(0, acc))*0.8);
+                        const prev = Math.round((studentTrend[i-1].correct/Math.max(1,studentTrend[i-1].attempts))*100);
+                        const x0 = 30 + ((i-1)/(studentTrend.length-1))*280; const y0 = 100 - (Math.min(100, Math.max(0, prev))*0.8);
+                        return <path key={i} d={`M ${x0} ${y0} L ${x} ${y}`} stroke="#2563eb" strokeWidth="2" fill="none" />
+                      })}
+                    </svg>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {gaps.length>0 && (
+        <div className="border rounded-md p-3">
+          <div className="text-sm font-medium">Class-level gap analysis</div>
+          <ul className="text-xs grid gap-1">
+            {gaps.map((g,i)=> (<li key={i} className="flex items-center justify-between"><span>{g.topic}</span><span>{Math.round(g.accuracy*100)}% ({g.attempts})</span></li>))}
+          </ul>
+        </div>
+      )}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+          {toasts.map((t) => (
+            <div key={t.id} className="max-w-sm text-sm bg-background border rounded-md shadow-md p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>{t.text}</div>
+                <button className="text-xs text-muted-foreground" onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}>Dismiss</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

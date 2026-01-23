@@ -1,0 +1,207 @@
+name: Deploy Full AI Tutoring App (Frontend + Backend)
+
+on:
+  push:
+    branches: [ main, develop, cursor/complete-ai-tutoring-app-frontend-b660 ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # =========================================
+  # ✅ TEST JOB
+  # =========================================
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Set npm registry
+      run: npm config set registry https://registry.npmjs.org/
+
+    - name: Install dependencies
+      run: npm run install:all
+
+    - name: Run tests
+      run: npm run test
+
+    - name: Run linting
+      run: npm run lint
+
+  # =========================================
+  # ⚙️ DEPLOY BACKEND (SUPABASE)
+  # =========================================
+  deploy-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Supabase CLI
+      run: npm install -g supabase
+
+    - name: Setup Supabase Environment
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      run: echo "🔗 Connected to Supabase project $SUPABASE_PROJECT_REF"
+
+    - name: Deploy SQL Schemas
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      run: |
+        for f in $(find ./backend -type f -name "*.sql"); do
+          echo "Applying schema: $f"
+          supabase db query < "$f" --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
+        done
+
+    - name: Run Database Migrations
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      run: |
+        for f in $(find ./supabase/migrations -type f -name "*.sql"); do
+          echo "Running migration: $f"
+          supabase db query < "$f" --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
+        done
+
+    - name: Deploy Edge Functions
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      run: |
+        for f in $(find ./supabase/functions/ai -type f -name "*.ts"); do
+          func=$(basename "$f" .ts)
+          echo "Deploying edge function: $func"
+          supabase functions deploy "$func" --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
+        done
+
+    - name: Seed Mock Data
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      run: |
+        if [ -f ./mock_data/seed.sql ]; then
+          echo "Seeding mock data..."
+          supabase db query < ./mock_data/seed.sql --project-ref $SUPABASE_PROJECT_REF --access-token $SUPABASE_ACCESS_TOKEN
+        fi
+
+  # =========================================
+  # 🧠 DEPLOY BACKEND API ENDPOINTS (NODE)
+  # =========================================
+  deploy-backend-api:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Set npm registry
+      run: npm config set registry https://registry.npmjs.org/
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Package Backend API
+      run: |
+        echo "Packaging backend APIs..."
+        zip -r backend-api.zip ./backend/api
+        echo "✅ Backend API packaged successfully."
+
+    - name: Deploy Backend API via Vercel
+      run: |
+        echo "🚀 Deploying Backend API..."
+        vercel deploy ./backend/api --prod --token ${{ secrets.VERCEL_TOKEN }}
+      env:
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # =========================================
+  # 🚀 DEPLOY FRONTEND (VERCEL)
+  # =========================================
+  deploy-frontend:
+    needs: [test, deploy-backend-api]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Set npm registry
+      run: npm config set registry https://registry.npmjs.org/
+
+    - name: Install Vercel CLI
+      run: npm install -g vercel
+
+    - name: Install dependencies
+      run: npm run install:all
+
+    - name: Build application
+      run: npm run build
+
+    - name: Deploy to Vercel
+      run: vercel --prod --token ${{ secrets.VERCEL_TOKEN }}
+      env:
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+
+  # =========================================
+  # 🐳 OPTIONAL: DEPLOY VIA DOCKER
+  # =========================================
+  deploy-docker:
+    needs: [test, deploy-backend-api]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push frontend
+      uses: docker/build-push-action@v4
+      with:
+        context: ./frontend
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/ai-tutoring-frontend:latest
+
+    - name: Build and push backend
+      uses: docker/build-push-action@v4
+      with:
+        context: ./backend
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/ai-tutoring-backend:latest
